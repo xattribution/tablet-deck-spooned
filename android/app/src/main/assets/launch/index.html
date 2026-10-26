@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Tablet Deck</title>
+<!--
+  Launch screen of the Android app: pick a PC heard on the network (or type its address),
+  enter the pairing code shown on the PC, then the app loads the deck from that PC.
+  Domain read:
+  - Used once per PC and on every app start, on a tablet propped by a gaming PC, often in a dim room.
+  - The job is "get to my deck": the PC list is the first screen; a remembered PC skips it.
+  - Players read the deck's cockpit labels: condensed caps, amber accent, dark ground (docs/DESIGN.md).
+  - The pairing code is 8 characters copied by eye from the PC screen, so it gets
+    one monospace cell per character, split 4 + 4 like the PC shows it (the signature element).
+  - Addresses are compared character by character with what the PC shows: monospace.
+-->
+<style>
+  :root {
+    --bg: #0A111C;          /* ground, same as the window and splash */
+    --surface: #111B2A;     /* code cells */
+    --surface-2: #1A283D;   /* pressed rows and buttons */
+    --rule: #26364E;        /* dividers */
+    --ink: #D7E3F4;
+    --ink-2: #8A9BB3;       /* addresses, notes */
+    --accent: #E8B53D;      /* the one interactive color: primary button, focus, current cell */
+    --accent-down: #C99A2E; /* primary button while pressed */
+    --on-accent: #0A111C;
+    --bad: #F0796E;         /* errors only */
+    --f-label: "Barlow Condensed", "Roboto Condensed", "sans-serif-condensed", "Arial Narrow", sans-serif;
+    --f-body: "Barlow", Roboto, "Segoe UI", sans-serif; /* ledger: Roboto is the platform face on Android; nothing to download */
+    --f-mono: "Roboto Mono", "Droid Sans Mono", "DejaVu Sans Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); }
+  body {
+    display: flex; flex-direction: column; min-height: 100vh;
+    font: 400 17px/1.45 var(--f-body);
+    -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
+    -webkit-user-select: none; user-select: none; overscroll-behavior: none;
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, .host:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .mono { font-family: var(--f-mono); }
+
+  .bar {
+    display: flex; align-items: center; justify-content: space-between; flex: none;
+    height: 56px; padding: env(safe-area-inset-top) 24px 0; border-bottom: 1px solid var(--rule);
+  }
+  /* ledger: caps wordmark, the deck's own header style */
+  .mark { font: 700 18px/1 var(--f-label); letter-spacing: .14em; text-transform: uppercase; }
+  .ver { font: 400 14px/1 var(--f-mono); color: var(--ink-2); }
+
+  main { flex: 1; width: 100%; max-width: 720px; margin: 0 auto; padding: clamp(16px, 6vh, 64px) 24px 32px; }
+  /* ledger: condensed caps headings match the deck's cockpit labels */
+  h1 { margin: 0 0 20px; font: 600 34px/1.1 var(--f-label); letter-spacing: .04em; text-transform: uppercase; overflow-wrap: anywhere; }
+
+  /* ---- PC list ---- */
+  .hosts { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+  .host {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 16px;
+    width: 100%; min-height: 80px; padding: 12px 16px; background: none; border: 0;
+    border-bottom: 1px solid var(--rule); text-align: left;
+  }
+  /* O1: pressed row is a solid neutral step plus a solid accent bar */
+  .host:active { background: var(--surface-2); box-shadow: inset 4px 0 0 var(--accent); }
+  .h-name { display: block; font: 600 26px/1.15 var(--f-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-addr { display: block; margin-top: 2px; font: 400 15px/1.3 var(--f-mono); color: var(--ink-2); }
+  /* ledger: caps status words, short column labels */
+  .h-side { text-align: right; font: 600 15px/1.3 var(--f-label); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+  .h-side b { display: block; font-weight: 600; color: var(--ink); }
+  .h-ver { font: 400 14px/1.3 var(--f-mono); letter-spacing: 0; text-transform: none; }
+
+  .empty { padding: 28px 16px 8px; }
+  .empty p { margin: 0; max-width: 46ch; }
+  .e-title { font: 600 22px/1.2 var(--f-label); letter-spacing: .04em; text-transform: uppercase; }
+  .e-note { margin-top: 6px !important; color: var(--ink-2); }
+
+  /* ledger: indeterminate bar; motion shows a real search or connection in progress */
+  .scan { position: relative; height: 3px; margin-bottom: 20px; background: var(--rule); overflow: hidden; }
+  .scan i { position: absolute; inset: 0 auto 0 0; width: 28%; background: var(--accent); animation: scan-loader 1.6s ease-in-out infinite; }
+  @keyframes scan-loader { from { transform: translateX(-100%); } to { transform: translateX(360%); } }
+
+  .err {
+    margin: 0 0 20px; padding: 12px 16px; background: var(--bad); color: #fff;
+  }
+  .err b { color: #fff; font-weight: 700; }
+
+  .secondary, .quiet, .primary {
+    min-height: 60px; padding: 0 28px; border-radius: 4px;
+    font: 700 19px/1 var(--f-label); letter-spacing: .1em; text-transform: uppercase; /* ledger: deck button labels */
+  }
+  .secondary { width: 100%; margin-top: 24px; background: none; border: 1px solid var(--rule); }
+  .secondary:active, .quiet:active { background: var(--surface-2); }
+  .primary { background: var(--accent); color: var(--on-accent); border: 0; }
+  .primary:active { background: var(--accent-down); }
+  .primary:disabled { background: var(--surface-2); color: var(--ink-2); }
+  .quiet { background: none; border: 1px solid var(--rule); }
+
+  /* ---- code and address ---- */
+  .back {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 56px; margin: -12px 0 4px -12px; padding: 0 12px;
+    background: none; border: 0; border-radius: 4px; color: var(--ink-2);
+    font: 600 18px/1 var(--f-label); letter-spacing: .08em; text-transform: uppercase;
+  }
+  .back:active { background: var(--surface-2); color: var(--ink); }
+  .back svg { width: 18px; height: 18px; }
+  .sub { margin: -12px 0 24px; font: 400 15px/1.3 var(--f-mono); color: var(--ink-2); }
+
+  .lbl { position: relative; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; color: var(--ink-2); }
+  .lbl label { font: 600 17px/1 var(--f-label); letter-spacing: .1em; text-transform: uppercase; }
+  .info {
+    width: 28px; height: 28px; padding: 0; border: 1px solid currentColor; border-radius: 50%;
+    background: none; color: var(--ink-2); font: 600 14px/1 var(--f-body); cursor: help; position: relative;
+  }
+  .info::after { content: ""; position: absolute; inset: -14px; } /* 56 px touch target around the small mark */
+  [role="tooltip"] {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 10; max-width: 34ch;
+    padding: 8px 10px; background: var(--ink); color: var(--bg); font-size: 15px; visibility: hidden;
+  }
+  .info:hover + [role="tooltip"], .info:focus + [role="tooltip"] { visibility: visible; }
+
+  .code { position: relative; max-width: 620px; }
+  .cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) 10px repeat(4, minmax(0, 1fr)); column-gap: 8px; }
+  .cell {
+    display: flex; align-items: center; justify-content: center; height: 84px;
+    background: var(--surface); border-bottom: 3px solid var(--rule);
+    font: 500 clamp(28px, 5.5vw, 44px)/1 var(--f-mono);
+  }
+  .code.focus .cell.cur { border-bottom-color: var(--accent); }
+  .code input {
+    position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0;
+    border: 0; outline: 0; background: transparent; color: transparent; caret-color: transparent;
+    font-size: 16px; -webkit-user-select: text; user-select: text;
+  }
+  .code input::selection { background: transparent; }
+  .field {
+    width: 100%; max-width: 620px; height: 72px; padding: 0 18px; border: 0; border-bottom: 3px solid var(--rule);
+    border-radius: 0; background: var(--surface); color: var(--ink); outline: 0;
+    font: 500 30px/1 var(--f-mono); -webkit-user-select: text; user-select: text;
+  }
+  .field:focus { border-bottom-color: var(--accent); }
+  .field::placeholder { color: var(--ink-2); opacity: .6; }
+  .hint { min-height: 24px; margin: 8px 0 0; color: var(--bad); }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+
+  /* ---- connecting ---- */
+  #v-conn .scan { max-width: 620px; margin: 8px 0 28px; }
+  #cancel.wait { visibility: hidden; }
+
+  /* Keyboard up on a landscape tablet: keep the field and the button above it. */
+  @media (max-height: 540px) {
+    .bar { height: 44px; }
+    main { padding-top: 8px; }
+    h1 { font-size: 28px; margin-bottom: 12px; }
+    .sub { margin-bottom: 12px; }
+    .cell { height: 64px; }
+    .field { height: 60px; }
+    .actions { margin-top: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scan i { animation: none; width: 100%; opacity: .5; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <span class="mark">Tablet Deck</span>
+  <span class="ver" id="ver"></span>
+</header>
+
+<main>
+  <section class="view" id="v-list">
+    <h1>Choose a PC</h1>
+    <p class="err" id="err" role="alert" hidden></p>
+    <ul class="hosts" id="hosts"></ul>
+    <div class="empty" id="empty">
+      <div class="scan"><i></i></div>
+      <p class="e-title">Searching this network</p>
+      <p class="e-note">Start Tablet Deck on your PC. The tablet and the PC need to be on the same network.</p>
+    </div>
+    <button class="secondary" id="manual" type="button">Enter address</button>
+  </section>
+
+  <section class="view" id="v-code" hidden>
+    <button class="back" type="button" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>PCs</button>
+    <h1 id="c-name"></h1>
+    <p class="sub" id="c-addr"></p>
+    <div class="lbl">
+      <label for="code">Pairing code</label>
+      <button class="info" type="button" aria-label="Where to find the pairing code" aria-describedby="code-tip">i</button>
+      <span role="tooltip" id="code-tip">Shown in the Tablet Deck window on your PC, and in its QR code.</span>
+    </div>
+    <div class="code" id="code-box">
+      <div class="cells" aria-hidden="true">
+        <span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span>
+      </div>
+      <input id="code" type="text" inputmode="text" maxlength="8" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
+    </div>
+    <div class="actions">
+      <button class="primary" id="go" type="button" disabled>Connect</button>
+      <button class="quiet" id="skip" type="button">Already paired</button>
+    </div>
+  </section>
+
+  <section class="view" id="v-addr" hidden>
+    <button class="back" type="button" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>PCs</button>
+    <h1>Enter address</h1>
+    <div class="lbl">
+      <label for="addr">PC address</label>
+      <button class="info" type="button" aria-label="Where to find the address" aria-describedby="addr-tip">i</button>
+      <span role="tooltip" id="addr-tip">Shown in the Tablet Deck window on your PC. The port is 47615 unless you changed it.</span>
+    </div>
+    <input class="field" id="addr" type="text" inputmode="url" placeholder="192.168.1.20:47615" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next">
+    <p class="hint" id="addr-hint" role="alert"></p>
+    <div class="actions">
+      <button class="primary" id="addr-go" type="button">Next</button>
+    </div>
+  </section>
+
+  <section class="view" id="v-conn" hidden>
+    <h1 id="conn-title"></h1>
+    <p class="sub" id="conn-addr"></p>
+    <div class="scan"><i></i></div>
+    <button class="quiet wait" id="cancel" type="button">Cancel</button>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+  const N = window.TabletDeckNative || null;
+  const DECK_PORT = 47615;
+  const $ = id => document.getElementById(id);
+  const json = (s, d) => { try { const v = JSON.parse(s); return v == null ? d : v; } catch (e) { return d; } };
+  const call = (fn, ...a) => { try { return N && N[fn] ? N[fn](...a) : undefined; } catch (e) { return undefined; } };
+  const haptic = k => call('haptic', k);
+
+  let view = 'list';
+  let hosts = json(call('hosts'), []);
+  if (!Array.isArray(hosts)) hosts = [];
+  let last = json(call('lastHost'), null);
+  let picked = null;
+  let cancelTimer = 0;
+
+  const info = json(call('info'), {});
+  $('ver').textContent = info.version ? 'v' + info.version : '';
+
+  function show(v) {
+    view = v;
+    for (const s of document.querySelectorAll('.view')) s.hidden = s.id !== 'v-' + v;
+    if (v !== 'conn') { clearTimeout(cancelTimer); }
+    window.scrollTo(0, 0);
+  }
+
+  const addrOf = h => (String(h.ip).includes(':') ? '[' + h.ip + ']' : h.ip) + ':' + h.port;
+  const isLast = h => !!last && ((last.id && h.id === last.id) || (h.ip === last.ip && h.port === last.port));
+
+  // ---------- list ----------
+  function render() {
+    const ul = $('hosts');
+    const rows = hosts.slice();
+    const lastSeen = last && rows.some(isLast);
+    if (last && !lastSeen) rows.unshift(Object.assign({ unseen: true }, last));
+    ul.replaceChildren(...rows.map(h => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'host';
+      const main = document.createElement('span');
+      const name = document.createElement('span');
+      name.className = 'h-name';
+      name.textContent = h.name || h.ip;
+      const addr = document.createElement('span');
+      addr.className = 'h-addr';
+      addr.textContent = addrOf(h);
+      main.append(name, addr);
+      const side = document.createElement('span');
+      side.className = 'h-side';
+      if (isLast(h)) {
+        const t = document.createElement('b');
+        t.textContent = 'Last used';
+        side.append(t);
+      }
+      if (h.unseen) side.append('Not found');
+      else if (h.ver) {
+        const v = document.createElement('span');
+        v.className = 'h-ver';
+        v.textContent = 'v' + h.ver;
+        side.append(v);
+      }
+      b.append(main, side);
+      b.addEventListener('click', () => pick(h));
+      li.append(b);
+      return li;
+    }));
+    ul.hidden = rows.length === 0;
+    $('empty').hidden = hosts.length > 0;
+  }
+
+  function setError(name, addr) {
+    const e = $('err');
+    if (!name) { e.hidden = true; e.replaceChildren(); return; }
+    const b = document.createElement('b');
+    b.textContent = "Couldn't reach " + name;
+    const a = document.createElement('span');
+    a.className = 'mono';
+    a.textContent = addr || '';
+    e.replaceChildren(b, addr ? ' at ' : '', a, '. Check that Tablet Deck is running on the PC and that both are on the same network.');
+    e.hidden = false;
+  }
+
+  function pick(h) {
+    haptic('tap');
+    setError(null);
+    // The remembered PC already has a device token on this tablet: no code needed.
+    if (isLast(h)) return connect(Object.assign({}, h, { id: last.id || h.id }), '');
+    picked = h;
+    openCode();
+  }
+
+  // ---------- code ----------
+  const codeIn = $('code');
+  const cells = [...document.querySelectorAll('.cell')];
+
+  function openCode() {
+    $('c-name').textContent = picked.name || picked.ip;
+    $('c-addr').textContent = addrOf(picked);
+    codeIn.value = '';
+    paintCode();
+    show('code');
+    codeIn.focus();
+  }
+
+  function paintCode() {
+    const v = codeIn.value;
+    cells.forEach((c, i) => { c.textContent = v[i] || ''; c.classList.toggle('cur', i === Math.min(v.length, 7)); });
+    $('go').disabled = v.length !== 8;
+  }
+
+  codeIn.addEventListener('input', () => {
+    const v = codeIn.value.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
+    if (v !== codeIn.value) codeIn.value = v;
+    paintCode();
+    haptic('tick');
+    if (v.length === 8) setTimeout(() => { if (codeIn.value.length === 8 && view === 'code') submitCode(); }, 180);
+  });
+  codeIn.addEventListener('focus', () => $('code-box').classList.add('focus'));
+  codeIn.addEventListener('blur', () => $('code-box').classList.remove('focus'));
+  codeIn.addEventListener('keydown', e => { if (e.key === 'Enter' && codeIn.value.length === 8) submitCode(); });
+  // Keep the caret at the end so the cells always match what's typed.
+  codeIn.addEventListener('click', () => { const n = codeIn.value.length; codeIn.setSelectionRange(n, n); });
+
+  function submitCode() { haptic('press'); connect(picked, codeIn.value); }
+  $('go').addEventListener('click', submitCode);
+  $('skip').addEventListener('click', () => { haptic('tap'); connect(picked, ''); });
+
+  // ---------- address ----------
+  function parseAddr(s) {
+    s = s.trim().replace(/^[a-z]+:\/\//i, '').replace(/[/?#].*$/, '');
+    let host = s, port = DECK_PORT;
+    const v6 = s.match(/^\[([0-9a-f:.]+)\](?::(\d+))?$/i);
+    if (v6) { host = v6[1]; if (v6[2]) port = +v6[2]; }
+    else {
+      const m = s.match(/^([a-z0-9.-]+)(?::(\d+))?$/i);
+      if (!m) return null;
+      host = m[1];
+      if (m[2]) port = +m[2];
+    }
+    if (!host || !(port >= 1 && port <= 65535)) return null;
+    return { id: 'manual:' + host + ':' + port, name: host, ip: host, port };
+  }
+
+  function submitAddr() {
+    const h = parseAddr($('addr').value);
+    if (!h) { haptic('error'); $('addr-hint').textContent = 'Enter an address like 192.168.1.20:47615'; return; }
+    haptic('tap');
+    $('addr-hint').textContent = '';
+    if (isLast(h)) return connect(Object.assign({}, h, { id: last.id, name: last.name }), '');
+    picked = h;
+    openCode();
+  }
+  $('manual').addEventListener('click', () => {
+    haptic('tap');
+    setError(null);
+    $('addr-hint').textContent = '';
+    show('addr');
+    $('addr').focus();
+  });
+  $('addr-go').addEventListener('click', submitAddr);
+  $('addr').addEventListener('keydown', e => { if (e.key === 'Enter') submitAddr(); });
+
+  // ---------- connecting ----------
+  function showConnecting(name, addr) {
+    $('conn-title').textContent = 'Connecting to ' + name + '…';
+    $('conn-addr').textContent = addr || '';
+    $('cancel').classList.add('wait');
+    show('conn');
+    if (document.activeElement) document.activeElement.blur();
+    clearTimeout(cancelTimer);
+    cancelTimer = setTimeout(() => $('cancel').classList.remove('wait'), 4000);
+  }
+
+  function connect(h, code) {
+    showConnecting(h.name || h.ip, addrOf(h));
+    call('connect', String(h.ip), Number(h.port), code || '', h.id || '', h.name || '');
+  }
+
+  $('cancel').addEventListener('click', () => {
+    haptic('tap');
+    call('disconnect');
+    show('list');
+  });
+
+  // ---------- from the app ----------
+  window.onHosts = list => {
+    if (typeof list === 'string') list = json(list, []);
+    hosts = Array.isArray(list) ? list : [];
+    last = json(call('lastHost'), last);
+    render();
+  };
+  window.onConnectFailed = r => {
+    if (typeof r === 'string') r = json(r, {});
+    haptic('error');
+    last = json(call('lastHost'), last);
+    setError((r && r.name) || 'the PC', r && r.addr);
+    render();
+    show('list');
+  };
+  // Hardware back: step back inside the launch page first.
+  window.TabletDeckApp = {
+    back() {
+      if (view === 'code' || view === 'addr') { show('list'); return true; }
+      if (view === 'conn') { call('disconnect'); show('list'); return true; }
+      return false;
+    }
+  };
+  for (const b of document.querySelectorAll('[data-back]')) b.addEventListener('click', () => { haptic('tap'); show('list'); });
+
+  // ---------- start ----------
+  render();
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (p.has('connecting')) showConnecting(p.get('connecting'), p.get('addr'));
+  else if (p.has('error')) setError(p.get('error'), p.get('addr'));
+})();
+</script>
+</body>
+</html>

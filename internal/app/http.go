@@ -35,7 +35,9 @@ func jsonErr(w http.ResponseWriter, status int, msg string) {
 // guestPaths are all the guest port answers: share links and what their deck needs.
 func guestPath(p string) bool {
 	switch {
-	case p == "/gws", p == "/layout.json", p == "/sw.js", strings.HasPrefix(p, "/g/"):
+	case p == "/gws", p == "/layout.json", p == "/sw.js", p == "/sw-app.js", strings.HasPrefix(p, "/g/"):
+		return true
+	case strings.HasPrefix(p, "/assets/") && !strings.Contains(p, ".."): // the tablet app's files
 		return true
 	case p == "/" || strings.Contains(p, "..") || strings.HasPrefix(p, "/editor") || strings.HasPrefix(p, "/control") ||
 		strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/showcase") || p == "/mcp":
@@ -80,7 +82,33 @@ func (a *App) routes(guest bool) http.Handler {
 		}
 		a.serveFile(w, r, "control.html")
 	})
-	mux.HandleFunc("/g/", func(w http.ResponseWriter, r *http.Request) { a.serveFile(w, r, "index.html") })
+	mux.HandleFunc("/g/", func(w http.ResponseWriter, r *http.Request) { a.serveFile(w, r, a.deckPage()) })
+	// The old deck stays at /legacy/ while the tablet app takes over /.
+	mux.HandleFunc("/legacy/", func(w http.ResponseWriter, r *http.Request) { a.serveFile(w, r, "index.html") })
+	mux.HandleFunc("/legacy", func(w http.ResponseWriter, r *http.Request) { a.serveFile(w, r, "index.html") })
+	mux.HandleFunc("/assets/", func(w http.ResponseWriter, r *http.Request) {
+		name := "app" + r.URL.Path // app/assets/<hashed file>
+		if strings.Contains(r.URL.Path, "..") || !fileExists(a.Public, name) {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable") // names change with content
+		http.ServeFileFS(w, r, a.Public, name)
+	})
+	for _, f := range []string{"/app.webmanifest", "/sw-app.js"} { // the tablet app ships its own
+		mux.HandleFunc(f, func(w http.ResponseWriter, r *http.Request) {
+			name := "app" + r.URL.Path
+			if !fileExists(a.Public, name) {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Cache-Control", "no-cache")
+			if strings.HasSuffix(name, ".js") {
+				w.Header().Set("Service-Worker-Allowed", "/")
+			}
+			http.ServeFileFS(w, r, a.Public, name)
+		})
+	}
 	mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
 		// The service worker may control the whole site, including share links.
 		w.Header().Set("Service-Worker-Allowed", "/")
@@ -96,6 +124,10 @@ func (a *App) routes(guest bool) http.Handler {
 		w.Header().Set("Cache-Control", "no-cache")
 		if strings.HasPrefix(r.URL.Path, "/layouts/") { // the deck's demo mode
 			layoutFiles.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/" && a.hasApp() {
+			a.serveFile(w, r, appPage)
 			return
 		}
 		files.ServeHTTP(w, r)
@@ -116,6 +148,25 @@ func (a *App) routes(guest bool) http.Handler {
 	})
 }
 
+// appPage is the tablet app (built from web/ into public/app/). Until it is built,
+// the old deck in public/index.html is the deck.
+const appPage = "app/index.html"
+
+func (a *App) hasApp() bool { return fileExists(a.Public, appPage) }
+
+// deckPage is the page a tablet or share link opens.
+func (a *App) deckPage() string {
+	if a.hasApp() {
+		return appPage
+	}
+	return "index.html"
+}
+
+func fileExists(fsys fs.FS, name string) bool {
+	fi, err := fs.Stat(fsys, name)
+	return err == nil && !fi.IsDir()
+}
+
 func (a *App) serveFile(w http.ResponseWriter, r *http.Request, name string) {
 	b, err := fs.ReadFile(a.Public, name)
 	if err != nil {
@@ -126,7 +177,7 @@ func (a *App) serveFile(w http.ResponseWriter, r *http.Request, name string) {
 	w.Header().Set("Cache-Control", "no-cache")
 	// Share links live at /g/<token>; the deck's files are at the root. (Only the deck:
 	// a base on the control panel would send its #section links to the deck.)
-	if name == "index.html" {
+	if name == "index.html" || name == appPage {
 		b = []byte(strings.Replace(string(b), "<head>", `<head><base href="/">`, 1))
 	}
 	_, _ = w.Write(b)

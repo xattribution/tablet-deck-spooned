@@ -259,7 +259,7 @@ by the deck and read back by a deck; the PC ignores it.
 ## API
 
 All under `/api/v1/`. From the PC itself, with the API key (PC panel › Agents and
-integrations); from a paired device, with its token.
+integrations); from a paired device, with its token. Share links can't use the API.
 
 | Route | What it does |
 |---|---|
@@ -272,8 +272,8 @@ integrations); from a paired device, with its token.
 | `GET catalog` | Every control and group. |
 | `GET export`, `POST import` | See above. |
 | `GET keybinds/unbound` | Game actions with no key. |
-| `POST keybinds/bind-all` | Write the bind-everything profile (from this PC only). |
-| `POST agent/ask` | `{ "text": "…" }` to the Comms agent (from this PC only). |
+| `POST keybinds/bind-all` | Write the bind-everything profile (this PC or a paired device). |
+| `POST agent/ask` | `{ "text": "…" }` to the Comms agent (this PC or a paired device). |
 
 ## MCP tools
 
@@ -285,8 +285,8 @@ integrations); from a paired device, with its token.
 | `delete_panel` | Delete a saved panel. |
 | `find_controls` | Search controls by words; returns ids for panels and `press`. |
 | `export_layout`, `import_layout` | The export file, as above. Import checks everything first and saves all or nothing, and lists the panels it replaced. |
-| `set_control_keys` | Change a control's keys (`{ "control": "discord-ptt", "keys": "f16" }`). From the PC only. |
-| `bind_all_actions` | Give every game action without a key a free one. From the PC only. |
+| `set_control_keys` | Change a control's keys (`{ "control": "discord-ptt", "keys": "f16" }`). This PC or a paired device. |
+| `bind_all_actions` | Give every game action without a key a free one. This PC or a paired device. |
 | `show_view`, `save_view` | Put panels on decks. |
 
 ### For agents: building a panel from a request

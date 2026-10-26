@@ -616,7 +616,7 @@ func (a *App) handleMCP(w http.ResponseWriter, r *http.Request, pr principal) {
 		}
 		var out []any
 		for _, q := range reqs {
-			if resp := a.mcpCall(q, pr.local); resp != nil {
+			if resp := a.mcpCall(q, pr.manager()); resp != nil {
 				out = append(out, resp)
 			}
 		}
@@ -632,7 +632,7 @@ func (a *App) handleMCP(w http.ResponseWriter, r *http.Request, pr principal) {
 		writeJSON(w, 400, map[string]any{"jsonrpc": "2.0", "id": nil, "error": rpcErr{-32600, "invalid request"}})
 		return
 	}
-	resp := a.mcpCall(q, pr.local)
+	resp := a.mcpCall(q, pr.manager())
 	if resp == nil {
 		w.WriteHeader(http.StatusAccepted)
 		return
@@ -640,12 +640,13 @@ func (a *App) handleMCP(w http.ResponseWriter, r *http.Request, pr principal) {
 	writeJSON(w, 200, resp)
 }
 
-// mcpCall runs one JSON-RPC message; nil for notifications.
-// localOnlyTools change the game's files or the PC's settings: only from the PC itself.
-var localOnlyTools = map[string]bool{"bind_all_actions": true, "set_control_keys": true}
+// managerTools change the game's files or the PC's settings: only from this PC or a
+// paired owner device.
+var managerTools = map[string]bool{"bind_all_actions": true, "set_control_keys": true}
 
-// mcpCall runs one JSON-RPC message; nil for notifications. local is a caller on this PC.
-func (a *App) mcpCall(q rpcReq, local bool) map[string]any {
+// mcpCall runs one JSON-RPC message; nil for notifications. manager is a caller on
+// this PC or a paired owner device (principal.manager).
+func (a *App) mcpCall(q rpcReq, manager bool) map[string]any {
 	if len(q.ID) == 0 { // notification
 		return nil
 	}
@@ -688,8 +689,8 @@ func (a *App) mcpCall(q rpcReq, local bool) map[string]any {
 			if t.Name != p.Name {
 				continue
 			}
-			if localOnlyTools[t.Name] && !local {
-				return ok(map[string]any{"content": []any{map[string]any{"type": "text", "text": t.Name + " only works from the PC itself"}}, "isError": true})
+			if managerTools[t.Name] && !manager {
+				return ok(map[string]any{"content": []any{map[string]any{"type": "text", "text": t.Name + " only works from this PC or a paired device"}}, "isError": true})
 			}
 			if req, _ := t.InputSchema["required"].([]string); len(req) > 0 {
 				for _, k := range req {

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon layer (Android 13+): the same outline in one color. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="672"
+    android:viewportHeight="672">
+    <group android:translateX="80" android:translateY="80">
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="14" android:strokeLineJoin="round"
+            android:pathData="M130,140 L382,140 A30,30 0 0 1 412,170 L412,342 A30,30 0 0 1 382,372 L130,372 A30,30 0 0 1 100,342 L100,170 A30,30 0 0 1 130,140 Z" />
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="10" android:strokeLineJoin="round"
+            android:pathData="M148,178 L232,178 A10,10 0 0 1 242,188 L242,234 A10,10 0 0 1 232,244 L148,244 A10,10 0 0 1 138,234 L138,188 A10,10 0 0 1 148,178 Z" />
+        <path android:fillColor="#FFFFFFFF" android:strokeColor="#FFFFFFFF" android:strokeWidth="10" android:strokeLineJoin="round"
+            android:pathData="M148,268 L232,268 A10,10 0 0 1 242,278 L242,324 A10,10 0 0 1 232,334 L148,334 A10,10 0 0 1 138,324 L138,278 A10,10 0 0 1 148,268 Z" />
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="12"
+            android:pathData="M268,256 A56,56 0 1 0 380,256 A56,56 0 1 0 268,256 Z" />
+        <path android:fillColor="#FFFFFFFF"
+            android:pathData="M308,256 A16,16 0 1 0 340,256 A16,16 0 1 0 308,256 Z" />
+    </group>
+</vector>

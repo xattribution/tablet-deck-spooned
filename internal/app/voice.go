@@ -337,6 +337,19 @@ func (v *voice) tap(c *client) {
 	time.AfterFunc(5*time.Second, func() { v.listen(c, false); c.send(map[string]any{"t": "listening", "on": false}) })
 }
 
+// untap stops a tap to talk early.
+func (v *voice) untap(c *client) {
+	v.mu.Lock()
+	n := v.nat
+	v.mu.Unlock()
+	if n != nil {
+		n.untap(c)
+		return
+	}
+	v.listen(c, false)
+	c.send(map[string]any{"t": "listening", "on": false})
+}
+
 // stopFor stops listening when the deck holding the talk button goes away.
 func (v *voice) stopFor(c *client) {
 	if v == nil {

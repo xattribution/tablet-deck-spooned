@@ -30,16 +30,16 @@ var (
 	apiHolds   = map[string]*deck.Hold{}
 )
 
-// handleAPI is the local API for the control panel, Stream Deck and other tools.
-// Everything needs owner credentials; settings, keybind files and tunnels also need
-// the request to come from this PC.
+// handleAPI is the API for the tablet app, the control panel, Stream Deck and other
+// tools. Everything needs owner credentials; settings, keybind files, the agent and
+// tunnels need this PC or a paired owner device (see manager), never a share link.
 func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 	route := strings.TrimPrefix(r.URL.Path, "/api/v1/")
 	parts := strings.Split(route, "/")
 	method := r.Method
-	localOnly := func() bool {
-		if !p.local {
-			jsonErr(w, 403, "Only from the PC running Tablet Deck.")
+	manage := func() bool {
+		if !p.manager() {
+			jsonErr(w, 403, "Only from this PC or a paired device.")
 			return false
 		}
 		return true
@@ -54,7 +54,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 
 	switch {
 	case route == "status":
-		writeJSON(w, 200, a.status(p.local))
+		writeJSON(w, 200, a.status(p))
 
 	case route == "buttons":
 		l, err := a.apiLayout(r.URL.Query().Get("layout"))
@@ -186,7 +186,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		writeJSON(w, 200, a.CockpitStatus())
 	case route == "agent/ask" && method == http.MethodPost:
-		if !localOnly() {
+		if !manage() {
 			return
 		}
 		var body struct{ Text string }
@@ -284,11 +284,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		writeJSON(w, 200, map[string]any{"ok": a.RevokeGrant(parts[1])})
 
 	case route == "devices" && method == http.MethodGet:
-		devs := a.Store.State().Devices
-		if devs == nil {
-			devs = []config.Device{}
-		}
-		writeJSON(w, 200, devs)
+		writeJSON(w, 200, a.deviceList())
 	case len(parts) == 2 && parts[0] == "devices" && method == http.MethodDelete:
 		a.unpair(parts[1])
 		writeJSON(w, 200, map[string]any{"ok": true})
@@ -320,7 +316,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		writeJSON(w, 200, a.Bus.History())
 
 	case route == "qr.png":
-		if !localOnly() {
+		if !manage() {
 			return
 		}
 		text := r.URL.Query().Get("text")
@@ -338,17 +334,30 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		_, _ = w.Write(png)
 
 	case route == "config" && method == http.MethodGet:
-		if localOnly() {
-			writeJSON(w, 200, a.Store.Config())
+		if manage() {
+			c := a.Store.Config()
+			if !p.local {
+				c.APIKey = "" // the API key stays on this PC
+				if c.AgentKey != "" {
+					c.AgentKey = keptSecret // devices see that a key is set, never the key
+				}
+			}
+			writeJSON(w, 200, c)
 		}
 	case route == "config" && method == http.MethodPut:
-		if !localOnly() {
+		if !manage() {
 			return
 		}
 		old := a.Store.Config()
 		next := old
 		if !decode(&next) {
 			return
+		}
+		if !p.local {
+			next.APIKey = old.APIKey // a device never sees it, so it can't change it
+			if next.AgentKey == keptSecret {
+				next.AgentKey = old.AgentKey
+			}
 		}
 		if err := next.Validate(); err != nil {
 			jsonErr(w, 400, err.Error())
@@ -375,7 +384,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		writeJSON(w, 200, map[string]any{"count": len(list), "controls": list})
 	case route == "keybinds/bind-all" && method == http.MethodPost:
-		if !localOnly() {
+		if !manage() {
 			return
 		}
 		res, err := a.BindAll()
@@ -385,7 +394,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		writeJSON(w, 200, res)
 	case route == "keybinds/install" && method == http.MethodPost:
-		if !localOnly() {
+		if !manage() {
 			return
 		}
 		data, err := a.readFile("keybinds/TabletDeck-StarCitizen.xml")
@@ -409,7 +418,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		writeJSON(w, 200, map[string]any{"ok": true, "written": written})
 
 	case route == "voice" && method == http.MethodGet:
-		if !localOnly() {
+		if !manage() {
 			return
 		}
 		m := a.FindSpeechModels()
@@ -424,7 +433,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		writeJSON(w, 200, out)
 	case route == "voice/say" && method == http.MethodPost:
-		if !localOnly() {
+		if !manage() {
 			return
 		}
 		var body struct{ Text, Voice string }
@@ -443,7 +452,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		writeJSON(w, 200, map[string]any{"ok": true})
 
 	case route == "tunnel" && method == http.MethodPost:
-		if !localOnly() {
+		if !manage() {
 			return
 		}
 		var body struct {
@@ -459,7 +468,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		a.ApplyConfig(old, a.Store.Config())
 		writeJSON(w, 200, a.tunnel.Status())
 	case route == "tunnel/install" && method == http.MethodPost:
-		if localOnly() {
+		if manage() {
 			if err := a.installCloudflared(); err != nil {
 				jsonErr(w, 500, err.Error())
 				return
@@ -591,13 +600,39 @@ func (a *App) unpair(id string) {
 		}
 		s.Devices = kept
 	})
-	a.ForgetConsole(id)
+	a.dropDevice(id)
 	a.each(func(c *client) {
 		if c.p.deviceID == id {
 			c.kick(map[string]any{"t": "unpaired"})
 		}
 	})
 	a.Bus.Publish("devices", nil)
+}
+
+// deviceList is the paired devices, with whether each is connected, its console and
+// what it runs on (and what the Android app said about itself).
+func (a *App) deviceList() []map[string]any {
+	live := map[string]*client{}
+	a.each(func(c *client) {
+		if c.p.deviceID != "" && c.p.grant == nil {
+			live[c.p.deviceID] = c
+		}
+	})
+	out := []map[string]any{}
+	for _, d := range a.Store.State().Devices {
+		e := map[string]any{"id": d.ID, "name": d.Name, "paired": d.Paired, "lastSeen": d.LastSeen,
+			"console": a.Store.ConsoleOf(d.ID), "online": live[d.ID] != nil}
+		if c := live[d.ID]; c != nil {
+			c.mu.Lock()
+			e["platform"] = c.platform
+			if c.nativeApp != "" {
+				e["native"] = map[string]any{"app": c.nativeApp, "info": c.nativeInfo}
+			}
+			c.mu.Unlock()
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 func (a *App) grantList() []map[string]any {
@@ -623,7 +658,8 @@ func (a *App) grantView(g config.Grant) map[string]any {
 }
 
 // status is everything the control panel's dashboard shows.
-func (a *App) status(local bool) map[string]any {
+func (a *App) status(p principal) map[string]any {
+	local := p.local
 	cfg := a.Store.Config()
 	presses, blocked := a.Engine.Counts()
 	b := a.Binds()
@@ -635,10 +671,12 @@ func (a *App) status(local bool) map[string]any {
 		"keybinds": map[string]any{"files": b.Files, "actions": len(b.Binds), "installs": b.Installs},
 		"devices":  len(a.Store.State().Devices), "requests": a.reqs.open(),
 	}
-	if local {
+	if p.manager() { // an owner device can pair the next one
 		lan := a.LanAddress()
 		out["pairing"] = map[string]any{"code": cfg.Token, "link": fmt.Sprintf("http://%s:%d/?t=%s", lan, cfg.Port, cfg.Token),
 			"addresses": Addresses(), "local": fmt.Sprintf("http://localhost:%d/?t=%s&device=tablet", cfg.Port, cfg.Token)}
+	}
+	if local {
 		out["apiKey"] = cfg.APIKey
 		out["configPath"] = a.Store.ConfigPath()
 		out["editor"] = fmt.Sprintf("http://localhost:%d/editor.html?t=%s", cfg.Port, cfg.Token)
@@ -702,4 +740,50 @@ func (a *App) installCloudflared() error {
 		return err
 	}
 	return os.Rename(dst+".tmp", dst)
+}
+
+// HostSummary is what the PC's status window shows.
+type HostSummary struct {
+	Decks       int    // screens connected (one per console)
+	Voice       string // the voice engine's state
+	GameRunning bool
+	GameFocused bool
+}
+
+// HostSummary counts the owner's screens (a tablet open twice is one) and reads the
+// voice and game state.
+// keptSecret stands in for a saved secret in what a device reads; sent back, it keeps the secret.
+const keptSecret = "••••••••"
+
+func (a *App) HostSummary() HostSummary {
+	seen := map[string]bool{}
+	a.each(func(c *client) {
+		if c.p.grant != nil || c.peer {
+			return
+		}
+		k := c.consoleKey()
+		if k == "" {
+			k = c.id
+		}
+		seen[k] = true
+	})
+	h := HostSummary{Decks: len(seen), Voice: "off"}
+	if a.voice != nil {
+		if st, _ := a.voice.status()["state"].(string); st != "" {
+			h.Voice = st
+		}
+	}
+	g := a.Engine.Driver().Game()
+	h.GameRunning, h.GameFocused = g.Running, g.Focused
+	return h
+}
+
+// NewPairingCode replaces the pairing code. Devices already paired keep working; they
+// have tokens of their own.
+func (a *App) NewPairingCode() string {
+	code := config.RandomHex(4)
+	_ = a.Store.Update(func(c *config.Config) { c.Token = code })
+	a.Log.Printf("New pairing code.")
+	a.Bus.Publish("pairing", nil)
+	return code
 }

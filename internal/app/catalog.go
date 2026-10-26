@@ -625,10 +625,14 @@ func (a *App) ShowView(v config.View, device string) int {
 			n++
 			return
 		}
-		c.mu.Lock()
-		c.view = v.ID
-		c.mu.Unlock()
-		c.send(msg) // one deck named: it shows the whole view on its own for now
+		if !a.inCockpit(c) {
+			a.sendSolo(c, v) // with the panels it added or took off
+		} else {
+			c.mu.Lock()
+			c.view = v.ID
+			c.mu.Unlock()
+			c.send(msg) // one deck named: it shows the whole view on its own for now
+		}
 		n++
 	})
 	if cockpit {

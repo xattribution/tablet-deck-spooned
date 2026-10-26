@@ -7,6 +7,33 @@ before tagging a release.
 
 ## Unreleased
 
+- **A new deck, rebuilt for touch.** Swipe anywhere to turn pages, even starting on a
+  key: a tap presses only when your finger lifts without moving. Keys never move or
+  resize when pressed. Effects are glows and particles drawn on the GPU.
+- **Swipe up for Home, down for Comms.** Home has Views, Panels (add or take panels
+  off this screen), Build (make your own panel from any controls), Cockpit and
+  Settings. The chin at the bottom is bigger: the view switcher, page bar, lamps for
+  the link, the game and AFK, and a talk button.
+- **Tap to talk turns off when you tap again.** Hold and live modes are on the same key.
+- **The master modes wheel** has round, evenly spaced positions; the picked one is solid.
+- **The keyboard no longer covers the field** you're typing in on an iPad.
+- **Android app:** finds your PC on the network and runs the deck full screen, with
+  haptics and the screen kept awake.
+- **New tablets in the cockpit get their share** of the view, and a tablet that isn't
+  here today doesn't keep panels the others can't see.
+- The classic deck is at `/legacy/`.
+- **The tablet runs everything.** A paired tablet or phone can change settings, bind
+  every action, install the keybind profile, use the agent and the tunnel, like the
+  PC. Share links still can't, and the API key never leaves the PC.
+- **A small status window on the PC** instead of browser windows: running, how many
+  tablets, voice, the pairing code and its QR code, **Hide to tray** and **Quit**.
+  Closing it quits. Starting Tablet Deck again brings it back. The old settings page
+  is in the tray menu.
+- **One tablet, one console:** a tablet opened in Safari and from its home screen (or
+  in the Android app and Chrome) is one console, not two.
+- **Add panels to one screen:** a console can add panels that aren't in the view, or
+  take panels off; a solo deck keeps its own additions per view.
+
 - **Cockpit:** every tablet you pair joins one cockpit. Each is a console showing its
   share of the same view, in one theme. Drag panels between consoles on the PC (Cockpit)
   or onto a screen edge on a tablet. When a console drops off, its panels move to the

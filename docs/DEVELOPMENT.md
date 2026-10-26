@@ -80,7 +80,9 @@ layout from `layouts/`, and presses only play their animations. The website's
 |---|---|
 | `server.js` | the server: serves the deck, pairs tablets, sends keys, runs voice, the layout editor's API |
 | `qr.js` | QR code generator for the console and the app window |
-| `public/` | the deck (`index.html`, `app.js`, `canvas.js`, `i18n.js`, themes, icons, animations), the layout editor (`editor.*`) and the showcase |
+| `web/` | the deck (Svelte 5 + TypeScript). `npm ci && npm run build` writes `public/app/` |
+| `android/` | the Android app (Kotlin WebView). `./gradlew assembleRelease` |
+| `public/` | the built deck (`app/`), the classic deck, the layout editor (`editor.*`) and the showcase |
 | `layouts/` | built-in layouts; `hud-phone.json` and the starter layouts are generated |
 | `keybinds/` | the Tablet Deck Keyboard profile for Star Citizen (generated) |
 | `native/` | C# sources: `launcher.cs` (the app window), `keysender.cs`, `voice.cs` |

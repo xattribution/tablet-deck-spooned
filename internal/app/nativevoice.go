@@ -299,6 +299,16 @@ func (n *nativeVoice) tap(c *client) {
 	})
 }
 
+// untap ends a tap to talk early (the player tapped the key again).
+func (n *nativeVoice) untap(c *client) {
+	n.mu.Lock()
+	if n.tapper == c {
+		n.tapper, n.tapUntil = nil, time.Time{}
+	}
+	n.mu.Unlock()
+	c.send(map[string]any{"t": "listening", "on": false})
+}
+
 // endTap is called with each utterance: was it the end of a tap to talk?
 func (n *nativeVoice) endTap() bool {
 	n.mu.Lock()

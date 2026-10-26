@@ -6,18 +6,19 @@ package winapp
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"runtime"
 )
 
-func SingleInstance(string) bool         { return true }
-func AttachConsole()                     {}
-func StartsWithWindows() bool            { return false }
-func SetStartWithWindows(bool) error     { return fmt.Errorf("Windows only") }
-func RegisterLinks() error               { return nil }
-func OpenWindow(url, _ string, _, _ int) { OpenBrowser(url) }
-func Message(title, text string)         { fmt.Fprintf(os.Stderr, "%s: %s\n", title, text) }
+func SingleInstance(string) bool     { return true }
+func ShowRunning(string) bool        { return false }
+func AttachConsole()                 {}
+func StartsWithWindows() bool        { return false }
+func SetStartWithWindows(bool) error { return fmt.Errorf("Windows only") }
+func RegisterLinks() error           { return nil }
+func Message(title, text string)     { fmt.Fprintf(os.Stderr, "%s: %s\n", title, text) }
 
 func OpenBrowser(url string) {
 	if runtime.GOOS == "darwin" {
@@ -27,15 +28,12 @@ func OpenBrowser(url string) {
 	_ = exec.Command("xdg-open", url).Start()
 }
 
-type Tray struct {
-	Title       string
-	OpenPanel   func()
-	OpenPairing func()
-	OpenTouch   func()
-	ReleaseAll  func()
-	ToggleAfk   func() bool
-	Quit        func()
+// Run has no status window or tray off Windows: it logs where to pair and blocks
+// until the process is stopped.
+func Run(h Host) {
+	if h.Status != nil {
+		s := h.Status()
+		log.Printf("%s: %s. Pair at %s (code %s).", h.Title, s.Line(), s.Link, s.Code)
+	}
+	select {}
 }
-
-// RunTray has no tray off Windows; it blocks until the process is stopped.
-func RunTray(Tray) { select {} }

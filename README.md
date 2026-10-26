@@ -223,25 +223,32 @@ going again; your settings are kept.
 
 ## Using Tablet Deck
 
+### The deck
+
+- **Swipe anywhere.** Left and right turn pages; up opens Home, down opens Comms. A
+  swipe that starts on a key doesn't press it.
+- **Home:** Views, Panels (add or take panels off this screen), Build (pick controls
+  and save your own panel), Cockpit (consoles, identify, solo) and Settings.
+- **The chin** at the bottom: the view switcher, the page bar, lamps for the link,
+  the game and AFK, and the talk button (tap, hold or live).
+- **Android:** install the APK, open Tablet Deck, pick your PC from the list.
+- **iPad:** open the address in Safari, then Share > Add to Home Screen.
+
 ### The app window
 
-<img src="docs/app-window.png" alt="The Tablet Deck window: HUD panels with the QR code, address and pairing code, telemetry of tablets, where keys go and presses, voice status, settings and a log" width="460" align="right">
+Your tablet runs everything: settings, keybinds, voice, the agent and pairing more
+devices are all on the tablet once it's paired. The PC keeps a small window that
+shows Tablet Deck is running (how many tablets are connected, voice, whether Star
+Citizen is in front), the pairing code with its QR code, and the address. No
+browser window opens by itself.
 
-The window shows the QR code, address and pairing code, and live telemetry: how
-many tablets are connected, where keys go, and the presses of the last minute,
-with how many were held back because Star Citizen wasn't in front. Below that
-are the voice status and a log. Stars drift behind the panels while the window
-is in front (they stand still if Windows' "Show animations" is off); click an
-empty spot to send a pulse through them.
-
-- **Minimize** it to keep Tablet Deck running in the tray; double-click the tray
-  icon to bring it back. **Closing** the window quits.
-- **Settings:** pairing code, port, the "only while Star Citizen is in front"
-  check, tap length, voice on/off and language, the window's
-  [language](#languages), and **Install keybind profile**.
-- **Edit layout** opens the [layout editor](#layout-editor).
-- **Start with Windows** starts it in the tray when you log in. **Settings
-  folder** opens the folder with `config.json` and your own layouts.
+- **Hide to tray** keeps it running in the tray; click the tray icon (or start
+  Tablet Deck again) to bring the window back. **Quit** or the window's close box
+  lets go of every key and stops Tablet Deck.
+- **New code** makes a new pairing code. Tablets already paired keep working.
+- The tray menu has **Release all keys**, **Open settings in browser** (the full
+  settings page, for advanced use) and **Start with Windows**, which starts it in
+  the tray when you log in.
 - **Updates:** Tablet Deck checks for a new version when it starts and once a
   day, and shows **What's new** and **Update now**. Nothing installs until you
   click; your settings are kept. [CHANGELOG.md](CHANGELOG.md) lists every
@@ -334,7 +341,7 @@ browser comes to the front, so this suits a second monitor best.
   <img src="docs/editor.jpg" alt="The layout editor: the deck on the left with Engage Quantum selected, its keys, mode, colour, icon, animation and voice phrases on the right" width="100%">
 </p>
 
-Click **Edit layout** in the window. It opens in your PC's browser and shows the
+Open **Settings in browser** from the tray icon and click **Layout editor**. It opens in your PC's browser and shows the
 deck exactly as the tablet does, but clicking a button selects it:
 
 - **Drag** a button to move it, drag its yellow corner to resize it, or nudge it

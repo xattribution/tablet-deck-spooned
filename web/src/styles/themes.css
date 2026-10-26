@@ -1,0 +1,298 @@
+/* Tablet Deck 3: a cockpit console, not a web page. The whole screen is one panel:
+   glass MFD panes in bezels, physical keys, lamps and engraved plates in the frame.
+   Nothing ever scrolls: the deck pages sideways, systems rise from below, comms drop
+   from above. Each manufacturer is its own panel: materials, type, wear and trim. */
+
+:root, [data-theme="rsi"] {
+  /* Textures, drawn inline so nothing loads from the network. */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --grain-dark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --wear: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='420'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='4' seed='7'/><feColorMatrix values='0 0 0 0 .8 0 0 0 0 .78 0 0 0 0 .72 0 0 0 -7 3.1'/></filter><rect width='100%' height='100%' filter='url(%23w)' opacity='.22'/></svg>");
+  --scratch: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.004 .45' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 -9 4.6'/></filter><rect width='100%' height='100%' filter='url(%23s)' opacity='.07'/></svg>");
+  --brushed: repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, rgba(0,0,0,.02) 1px 2px);
+  --scan: repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px);
+
+  /* The panel (RSI unless a theme says otherwise). */
+  --surface: #0A111C;
+  --surface-art: radial-gradient(120% 90% at 50% -10%, #17263B 0%, transparent 60%), var(--brushed), var(--grain);
+  --bezel: linear-gradient(180deg, #1E2836, #141B26);
+  --bezel-art: var(--grain);
+  --bezel-hi: rgba(255,255,255,.08);
+  --bezel-lo: rgba(0,0,0,.6);
+  --trim: #C9A54C;          /* hairline trim and plate text */
+  --pane-r: 4px;
+  --pane-clip: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  --screw: #6E7A8A;
+  --screws: 1;
+  --glass: linear-gradient(180deg, #08111D, #0B1626);
+  --glass-art: linear-gradient(rgba(76,143,214,.05) 1px, transparent 1px) 0 0 / 100% 24px;
+  --screen-r: 2px;
+  --screen-edge: rgba(201,165,76,.18);
+  --plate-font: "Exo 2", sans-serif;
+  --plate-weight: 700;
+  --plate-track: .22em;
+  --plate-color: #C9A54C;
+  --plate-shadow: 0 1px 0 rgba(0,0,0,.8);
+  --cap: linear-gradient(180deg, #243142, #1A2432);
+  --cap-hi: rgba(255,255,255,.1);
+  --cap-lo: #070B11;
+  --cap-r: 3px;
+  --cap-text: #C7D2DF;
+  --cap-font: "Barlow Condensed", sans-serif;
+  --frame-text: #8D9AAC;
+  --lamp-off: #1B2532;
+  --accent: #C9A54C;
+  --on-cat: #08101A;
+  /* ledger: one color per ship system, the same on every screen; violet is Navigation
+     (quantum), as the game's own quantum UI uses it. */
+  --c-flight: #4C9BE8; --c-eng: #E8A93A; --c-combat: #E5534B; --c-def: #3CC4D6; --c-nav: #A783FF;
+  --c-ind: #7CC44E; --c-crew: #E479B9; --c-ui: #A7B2C0; --c-emerg: #FF4A3D;
+  --good: #49C27E; --caution: #F0A63A; --bad: #E5534B;
+  color-scheme: dark;
+}
+
+/* ---------- Drake: worn, bolted gunmetal, chipped hazard paint, CRT glass ---------- */
+[data-theme="drake"] {
+  --surface: #1B1C1A;
+  --surface-art: var(--wear), var(--brushed), radial-gradient(90% 70% at 30% 0%, #2B2C27 0%, transparent 70%), var(--grain);
+  --bezel: linear-gradient(180deg, #34352F, #26271F);
+  --bezel-art: var(--brushed), var(--grain);
+  --bezel-hi: rgba(255,255,240,.1);
+  --trim: #E3B21F;
+  --pane-r: 2px; --pane-clip: none;
+  --screw: #8B8A7E; --screws: 1;
+  --glass: linear-gradient(180deg, #0B140D, #0E1A11);
+  --glass-art: var(--scan);
+  --screen-edge: rgba(0,0,0,.8);
+  --plate-font: "Saira Stencil One", sans-serif; --plate-weight: 400; --plate-track: .14em;
+  --plate-color: #E3B21F; --plate-shadow: 0 1px 0 rgba(0,0,0,.9);
+  --cap: linear-gradient(180deg, #2C2D27, #1C1D18);
+  --cap-hi: rgba(255,255,230,.08); --cap-lo: #050504; --cap-r: 2px;
+  --cap-text: #E6DFC8; --cap-font: "Saira Condensed", sans-serif;
+  --frame-text: #A39E86; --accent: #E3B21F; --lamp-off: #23241E;
+  --c-flight: #6FA6CE; --c-eng: #E8B21F; --c-combat: #D3462E; --c-def: #55B3A3; --c-nav: #A58DD6;
+  --c-ind: #93B23E; --c-crew: #D486A6; --c-ui: #B5AD94; --c-emerg: #FF3D1F; --on-cat: #120F06;
+}
+/* ---------- Origin: white ceramic, smoked glass, champagne trim, thin wide type ---------- */
+[data-theme="origin"] {
+  --surface: #E9E7E1;
+  --surface-art: radial-gradient(70% 60% at 50% 0%, #FFFFFF 0%, transparent 70%), radial-gradient(60% 50% at 50% 110%, #D5D1C7 0%, transparent 70%);
+  --bezel: linear-gradient(180deg, #F7F6F2, #E4E1D9);
+  --bezel-art: none;
+  --bezel-hi: rgba(255,255,255,.9); --bezel-lo: rgba(120,110,90,.25);
+  --trim: #B9975B;
+  --pane-r: 22px; --pane-clip: none; --screws: 0;
+  --glass: linear-gradient(180deg, #17181A, #0E0F10);
+  --glass-art: linear-gradient(160deg, rgba(255,255,255,.07), transparent 38%);
+  --screen-r: 14px; --screen-edge: rgba(185,151,91,.45);
+  --plate-font: "Montserrat", sans-serif; --plate-weight: 300; --plate-track: .42em;
+  --plate-color: #6E5A36; --plate-shadow: none;
+  --cap: linear-gradient(180deg, #24262A, #1A1B1E);
+  --cap-hi: rgba(255,255,255,.12); --cap-lo: #000; --cap-r: 12px;
+  --cap-text: #E9E4D8; --cap-font: "Montserrat", sans-serif;
+  --frame-text: #7B7466; --accent: #B9975B; --lamp-off: #CFCBC1;
+  --c-flight: #7AA7DA; --c-eng: #D8B57A; --c-combat: #D0675C; --c-def: #6FB6BD; --c-nav: #A396D8;
+  --c-ind: #8DB27A; --c-crew: #CF91AF; --c-ui: #B9B4A8; --c-emerg: #E0473A; --on-cat: #121212;
+  color-scheme: light;
+}
+/* ---------- Crusader: Orison sky, frosted white glass, airy aerospace ---------- */
+[data-theme="crusader"] {
+  --surface: #BFD9F0;
+  --surface-art: radial-gradient(40% 18% at 18% 78%, rgba(255,255,255,.85), transparent 70%), radial-gradient(30% 14% at 72% 84%, rgba(255,255,255,.8), transparent 70%),
+    radial-gradient(50% 20% at 50% 100%, rgba(255,240,226,.95), transparent 70%), radial-gradient(28% 10% at 88% 22%, rgba(255,255,255,.6), transparent 70%),
+    linear-gradient(180deg, #8DBFEA 0%, #C9E1F5 55%, #F4E6D6 100%);
+  --bezel: linear-gradient(180deg, rgba(255,255,255,.72), rgba(236,244,252,.6));
+  --bezel-art: none;
+  --bezel-hi: rgba(255,255,255,1); --bezel-lo: rgba(70,110,150,.25);
+  --trim: #3E7FC1;
+  --pane-r: 16px; --pane-clip: none; --screws: 0;
+  --glass: linear-gradient(180deg, rgba(14,36,66,.86), rgba(20,48,84,.86));
+  --glass-art: linear-gradient(170deg, rgba(255,255,255,.12), transparent 45%);
+  --screen-r: 10px; --screen-edge: rgba(255,255,255,.5);
+  --plate-font: "Exo 2", sans-serif; --plate-weight: 700; --plate-track: .26em;
+  --plate-color: #1D4E86; --plate-shadow: 0 1px 0 rgba(255,255,255,.8);
+  --cap: linear-gradient(180deg, #F4F8FC, #DCE7F2);
+  --cap-hi: #fff; --cap-lo: rgba(40,70,110,.45); --cap-r: 10px;
+  --cap-text: #1D3A5C; --cap-font: "Exo 2", sans-serif;
+  --frame-text: #24507F; --accent: #2F78C4; --lamp-off: rgba(255,255,255,.55);
+  --c-flight: #2F78C4; --c-eng: #D08A1C; --c-combat: #C8443A; --c-def: #1B98A8; --c-nav: #6C55C9;
+  --c-ind: #4E8F2F; --c-crew: #B34E87; --c-ui: #5E7389; --c-emerg: #D7261B; --on-cat: #FFFFFF;
+  color-scheme: light;
+}
+/* ---------- Aegis: military graphite, chamfered plates, red flash ---------- */
+[data-theme="aegis"] {
+  --surface: #121417;
+  --surface-art: repeating-linear-gradient(135deg, transparent 0 180px, rgba(255,255,255,.025) 180px 181px), radial-gradient(80% 60% at 70% 0%, #1E2228 0%, transparent 70%), var(--grain);
+  --bezel: linear-gradient(180deg, #23272D, #191C21);
+  --trim: #C8353E;
+  --pane-r: 0; --pane-clip: polygon(22px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%, 0 22px);
+  --screw: #59606A;
+  --glass: linear-gradient(180deg, #0B0D10, #101317); --glass-art: none; --screen-edge: rgba(200,53,62,.25);
+  --plate-font: "Rajdhani", sans-serif; --plate-weight: 700; --plate-track: .2em; --plate-color: #E5E8EC;
+  --cap: linear-gradient(180deg, #2A2F36, #1E2228); --cap-r: 0;
+  --cap-text: #DDE1E6; --cap-font: "Rajdhani", sans-serif; --accent: #C8353E; --frame-text: #8E959F;
+}
+/* ---------- Anvil: olive drab paint over rivets, amber MFD glass ---------- */
+[data-theme="anvil"] {
+  --surface: #2E3326;
+  --surface-art: var(--wear), radial-gradient(circle at 10px 10px, rgba(0,0,0,.35) 2px, transparent 3px) 0 0 / 60px 60px, var(--grain);
+  --bezel: linear-gradient(180deg, #3D4432, #2E3426);
+  --bezel-art: var(--brushed), var(--grain);
+  --trim: #D9A24A; --pane-r: 3px; --pane-clip: none; --screw: #7D8468;
+  --glass: linear-gradient(180deg, #120E06, #18120A); --glass-art: var(--scan); --screen-edge: rgba(0,0,0,.7);
+  --plate-font: "Saira Condensed", sans-serif; --plate-weight: 700; --plate-track: .2em; --plate-color: #E7D9A8;
+  --cap: linear-gradient(180deg, #353B2C, #262B20); --cap-r: 3px; --cap-text: #E6E4D3;
+  --cap-font: "Saira Condensed", sans-serif; --accent: #D9A24A; --frame-text: #B4B49A; --lamp-off: #2A2F22;
+  --c-flight: #79A7C9; --c-eng: #E0A43C; --c-combat: #D24F38; --c-ind: #A3B84A;
+}
+/* ---------- MISC: Musashi industrial, teal panels on warm gray, orange trim ---------- */
+[data-theme="misc"] {
+  --surface: #B9BCB6;
+  --surface-art: linear-gradient(180deg, rgba(255,255,255,.25), transparent 40%), repeating-linear-gradient(90deg, transparent 0 240px, rgba(0,0,0,.06) 240px 242px), var(--grain-dark);
+  --bezel: linear-gradient(180deg, #1F5C61, #184B4F);
+  --bezel-hi: rgba(255,255,255,.18); --trim: #E9772E;
+  --pane-r: 12px; --pane-clip: none; --screw: #A9C3C0;
+  --glass: linear-gradient(180deg, #0B1E20, #0E2628); --glass-art: none; --screen-r: 8px; --screen-edge: rgba(233,119,46,.35);
+  --plate-font: "Chakra Petch", sans-serif; --plate-weight: 700; --plate-track: .16em; --plate-color: #F2E6D8;
+  --cap: linear-gradient(180deg, #2B4A4D, #1E3638); --cap-r: 8px; --cap-text: #E3EEEC; --cap-font: "Chakra Petch", sans-serif;
+  --accent: #E9772E; --frame-text: #3C4442; --lamp-off: #9DA19A; color-scheme: light;
+}
+/* ---------- Argo: utility yellow chassis, blocky numbered modules ---------- */
+[data-theme="argo"] {
+  --surface: #161616;
+  --surface-art: repeating-linear-gradient(-45deg, rgba(242,193,78,.06) 0 22px, transparent 22px 44px), var(--grain);
+  --bezel: linear-gradient(180deg, #F2C14E, #D9A931); --bezel-hi: rgba(255,255,255,.4); --bezel-lo: rgba(0,0,0,.5);
+  --trim: #111; --pane-r: 4px; --pane-clip: none; --screw: #5B4A1A;
+  --glass: linear-gradient(180deg, #121212, #191919); --glass-art: none; --screen-edge: rgba(0,0,0,.9);
+  --plate-font: "Chakra Petch", sans-serif; --plate-weight: 700; --plate-track: .14em; --plate-color: #141414; --plate-shadow: 0 1px 0 rgba(255,255,255,.35);
+  --cap: linear-gradient(180deg, #2A2A2A, #1D1D1D); --cap-r: 4px; --cap-text: #EDEDED; --cap-font: "Chakra Petch", sans-serif;
+  --accent: #F2C14E; --frame-text: #BDBDBD;
+}
+/* ---------- Consolidated Outland: frontier cream, retro triple stripe ---------- */
+[data-theme="cnou"] {
+  --surface: #E7DFD0;
+  --surface-art: radial-gradient(80% 60% at 50% 0%, #F6F0E4, transparent 70%), var(--grain-dark);
+  --bezel: linear-gradient(180deg, #3A302A, #2A221E); --bezel-hi: rgba(255,240,220,.12);
+  --trim: #E2662F; --pane-r: 8px; --pane-clip: none; --screw: #8C7A6C;
+  --glass: linear-gradient(180deg, #171210, #1D1714); --glass-art: none; --screen-r: 4px; --screen-edge: rgba(226,102,47,.3);
+  --plate-font: "Saira Condensed", sans-serif; --plate-weight: 700; --plate-track: .22em; --plate-color: #F3E7D6;
+  --cap: linear-gradient(180deg, #3B322C, #2B2420); --cap-r: 6px; --cap-text: #F3E7D6; --cap-font: "Saira Condensed", sans-serif;
+  --accent: #E2662F; --frame-text: #6E5E4E; --lamp-off: #CDBFA9; color-scheme: light;
+}
+/* ---------- Banu: living bronze, organic shells, glitching merchant glyphs ---------- */
+[data-theme="banu"] {
+  --surface: #23170E;
+  --surface-art: radial-gradient(45% 35% at 15% 20%, rgba(214,129,43,.28), transparent 70%), radial-gradient(40% 40% at 85% 80%, rgba(170,54,140,.25), transparent 70%),
+    radial-gradient(30% 30% at 60% 30%, rgba(40,190,170,.14), transparent 70%), var(--wear), var(--grain);
+  --bezel: linear-gradient(160deg, #6B4A27, #3F2A16 60%, #5A3A1E); --bezel-hi: rgba(255,214,150,.25);
+  --trim: #E8A04A; --pane-r: 34px 8px 28px 12px; --pane-clip: none; --screws: 0;
+  --glass: radial-gradient(120% 120% at 20% 0%, #2A1438, #12081B 70%); --glass-art: none; --screen-r: 26px 6px 22px 10px; --screen-edge: rgba(232,160,74,.35);
+  --plate-font: "Cinzel", serif; --plate-weight: 700; --plate-track: .18em; --plate-color: #F6D9A8;
+  --cap: radial-gradient(120% 100% at 30% 10%, #4A2E52, #281531); --cap-r: 16px 6px 14px 8px; --cap-text: #F3E4CF; --cap-font: "Cinzel", serif;
+  --accent: #E8A04A; --frame-text: #C9A47C; --lamp-off: #3A2716;
+  --c-flight: #33D1C4; --c-eng: #F2B33D; --c-combat: #FF4F7B; --c-def: #7AE0FF; --c-nav: #C77DFF;
+  --c-ind: #A6E22E; --c-crew: #FF8ED4; --c-ui: #D8C6A0; --c-emerg: #FF2E4D; --on-cat: #1A0D14;
+}
+/* ---------- Aopoa (Xi'an): pearl and jade, flowing asymmetric shells ---------- */
+[data-theme="aopoa"] {
+  --surface: #DDE9E3;
+  --surface-art: radial-gradient(120% 60% at 0% 100%, rgba(122,211,176,.35), transparent 60%), radial-gradient(90% 50% at 100% 0%, rgba(255,255,255,.9), transparent 60%),
+    repeating-radial-gradient(ellipse at 50% 140%, transparent 0 60px, rgba(31,110,90,.06) 60px 61px);
+  --bezel: linear-gradient(160deg, #F6FBF8, #CFE3DA); --bezel-hi: #fff; --bezel-lo: rgba(30,90,70,.25);
+  --trim: #1F7A62; --pane-r: 40px 4px 40px 4px; --pane-clip: none; --screws: 0;
+  --glass: linear-gradient(170deg, #0D2A24, #08201B); --glass-art: none; --screen-r: 30px 3px 30px 3px; --screen-edge: rgba(122,211,176,.5);
+  --plate-font: "Oxanium", sans-serif; --plate-weight: 700; --plate-track: .34em; --plate-color: #135443; --plate-shadow: none;
+  --cap: linear-gradient(170deg, #17413A, #0F2E28); --cap-r: 18px 3px 18px 3px; --cap-text: #D9F2EA; --cap-font: "Oxanium", sans-serif;
+  --accent: #1F7A62; --frame-text: #2B6656; --lamp-off: #BFD6CC;
+  --c-flight: #5FC8F0; --c-eng: #F0C35F; --c-combat: #FF6B6B; --c-def: #7AF0D0; --c-nav: #B79CFF; --c-ind: #B6E86A; --c-crew: #FF9FD2; --c-ui: #BFD6CC; --on-cat: #062019;
+  color-scheme: light;
+}
+/* ---------- Esperia (Tevarin): night plum, crescents, coral ---------- */
+[data-theme="esperia"] {
+  --surface: #120B1C;
+  --surface-art: radial-gradient(70% 70% at 110% 50%, transparent 58%, rgba(255,122,92,.18) 59%, transparent 61%), radial-gradient(60% 60% at -10% 40%, transparent 57%, rgba(168,139,255,.16) 58%, transparent 60%),
+    radial-gradient(70% 50% at 50% 0%, #2A1A40, transparent 70%), var(--grain);
+  --bezel: linear-gradient(180deg, #2A1E3D, #1B1329); --bezel-hi: rgba(200,170,255,.15);
+  --trim: #FF7A5C; --pane-r: 26px 2px 26px 2px; --pane-clip: none; --screws: 0;
+  --glass: linear-gradient(180deg, #0C0714, #120A1E); --glass-art: none; --screen-r: 20px 2px 20px 2px; --screen-edge: rgba(255,122,92,.3);
+  --plate-font: "Oxanium", sans-serif; --plate-weight: 700; --plate-track: .3em; --plate-color: #FFB4A0;
+  --cap: linear-gradient(180deg, #2A1F3E, #1D152C); --cap-r: 14px 2px 14px 2px; --cap-text: #EDE6FF; --cap-font: "Oxanium", sans-serif;
+  --accent: #FF7A5C; --frame-text: #A893C9; --lamp-off: #2A1F3B;
+  --c-flight: #79B8FF; --c-eng: #FFC56B; --c-combat: #FF5C7A; --c-def: #6FF0E0; --c-nav: #C9A2FF; --c-ind: #A8E66B; --c-crew: #FF8FD8; --on-cat: #140A1E;
+}
+
+
+/* ---------- HUD: the ship's own display; thin lines on dark glass ---------- */
+[data-theme="hud"] {
+  --surface: #03070D;
+  --surface-art: radial-gradient(90% 70% at 50% 0%, #0B1D33 0%, transparent 70%);
+  --bezel: rgba(6,16,28,.7); --bezel-art: none; --bezel-hi: rgba(120,190,255,.12); --bezel-lo: transparent;
+  --seam: transparent; --pane-r: 0; --pane-clip: none; --screws: 0; --frost: blur(4px);
+  --glass: rgba(4,12,22,.8); --screen-edge: rgba(76,163,255,.3); --screen-r: 0;
+  --plate-font: "Rajdhani", sans-serif; --plate-weight: 700; --plate-track: .16em; --plate-color: #9FD0FF; --plate-shadow: none;
+  --cap: rgba(14,32,54,.55); --cap-hi: rgba(140,200,255,.08); --cap-lo: transparent; --cap-r: 0; --cap-line: rgba(110,180,255,.38);
+  --cap-clip: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  --cap-text: #D6EBFF; --cap-font: "Rajdhani", sans-serif; --frame-text: #6E93B8; --accent: #4CA3FF; --lamp-off: #12243A; --glow: 1;
+  --c-flight: #4CA3FF; --c-eng: #FFB547; --c-combat: #FF5A5F; --c-def: #3DE0F0; --c-nav: #B48CFF; --c-ind: #8CE05A; --c-crew: #FF7FCB; --c-ui: #9DB7D3; --c-emerg: #FF3B3B; --on-cat: #03101C;
+}
+/* ---------- mobiGlas: the wrist computer's hologram; frosted teal glass ---------- */
+[data-theme="mobiglas"] {
+  --surface: #021312;
+  --surface-art: radial-gradient(70% 60% at 30% 10%, rgba(0,240,200,.14), transparent 70%), radial-gradient(60% 50% at 80% 90%, rgba(0,160,255,.12), transparent 70%);
+  --bezel: rgba(0,40,38,.36); --bezel-art: linear-gradient(160deg, rgba(255,255,255,.07), transparent 40%); --bezel-hi: rgba(160,255,235,.16); --bezel-lo: transparent;
+  --frost: blur(18px) saturate(1.4); --seam: transparent; --pane-r: 18px; --pane-clip: none; --screws: 0;
+  --glass: rgba(0,26,26,.55); --screen-edge: rgba(0,240,200,.35); --screen-r: 12px;
+  --plate-font: "Exo 2", sans-serif; --plate-weight: 600; --plate-track: .18em; --plate-color: #9CFFE9; --plate-shadow: none;
+  --cap: rgba(0,240,200,.08); --cap-hi: rgba(200,255,245,.14); --cap-lo: transparent; --cap-r: 12px; --cap-line: rgba(0,240,200,.35);
+  --cap-text: #D8FFF6; --cap-font: "Exo 2", sans-serif; --frame-text: #5FBFAE; --accent: #00F0C8; --lamp-off: #0A2B29; --glow: 1;
+  --c-flight: #4FC3FF; --c-eng: #FFC85A; --c-combat: #FF6A7A; --c-def: #00F0C8; --c-nav: #B79CFF; --c-ind: #9DF06A; --c-crew: #FF8FD8; --c-ui: #A6D9D0; --c-emerg: #FF4D5E; --on-cat: #00201C;
+}
+
+/* Panel tints: how much of each maker's hull shows through its panels. */
+[data-theme="rsi"] { --pane-tint: linear-gradient(180deg, rgba(24,34,48,.74), rgba(16,22,32,.8)); }
+[data-theme="drake"] { --pane-tint: linear-gradient(180deg, rgba(40,41,34,.42), rgba(28,29,24,.55)); --cap-art: var(--art-wear); }
+[data-theme="anvil"] { --pane-tint: linear-gradient(180deg, rgba(55,62,44,.45), rgba(40,46,32,.55)); --cap-art: var(--art-wear); }
+[data-theme="argo"] { --pane-tint: linear-gradient(180deg, rgba(242,193,78,.82), rgba(217,169,49,.86)); --cap-art: var(--art-wear); }
+[data-theme="aegis"] { --pane-tint: linear-gradient(180deg, rgba(35,39,45,.72), rgba(25,28,33,.8)); }
+[data-theme="misc"] { --pane-tint: linear-gradient(180deg, rgba(31,92,97,.86), rgba(24,75,79,.9)); }
+[data-theme="cnou"] { --pane-tint: linear-gradient(180deg, rgba(58,48,42,.88), rgba(42,34,30,.92)); }
+[data-theme="banu"] { --pane-tint: linear-gradient(160deg, rgba(107,74,39,.62), rgba(63,42,22,.7)); }
+/* glass makers: frosted panels over their hull art */
+[data-theme="origin"] { --bezel: linear-gradient(180deg, rgba(250,249,246,.74), rgba(232,229,221,.66)); --frost: blur(16px) saturate(1.2); --glow: .25; }
+[data-theme="crusader"] { --frost: blur(18px) saturate(1.3); --glow: .3; }
+[data-theme="aopoa"] { --bezel: linear-gradient(160deg, rgba(246,251,248,.66), rgba(207,227,218,.58)); --frost: blur(16px) saturate(1.3); --glow: .35; }
+[data-theme="esperia"] { --bezel: linear-gradient(180deg, rgba(42,30,61,.72), rgba(27,19,41,.72)); --frost: blur(14px); --glow: .5; }
+[data-theme="banu"] { --glow: .45; }
+[data-theme="drake"], [data-theme="anvil"], [data-theme="argo"], [data-theme="aegis"] { --glow: .22; }
+
+
+[data-cat="def"] { --cat: var(--c-def); } [data-cat="nav"] { --cat: var(--c-nav); } [data-cat="ind"] { --cat: var(--c-ind); }
+[data-cat="crew"] { --cat: var(--c-crew); } [data-cat="ui"] { --cat: var(--c-ui); } [data-cat="emerg"] { --cat: var(--c-emerg); }
+
+/* ---------- maker details ---------- */
+/* ledger: the alien makers glitch now and then; the owner asked for it by name */
+[data-theme="banu"] .plate .nm, [data-theme="aopoa"] .plate .nm, [data-theme="esperia"] .plate .nm,
+[data-theme="banu"] .sheet-head h1, [data-theme="esperia"] .sheet-head h1 {
+  text-shadow: 1.5px 0 rgba(255,46,140,.55), -1.5px 0 rgba(40,230,210,.55); animation: glitch 7s steps(1) infinite; }
+[data-theme="aopoa"] .plate .nm { text-shadow: 1px 0 rgba(95,200,240,.6), -1px 0 rgba(240,195,95,.5); }
+@keyframes glitch { 0%, 93%, 100% { transform: none; clip-path: none; } 94% { transform: translateX(2px) skewX(-8deg); clip-path: inset(0 0 55% 0); } 95% { transform: translateX(-3px); clip-path: inset(40% 0 0 0); } 96% { transform: translateX(1px) skewX(6deg); } }
+[data-theme="banu"] .k:nth-child(3n+1) { border-radius: 18px 6px 14px 8px; }
+[data-theme="banu"] .k:nth-child(3n+2) { border-radius: 6px 16px 8px 14px; }
+[data-theme="banu"] .k:nth-child(3n) { border-radius: 12px 4px 20px 6px; }
+@media (prefers-reduced-motion: reduce) { .plate .nm, .sheet-head h1 { animation: none !important; } }
+[data-theme="drake"] .plate { padding-left: 0; }
+[data-theme="drake"] .plate::before { content: ""; width: 40px; height: 12px; flex: none; background: repeating-linear-gradient(-45deg, #E3B21F 0 6px, #141410 6px 12px); opacity: .85; }
+[data-theme="drake"] .k .l { color: #E3B21F; }
+[data-theme="drake"] .k.on .l { color: var(--on-cat); }
+[data-theme="rsi"] .pane::after { content: ""; position: absolute; left: 10px; right: 10px; top: 25px; height: 1px; pointer-events: none; background: linear-gradient(90deg, rgba(201,165,76,.45), transparent 60%); }
+[data-theme="origin"] .pane::after { content: ""; position: absolute; left: 22px; right: 22px; top: 25px; height: 1px; background: linear-gradient(90deg, transparent, var(--trim), transparent); }
+[data-theme="aegis"] .plate::after { content: ""; order: 3; width: 22px; height: 3px; margin-left: 8px; background: var(--trim); }
+[data-theme="misc"] .pane::after { content: ""; position: absolute; top: 0; right: 24px; width: 46px; height: 4px; background: var(--trim); }
+[data-theme="argo"] .plate .no { font: 700 15px "Chakra Petch", sans-serif; color: #141414; }
+[data-theme="cnou"] .plate { margin-top: 6px; }
+[data-theme="cnou"] .pane::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 6px; background: linear-gradient(180deg, #E2662F 0 2px, #F2A541 2px 4px, #F5D06B 4px 6px); }
+[data-theme="hud"] .plate .nm::before { content: "// "; color: var(--accent); }
+[data-theme="hud"] .page { background: transparent; box-shadow: none; }
+[data-theme="hud"] .seam { background: transparent; }
+[data-theme="hud"] .pane { box-shadow: inset 0 0 0 1px rgba(76,163,255,.18); }
+[data-theme="mobiglas"] .page { background: transparent; box-shadow: none; gap: 0; }

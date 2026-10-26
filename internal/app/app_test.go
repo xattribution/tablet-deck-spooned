@@ -20,24 +20,31 @@ import (
 
 var nextPort = 47800
 
-// startApp runs a deck on fresh ports with a fake keyboard.
+// startApp runs a deck on fresh ports with a fake keyboard. A port that is taken
+// (Linux also hands out ports in this range to outgoing connections) is skipped.
 func startApp(t *testing.T, name string) (*App, *input.Fake) {
 	t.Helper()
-	nextPort += 2
-	f := input.NewFake()
-	dir, _ := os.MkdirTemp("", "td-test")
-	t.Cleanup(func() { time.Sleep(50 * time.Millisecond); os.RemoveAll(dir) })
-	a, err := New(Options{DataDir: dir, Port: nextPort, Driver: f, Log: log.New(io.Discard, "", 0)})
-	if err != nil {
-		t.Fatal(err)
+	for try := 0; ; try++ {
+		nextPort += 2
+		f := input.NewFake()
+		dir, _ := os.MkdirTemp("", "td-test")
+		t.Cleanup(func() { time.Sleep(50 * time.Millisecond); os.RemoveAll(dir) })
+		a, err := New(Options{DataDir: dir, Port: nextPort, Driver: f, Log: log.New(io.Discard, "", 0)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = a.Store.Update(func(c *config.Config) { c.Name = name; c.Voice = false; c.Discovery = false; c.TapMs = 20 })
+		ctx, cancel := context.WithCancel(context.Background())
+		if err := a.Start(ctx); err != nil {
+			cancel()
+			if strings.Contains(err.Error(), "taken") && try < 20 {
+				continue
+			}
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { a.Stop(); cancel() })
+		return a, f
 	}
-	_ = a.Store.Update(func(c *config.Config) { c.Name = name; c.Voice = false; c.Discovery = false; c.TapMs = 20 })
-	ctx, cancel := context.WithCancel(context.Background())
-	if err := a.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { a.Stop(); cancel() })
-	return a, f
 }
 
 type wsClient struct {

@@ -1,7 +1,7 @@
 // Command tabletdeck is Tablet Deck: a touch control deck for Star Citizen on any
 // tablet or phone, with crew sharing and Stream Deck support.
 //
-//	tabletdeck                    start (tray icon on Windows) and open the control panel
+//	tabletdeck                    start, with a small status window and a tray icon on Windows
 //	tabletdeck --tray             start in the tray only (Start with Windows)
 //	tabletdeck serve [--dry-run]  run the server in a console, no tray
 //	tabletdeck press <button>     press a button on the running deck (Stream Deck, scripts)
@@ -24,6 +24,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -69,7 +70,7 @@ func main() {
 
 const usage = `Tablet Deck: a touch control deck for Star Citizen.
 
-  tabletdeck                       start, with the tray icon, and open the control panel
+  tabletdeck                       start, with a small status window and the tray icon
   tabletdeck --tray                start in the tray only
   tabletdeck serve [--dry-run]     run in this console without the tray
          [--port N] [--data DIR]   (--dry-run presses no keys)
@@ -88,14 +89,14 @@ func run(args []string, tray bool) {
 	dry := fs.Bool("dry-run", false, "press no keys, only log them")
 	port := fs.Int("port", 0, "port for tablets (default from config.json)")
 	data := fs.String("data", "", "settings folder")
-	trayOnly := fs.Bool("tray", false, "start in the tray without opening the control panel")
+	trayOnly := fs.Bool("tray", false, "start in the tray without showing the status window")
 	_ = fs.Parse(args)
 
-	// One tray app per settings folder. Starting it again opens the running one's
-	// control panel. A console run ("serve") is for testing and doesn't take part.
+	// One tray app per settings folder. Starting it again shows the running one's
+	// window. A console run ("serve") is for testing and doesn't take part.
 	if tray && !winapp.SingleInstance(*data) {
 		if !*trayOnly {
-			openPanel(loadCfg(*data), "")
+			winapp.ShowRunning(*data)
 		}
 		return
 	}
@@ -114,11 +115,13 @@ func run(args []string, tray bool) {
 		fail(dir, err, tray)
 	}
 	_ = winapp.RegisterLinks()
-	cfg := a.Store.Config()
 
+	var once sync.Once
 	stop := func() {
-		a.Stop()
-		cancel()
+		once.Do(func() {
+			a.Stop()
+			cancel()
+		})
 	}
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
@@ -130,25 +133,41 @@ func run(args []string, tray bool) {
 		return
 	}
 	go func() { <-sig; stop(); os.Exit(0) }()
-	if !*trayOnly {
-		openPanel(cfg, "")
-	}
-	winapp.RunTray(winapp.Tray{
-		Title:       "Tablet Deck",
-		OpenPanel:   func() { openPanel(a.Store.Config(), "") },
-		OpenPairing: func() { openPanel(a.Store.Config(), "#pair") },
-		OpenTouch: func() {
-			c := a.Store.Config()
-			winapp.OpenWindow(fmt.Sprintf("http://localhost:%d/?t=%s&device=tablet&name=This%%20PC", c.Port, c.Token), "touch", 1024, 768)
-		},
+	// The tablet app manages everything; the PC shows a small window that says it's
+	// running and how to pair, and quits from its close box. No browser opens by itself.
+	winapp.Run(winapp.Host{
+		Title:      "Tablet Deck",
+		DataDir:    *data,
+		Hidden:     *trayOnly,
+		Status:     func() winapp.Status { return hostStatus(a) },
+		NewCode:    func() { a.NewPairingCode() },
 		ReleaseAll: func() { a.Engine.ReleaseAll(deck.ReasonReleaseAll) },
-		ToggleAfk:  func() bool { a.SetAfk(!a.Afk()); return a.Afk() },
-		Quit:       stop,
+		OpenSettings: func() {
+			c := a.Store.Config()
+			winapp.OpenBrowser(fmt.Sprintf("http://localhost:%d/control?k=%s", c.Port, c.APIKey))
+		},
+		Quit: stop,
 	})
 }
 
-func openPanel(c config.Config, hash string) {
-	winapp.OpenWindow(fmt.Sprintf("http://localhost:%d/control?k=%s%s", c.Port, c.APIKey, hash), "panel", 1180, 820)
+// hostStatus is what the status window shows.
+func hostStatus(a *app.App) winapp.Status {
+	cfg := a.Store.Config()
+	h := a.HostSummary()
+	s := winapp.Status{Code: cfg.Token, Tablets: h.Decks, Voice: h.Voice, Address: "No network found"}
+	if lan := a.LanAddress(); lan != "" {
+		s.Address = fmt.Sprintf("%s:%d", lan, cfg.Port)
+		s.Link = fmt.Sprintf("http://%s:%d/?t=%s", lan, cfg.Port, cfg.Token)
+	}
+	switch {
+	case h.GameFocused:
+		s.Game = "Star Citizen in front"
+	case h.GameRunning:
+		s.Game = "Star Citizen running, not in front"
+	default:
+		s.Game = "Star Citizen not running"
+	}
+	return s
 }
 
 func printWelcome(a *app.App) {
@@ -293,8 +312,10 @@ func handleURL(args []string) int {
 	case "afk":
 		return call("POST", "/api/v1/afk", map[string]bool{"on": arg != "off"}, nil)
 	case "open":
-		openPanel(loadCfg(""), "")
-		return 0
+		if winapp.ShowRunning(os.Getenv("TABLETDECK_DATA")) {
+			return 0
+		}
+		return 1
 	}
 	return 2
 }

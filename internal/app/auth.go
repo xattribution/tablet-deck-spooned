@@ -21,6 +21,12 @@ type principal struct {
 	grant    *config.Grant // a guest's share link
 }
 
+// manager reports whether the caller may change settings, keybind files, the agent
+// and tunnels: this PC, or a paired owner device. Never a guest on a share link.
+func (p principal) manager() bool {
+	return p.grant == nil && (p.local || p.owner)
+}
+
 // isLocal: from this PC, on the deck port. The guest port is also on this PC but is
 // where tunnels connect, so nothing there counts as local.
 func isLocal(r *http.Request, guestListener bool) bool {

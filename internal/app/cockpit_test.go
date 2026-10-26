@@ -119,3 +119,59 @@ func contains(list []string, s string) bool {
 	}
 	return false
 }
+
+// A tablet that joins after the split was saved still gets its share, and a saved
+// place on a console that isn't here this session doesn't keep panels from it.
+func TestCockpitLateJoiner(t *testing.T) {
+	consoleGrace = 150 * time.Millisecond
+	a, _ := startApp(t, "Pilot")
+	cfg := a.Store.Config()
+	url := fmt.Sprintf("ws://%s:%d/ws?t=%s&device=tablet", a.LanAddress(), cfg.Port, cfg.Token)
+	join := func() *wsClient {
+		c := dial(t, url)
+		c.wait("paired", nil)
+		c.wait("hello", nil)
+		return c
+	}
+	count := func() []int {
+		var n []int
+		for _, con := range a.CockpitStatus()["consoles"].([]map[string]any) {
+			if con["online"].(bool) {
+				n = append(n, len(con["panels"].([]map[string]any)))
+			}
+		}
+		return n
+	}
+	join()
+	b := join()
+	time.Sleep(100 * time.Millisecond)
+	st := a.CockpitStatus()["consoles"].([]map[string]any)
+	first := st[0]["panels"].([]map[string]any)[0]["id"].(string)
+	if err := a.MovePanel(first, st[1]["id"].(string), ""); err != nil { // saves the split
+		t.Fatal(err)
+	}
+	join()
+	time.Sleep(100 * time.Millisecond)
+	for _, n := range count() {
+		if n == 0 {
+			t.Fatalf("the late joiner got nothing: %v", count())
+		}
+	}
+	// One leaves for good (past the grace) and isn't lost any more after a restart of
+	// the session: its saved place must not hold panels the others can't see.
+	b.conn.CloseNow()
+	time.Sleep(400 * time.Millisecond)
+	a.cockpit.mu.Lock()
+	for k := range a.cockpit.lost {
+		delete(a.cockpit.lost, k)
+	}
+	a.cockpit.mu.Unlock()
+	total := 0
+	for _, n := range count() {
+		total += n
+	}
+	flight, _ := a.ViewByID("flight")
+	if total != len(flight.Groups) {
+		t.Fatalf("panels stuck on an absent console: %d of %d shown (%v)", total, len(flight.Groups), count())
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,6 +33,12 @@ type client struct {
 	view    string      // the view this deck shows
 	theme   string      // set by an agent; "" = the deck's own choice
 	form    string      // tablet or phone, as the deck said
+
+	ip         string // where it connected from
+	platform   string // ipad, iphone, android, windows, mac or other
+	installID  string // the Android app's install id (?did=)
+	nativeApp  string // "android" when it runs in the Android app (?native=)
+	nativeInfo any    // what the Android app said about itself (hello-native)
 }
 
 // msg is anything a deck sends. Fields are shared between message types.
@@ -129,7 +136,14 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request, guestListener boo
 	conn.SetReadLimit(64 << 10)
 	ctx, cancel := context.WithCancel(r.Context())
 	c := &client{a: a, id: config.RandomHex(6), p: p, peer: q.Get("peer") != "", layout: l, form: q.Get("device"),
-		out: make(chan []byte, 256), cancel: cancel, holds: map[string]*deck.Hold{}}
+		out: make(chan []byte, 256), cancel: cancel, holds: map[string]*deck.Hold{}, ip: remoteIP(r)}
+	if p.grant == nil {
+		c.installID = cleanID(q.Get("did"))
+		if q.Get("native") == "android" {
+			c.nativeApp = "android"
+		}
+		c.platform = platformOf(r.UserAgent(), c.form, c.nativeApp)
+	}
 
 	// A device that used the pairing code gets a token of its own, so changing the code
 	// later doesn't unpair it, and it can be unpaired on its own.
@@ -202,6 +216,42 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request, guestListener boo
 	if c.p.grant != nil && a.crew != nil {
 		a.crew.changed()
 	}
+}
+
+// platformOf is a coarse guess at what a deck runs on, from its browser. iPadOS
+// Safari asks for the desktop site and says "Macintosh"; a deck that also says it is a
+// tablet is taken for an iPad.
+func platformOf(ua, form, native string) string {
+	switch {
+	case native == "android":
+		return "android"
+	case strings.Contains(ua, "iPad"):
+		return "ipad"
+	case strings.Contains(ua, "iPhone"):
+		return "iphone"
+	case strings.Contains(ua, "Android"):
+		return "android"
+	case strings.Contains(ua, "Macintosh") && form == "tablet":
+		return "ipad"
+	case strings.Contains(ua, "Macintosh"):
+		return "mac"
+	case strings.Contains(ua, "Windows"):
+		return "windows"
+	}
+	return "other"
+}
+
+// cleanID keeps an id a device sent if it is short and plain.
+func cleanID(s string) string {
+	if len(s) == 0 || len(s) > 64 {
+		return ""
+	}
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_') {
+			return ""
+		}
+	}
+	return s
 }
 
 func (c *client) describe() string {
@@ -285,6 +335,19 @@ func (c *client) handle(m msg) {
 	switch m.T {
 	case "hb":
 		return
+	case "hello-native":
+		// The Android app says what it is once after connecting; kept for the devices list.
+		if c.p.grant == nil && len(m.Text) <= 4096 {
+			var info any
+			if json.Unmarshal([]byte(m.Text), &info) != nil {
+				info = m.Text
+			}
+			c.mu.Lock()
+			c.nativeInfo = info
+			c.mu.Unlock()
+			a.Bus.Publish("clients", a.clientSummary())
+		}
+		return
 	case "ping":
 		c.send(map[string]any{"t": "pong", "n": m.N})
 		return
@@ -312,6 +375,8 @@ func (c *client) handle(m msg) {
 	case "voice":
 		if m.Mode == "tap" && m.On {
 			a.voice.tap(c)
+		} else if m.Mode == "tap" {
+			a.voice.untap(c)
 		} else {
 			a.voice.listen(c, m.On)
 		}
@@ -349,13 +414,18 @@ func (c *client) handle(m msg) {
 			return
 		}
 		if v, ok := a.ViewByID(m.ID); ok {
-			c.mu.Lock()
-			c.view = v.ID
-			c.mu.Unlock()
-			c.send(map[string]any{"t": "view", "view": v, "groups": a.Resolve(v)})
+			a.sendSolo(c, v)
 		}
 	case "cockpit-move": // a panel dragged to another console
 		if err := a.MovePanel(m.ID, m.Text, c.consoleKey()); err != nil {
+			c.send(map[string]any{"t": "toast", "text": err.Error()})
+		}
+	case "cockpit-add": // a panel added on this screen, for the view it shows
+		if err := a.AddToConsole(c, m.ID); err != nil {
+			c.send(map[string]any{"t": "toast", "text": err.Error()})
+		}
+	case "cockpit-remove": // a panel taken off this screen
+		if err := a.RemoveFromConsole(c, m.ID); err != nil {
 			c.send(map[string]any{"t": "toast", "text": err.Error()})
 		}
 	case "cockpit-fallback": // where a lost console's panels go
@@ -530,7 +600,16 @@ func (a *App) clientSummary() []map[string]any {
 		} else if c.p.grant != nil {
 			kind = "guest"
 		}
-		out = append(out, map[string]any{"id": c.id, "name": c.name(), "kind": kind, "local": c.p.local, "layout": c.layout.Name})
+		e := map[string]any{"id": c.id, "name": c.name(), "kind": kind, "local": c.p.local, "layout": c.layout.Name}
+		if kind == "owner" {
+			c.mu.Lock()
+			e["device"], e["console"], e["platform"] = c.p.deviceID, c.consoleKey(), c.platform
+			if c.nativeApp != "" {
+				e["native"] = map[string]any{"app": c.nativeApp, "info": c.nativeInfo}
+			}
+			c.mu.Unlock()
+		}
+		out = append(out, e)
 	})
 	return out
 }

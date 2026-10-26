@@ -1,0 +1,13 @@
+# Gradle and Android Studio
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.cxx/
+.kotlin/
+captures/
+
+# The release key and its passwords stay off git; back them up yourself.
+keystore/*.jks
+keystore/keystore.properties

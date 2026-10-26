@@ -382,18 +382,43 @@ type Cockpit struct {
 	Assign   map[string]map[string][]string `json:"assign,omitempty"` // view -> console -> panels
 }
 
-// Console is one screen of the cockpit, by its device id.
+// Console is one screen of the cockpit, by its device id. One screen can hold more
+// than one device id: a tablet's browser and its home-screen app keep separate
+// storage, so each pairs on its own; the later ones are kept as aliases.
 type Console struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Order int    `json:"order"`          // left to right
-	Solo  bool   `json:"solo,omitempty"` // not part of the cockpit: shows whole views on its own
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Order     int      `json:"order"`               // left to right
+	Solo      bool     `json:"solo,omitempty"`      // not part of the cockpit: shows whole views on its own
+	Aliases   []string `json:"aliases,omitempty"`   // other device ids that are this same screen
+	LastIP    string   `json:"lastIp,omitempty"`    // where it last connected from
+	Platform  string   `json:"platform,omitempty"`  // ipad, iphone, android, windows, mac or other
+	InstallID string   `json:"installId,omitempty"` // the Android app's install id, when it connected through the app
+}
+
+// Has reports whether a device id is this console or one of its aliases.
+func (c Console) Has(id string) bool {
+	if id == "" {
+		return false
+	}
+	if c.ID == id {
+		return true
+	}
+	for _, a := range c.Aliases {
+		if a == id {
+			return true
+		}
+	}
+	return false
 }
 
 // Copy returns a deep copy.
 func (c Cockpit) Copy() Cockpit {
 	out := c
 	out.Consoles = append([]Console(nil), c.Consoles...)
+	for i := range out.Consoles {
+		out.Consoles[i].Aliases = append([]string(nil), c.Consoles[i].Aliases...)
+	}
 	out.Assign = map[string]map[string][]string{}
 	for v, m := range c.Assign {
 		out.Assign[v] = map[string][]string{}
@@ -402,6 +427,19 @@ func (c Cockpit) Copy() Cockpit {
 		}
 	}
 	return out
+}
+
+// ConsoleOf returns the console a device id belongs to (itself when it is no alias).
+// It reads without copying the whole state, since it runs for every connected deck.
+func (s *Store) ConsoleOf(id string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, c := range s.state.Cockpit.Consoles {
+		if c.Has(id) {
+			return c.ID
+		}
+	}
+	return id
 }
 
 // State returns a copy of the saved state.

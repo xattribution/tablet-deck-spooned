@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -30,7 +31,7 @@ func (c *client) consoleKey() string {
 	case c.p.grant != nil || c.peer:
 		return ""
 	case c.p.deviceID != "":
-		return c.p.deviceID
+		return c.a.Store.ConsoleOf(c.p.deviceID)
 	case c.p.local:
 		return "this-pc"
 	}
@@ -52,7 +53,9 @@ func (a *App) inCockpit(c *client) bool {
 }
 
 // joinCockpit adds a newly seen deck as a console: tablets and the PC join, phones
-// start solo (a phone is usually a remote, not a screen of the cockpit).
+// start solo (a phone is usually a remote, not a screen of the cockpit). A new device
+// id that is the same screen as a known console (see sameScreen) becomes that
+// console's alias instead of a second console.
 func (a *App) joinCockpit(c *client) {
 	k := c.consoleKey()
 	if k == "" {
@@ -63,16 +66,39 @@ func (a *App) joinCockpit(c *client) {
 		name = "This PC"
 	}
 	_ = a.Store.UpdateState(func(st *config.State) {
-		for _, con := range st.Cockpit.Consoles {
-			if con.ID == k {
-				return
+		cons := st.Cockpit.Consoles
+		at := -1
+		for i := range cons {
+			if cons[i].Has(k) {
+				at = i
+				break
 			}
 		}
-		if n := strings.ToLower(strings.TrimSpace(name)); n == "" || n == "device" || n == "tablet" || n == "phone" {
-			name = fmt.Sprintf("Console %d", len(st.Cockpit.Consoles)+1)
+		if at < 0 && k != "this-pc" {
+			if at = sameScreen(cons, c.ip, c.platform, c.installID); at >= 0 {
+				cons[at].Aliases = append(cons[at].Aliases, k)
+				a.Log.Printf("Cockpit: %s is the same screen as %s.", name, cons[at].Name)
+			}
 		}
-		st.Cockpit.Consoles = append(st.Cockpit.Consoles, config.Console{ID: k, Name: name, Order: len(st.Cockpit.Consoles), Solo: c.form == "phone"})
+		if at < 0 {
+			if n := strings.ToLower(strings.TrimSpace(name)); n == "" || n == "device" || n == "tablet" || n == "phone" {
+				name = fmt.Sprintf("Console %d", len(cons)+1)
+			}
+			cons = append(cons, config.Console{ID: k, Name: name, Order: len(cons), Solo: c.form == "phone"})
+			at = len(cons) - 1
+		}
+		if c.ip != "" {
+			cons[at].LastIP = c.ip
+		}
+		if c.platform != "" {
+			cons[at].Platform = c.platform
+		}
+		if c.installID != "" {
+			cons[at].InstallID = c.installID
+		}
+		st.Cockpit.Consoles = cons
 	})
+	k = c.consoleKey() // an alias now answers to its console
 	a.cockpit.mu.Lock()
 	if t := a.cockpit.timers[k]; t != nil {
 		t.Stop()
@@ -85,6 +111,32 @@ func (a *App) joinCockpit(c *client) {
 	if wasLost {
 		a.broadcastOwners(map[string]any{"t": "cockpit-back", "console": k, "name": a.consoleName(k)})
 	}
+}
+
+// sameScreen finds the console a newly paired device id is another copy of: the
+// Android app's install id when both have one, else a console last seen at the same
+// address on the same kind of device (and not a different app install). -1 if none.
+func sameScreen(cons []config.Console, ip, platform, installID string) int {
+	if installID != "" {
+		for i, con := range cons {
+			if con.InstallID == installID {
+				return i
+			}
+		}
+	}
+	if ip == "" || platform == "" || platform == "other" { // too little to go on
+		return -1
+	}
+	for i, con := range cons {
+		if con.ID == "this-pc" || con.LastIP != ip || con.Platform != platform {
+			continue
+		}
+		if installID != "" && con.InstallID != "" && con.InstallID != installID {
+			continue // two installs of the app are two screens
+		}
+		return i
+	}
+	return -1
 }
 
 // leftCockpit runs when a deck disconnects: if that was the console's last window, its
@@ -191,6 +243,10 @@ func (a *App) cockpitPlan(v config.View) cockpitPlan {
 	for k, v := range a.cockpit.fallback {
 		picked[k] = v
 	}
+	lostNow := map[string]bool{}
+	for k := range a.cockpit.lost {
+		lostNow[k] = true
+	}
 	a.cockpit.mu.Unlock()
 	online := map[string]bool{}
 	var up []config.Console
@@ -203,18 +259,48 @@ func (a *App) cockpitPlan(v config.View) cockpitPlan {
 	if len(up) == 0 {
 		up = cons
 	}
-	placed := map[string]bool{}
-	load := map[string]float64{}
-	for _, con := range cons {
-		for _, g := range saved[con.ID] {
-			if inView[g] && !placed[g] {
-				placed[g] = true
-				p.own[con.ID] = append(p.own[con.ID], g)
-				load[con.ID] += weight(g)
+	// A saved place counts only on a console that's in play this session: here, just
+	// dropped, or lost (its panels are being hosted). A console that hasn't come today
+	// doesn't keep panels from the screens that did.
+	inPlay := func(id string) bool { return online[id] || grace[id] || lostNow[id] }
+	// A console that joined with no place for this view gets its share: the view is
+	// split again (extras stay where they were added).
+	resplit := false
+	if len(saved) > 0 {
+		for _, con := range up {
+			if _, has := saved[con.ID]; !has {
+				resplit = true
+				break
 			}
 		}
 	}
-	if len(saved) == 0 {
+	placed := map[string]bool{}
+	load := map[string]float64{}
+	split := false // the view's own panels have a saved place
+	for _, con := range cons {
+		if !inPlay(con.ID) && len(up) > 0 && online[up[0].ID] {
+			continue
+		}
+		for _, g := range saved[con.ID] {
+			if resplit && inView[g] {
+				continue
+			}
+			if placed[g] {
+				continue
+			}
+			if !inView[g] { // an extra a player added on that console, while it exists
+				if _, ok := a.GroupByID(g); !ok {
+					continue
+				}
+			} else {
+				split = true
+			}
+			placed[g] = true
+			p.own[con.ID] = append(p.own[con.ID], g)
+			load[con.ID] += weight(g)
+		}
+	}
+	if !split {
 		// Nothing saved for this view: split it in order, left to right, by weight,
 		// between the consoles that are here.
 		total := 0.0
@@ -348,11 +434,20 @@ func (a *App) MovePanel(group, to, from string) error {
 		return fmt.Errorf("no console %q", to)
 	}
 	p := a.cockpitPlan(v)
+	member := map[string]bool{}
+	for _, con := range cons {
+		member[con.ID] = true
+	}
 	_ = a.Store.UpdateState(func(st *config.State) {
 		if st.Cockpit.Assign == nil {
 			st.Cockpit.Assign = map[string]map[string][]string{}
 		}
 		as := map[string][]string{}
+		for k, gs := range st.Cockpit.Assign[v.ID] { // solo consoles keep theirs
+			if !member[k] {
+				as[k] = gs
+			}
+		}
 		for k, gs := range p.own { // save the whole current split, then move
 			for _, g := range gs {
 				if g != group {
@@ -361,6 +456,11 @@ func (a *App) MovePanel(group, to, from string) error {
 			}
 		}
 		as[to] = append(as[to], group)
+		for _, con := range cons { // an emptied console keeps its (empty) place
+			if as[con.ID] == nil {
+				as[con.ID] = []string{}
+			}
+		}
 		st.Cockpit.Assign[v.ID] = as
 	})
 	a.pushCockpit()
@@ -415,8 +515,7 @@ func (a *App) UpdateConsole(id string, name *string, order *int, solo *bool) err
 	// A deck that left the cockpit goes back to whole views.
 	a.each(func(c *client) {
 		if c.consoleKey() == id && !a.inCockpit(c) {
-			v := a.cockpitView()
-			c.send(map[string]any{"t": "view", "view": v, "groups": a.Resolve(v), "cockpit": nil})
+			a.sendSolo(c, a.cockpitView())
 		}
 	})
 	return nil
@@ -437,6 +536,7 @@ func (a *App) ForgetConsole(id string) {
 		st.Cockpit.Consoles = kept
 		for _, as := range st.Cockpit.Assign {
 			delete(as, id)
+			delete(as, hideKey(id))
 		}
 	})
 	a.cockpit.mu.Lock()
@@ -447,6 +547,48 @@ func (a *App) ForgetConsole(id string) {
 		delete(a.cockpit.timers, id)
 	}
 	a.cockpit.mu.Unlock()
+	a.pushCockpit()
+}
+
+// dropDevice runs when a device is unpaired: an alias just leaves its console; a
+// console's own id hands the console to its first alias; otherwise the console goes.
+func (a *App) dropDevice(id string) {
+	kept := false
+	_ = a.Store.UpdateState(func(st *config.State) {
+		for i := range st.Cockpit.Consoles {
+			con := &st.Cockpit.Consoles[i]
+			if !con.Has(id) || (con.ID == id && len(con.Aliases) == 0) {
+				continue
+			}
+			kept = true
+			if con.ID == id {
+				con.ID, con.Aliases = con.Aliases[0], con.Aliases[1:]
+				for _, as := range st.Cockpit.Assign {
+					if gs, ok := as[id]; ok {
+						as[con.ID] = gs
+						delete(as, id)
+					}
+					if gs, ok := as[hideKey(id)]; ok {
+						as[hideKey(con.ID)] = gs
+						delete(as, hideKey(id))
+					}
+				}
+			} else {
+				var rest []string
+				for _, al := range con.Aliases {
+					if al != id {
+						rest = append(rest, al)
+					}
+				}
+				con.Aliases = rest
+			}
+			return
+		}
+	})
+	if !kept {
+		a.ForgetConsole(id)
+		return
+	}
 	a.pushCockpit()
 }
 
@@ -461,10 +603,209 @@ func (a *App) PickFallback(lost, to string) {
 }
 
 // ResetCockpit forgets the saved split of the current view (it's shared out again).
+// Solo consoles keep their own changes.
 func (a *App) ResetCockpit() {
 	v := a.cockpitView()
-	_ = a.Store.UpdateState(func(st *config.State) { delete(st.Cockpit.Assign, v.ID) })
+	cons := a.members()
+	_ = a.Store.UpdateState(func(st *config.State) {
+		for _, con := range cons {
+			delete(st.Cockpit.Assign[v.ID], con.ID)
+		}
+		if len(st.Cockpit.Assign[v.ID]) == 0 {
+			delete(st.Cockpit.Assign, v.ID)
+		}
+	})
 	a.pushCockpit()
+}
+
+// ---------- panels a console adds or takes off itself ----------
+
+// hideKey is where a solo console keeps the panels of a view it took off.
+func hideKey(console string) string { return "-hide-" + console }
+
+// soloView is a view as a solo console shows it: the whole view without the panels it
+// took off, plus the ones it added.
+func (a *App) soloView(console string, v config.View) config.View {
+	as := a.Store.State().Cockpit.Assign[v.ID]
+	hidden := map[string]bool{}
+	for _, g := range as[hideKey(console)] {
+		hidden[g] = true
+	}
+	out := v
+	out.Groups = nil
+	seen := map[string]bool{}
+	for _, g := range v.Groups {
+		if !hidden[g] && !seen[g] {
+			seen[g] = true
+			out.Groups = append(out.Groups, g)
+		}
+	}
+	if console == "" {
+		return out
+	}
+	for _, g := range as[console] {
+		if _, ok := a.GroupByID(g); ok && !seen[g] {
+			seen[g] = true
+			out.Groups = append(out.Groups, g)
+		}
+	}
+	return out
+}
+
+// sendSolo shows a solo deck its view.
+func (a *App) sendSolo(c *client, v config.View) {
+	c.mu.Lock()
+	c.view = v.ID
+	c.mu.Unlock()
+	c.send(map[string]any{"t": "view", "view": v, "groups": a.Resolve(a.soloView(c.consoleKey(), v)), "cockpit": nil})
+}
+
+// pushSolo shows a solo console's decks that are on view v their new arrangement.
+func (a *App) pushSolo(console string, v config.View) {
+	a.each(func(c *client) {
+		if c.consoleKey() != console || a.inCockpit(c) {
+			return
+		}
+		c.mu.Lock()
+		on := c.view
+		c.mu.Unlock()
+		if on == v.ID || (on == "" && v.ID == a.cockpitView().ID) {
+			a.sendSolo(c, v)
+		}
+	})
+	a.Bus.Publish("cockpit", map[string]any{"view": v.ID, "console": console})
+}
+
+// deckView is the view a deck is on: its own pick, else the cockpit's.
+func (a *App) deckView(c *client) config.View {
+	c.mu.Lock()
+	id := c.view
+	c.mu.Unlock()
+	if v, ok := a.ViewByID(id); ok {
+		return v
+	}
+	return a.cockpitView()
+}
+
+// AddToConsole puts a panel on a deck's console for the view it is on. In the cockpit
+// a panel of the view moves there; any other panel is added as an extra.
+func (a *App) AddToConsole(c *client, group string) error {
+	k := c.consoleKey()
+	if k == "" {
+		return fmt.Errorf("this deck isn't a console")
+	}
+	if _, ok := a.GroupByID(group); !ok {
+		return fmt.Errorf("no panel %q", group)
+	}
+	if a.inCockpit(c) {
+		return a.MovePanel(group, k, k)
+	}
+	v := a.deckView(c)
+	_ = a.Store.UpdateState(func(st *config.State) {
+		as := assignFor(st, v.ID)
+		as[hideKey(k)] = without(as[hideKey(k)], group)
+		if !slices.Contains(v.Groups, group) && !slices.Contains(as[k], group) {
+			as[k] = append(as[k], group)
+		}
+		tidy(st, v.ID)
+	})
+	a.pushSolo(k, v)
+	return nil
+}
+
+// RemoveFromConsole takes a panel off a deck's console. In the cockpit a panel of the
+// view moves to the nearest other console (as a lost console's would); an extra just
+// goes. On a solo deck a panel of the view is hidden there for that view.
+func (a *App) RemoveFromConsole(c *client, group string) error {
+	k := c.consoleKey()
+	if k == "" {
+		return fmt.Errorf("this deck isn't a console")
+	}
+	if a.inCockpit(c) {
+		v := a.cockpitView()
+		if !slices.Contains(v.Groups, group) {
+			_ = a.Store.UpdateState(func(st *config.State) {
+				as := assignFor(st, v.ID)
+				as[k] = without(as[k], group)
+				tidy(st, v.ID)
+			})
+			a.pushCockpit()
+			return nil
+		}
+		to := a.neighbor(k)
+		if to == "" {
+			return fmt.Errorf("no other console to take it")
+		}
+		return a.MovePanel(group, to, k)
+	}
+	v := a.deckView(c)
+	_ = a.Store.UpdateState(func(st *config.State) {
+		as := assignFor(st, v.ID)
+		as[k] = without(as[k], group)
+		if slices.Contains(v.Groups, group) && !slices.Contains(as[hideKey(k)], group) {
+			as[hideKey(k)] = append(as[hideKey(k)], group)
+		}
+		tidy(st, v.ID)
+	})
+	a.pushSolo(k, v)
+	return nil
+}
+
+// neighbor is the console nearest to k in the cockpit's order, online ones first.
+func (a *App) neighbor(k string) string {
+	cons := a.members()
+	at := -1
+	for i, con := range cons {
+		if con.ID == k {
+			at = i
+		}
+	}
+	if at < 0 {
+		return ""
+	}
+	for _, needOnline := range []bool{true, false} {
+		for d := 1; d < len(cons); d++ {
+			for _, j := range []int{at - d, at + d} {
+				if j >= 0 && j < len(cons) && (!needOnline || a.consoleOnline(cons[j].ID)) {
+					return cons[j].ID
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func assignFor(st *config.State, view string) map[string][]string {
+	if st.Cockpit.Assign == nil {
+		st.Cockpit.Assign = map[string]map[string][]string{}
+	}
+	if st.Cockpit.Assign[view] == nil {
+		st.Cockpit.Assign[view] = map[string][]string{}
+	}
+	return st.Cockpit.Assign[view]
+}
+
+// tidy drops empty lists so a view with nothing saved splits evenly again.
+func tidy(st *config.State, view string) {
+	as := st.Cockpit.Assign[view]
+	for k, gs := range as {
+		if len(gs) == 0 {
+			delete(as, k)
+		}
+	}
+	if len(as) == 0 {
+		delete(st.Cockpit.Assign, view)
+	}
+}
+
+func without(list []string, s string) []string {
+	var out []string
+	for _, x := range list {
+		if x != s {
+			out = append(out, x)
+		}
+	}
+	return out
 }
 
 // SetCockpitTheme puts one theme on every console.

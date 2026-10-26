@@ -1,8 +1,8 @@
 //go:build windows
 
-// Package winapp is Tablet Deck's Windows side: the tray icon, one copy running at a
-// time, Start with Windows, the tabletdeck:// link handler, and opening the control
-// panel and the touch deck in their own windows.
+// Package winapp is Tablet Deck's Windows side: the small status window, the tray
+// icon, one copy running at a time, Start with Windows and the tabletdeck:// link
+// handler.
 package winapp
 
 import (
@@ -25,8 +25,8 @@ var icon []byte
 
 const runKey = `Software\Microsoft\Windows\CurrentVersion\Run`
 
-// SingleInstance returns false when Tablet Deck is already running for this user.
-func SingleInstance(dataDir string) bool {
+// instanceID names the running app's mutex and show event, per settings folder.
+func instanceID(dataDir string) string {
 	id := `Local\TabletDeck-2`
 	if dataDir != "" { // another settings folder is another deck
 		h := uint32(2166136261)
@@ -35,9 +35,44 @@ func SingleInstance(dataDir string) bool {
 		}
 		id += fmt.Sprintf("-%08x", h)
 	}
-	name, _ := windows.UTF16PtrFromString(id)
+	return id
+}
+
+// SingleInstance returns false when Tablet Deck is already running for this user.
+func SingleInstance(dataDir string) bool {
+	name, _ := windows.UTF16PtrFromString(instanceID(dataDir))
 	_, err := windows.CreateMutex(nil, false, name)
 	return err != windows.ERROR_ALREADY_EXISTS
+}
+
+// ShowRunning asks the running app to show its window (starting the exe again does
+// this). It reports whether a running app was found.
+func ShowRunning(dataDir string) bool {
+	name, _ := windows.UTF16PtrFromString(instanceID(dataDir) + "-show")
+	ev, err := windows.OpenEvent(windows.EVENT_MODIFY_STATE, false, name)
+	if err != nil {
+		return false
+	}
+	defer windows.CloseHandle(ev)
+	// This process was started by the player, so it may bring a window to the front;
+	// pass that on to the running app.
+	procAllowSetForegroundWindow.Call(uintptr(0xFFFFFFFF)) // ASFW_ANY
+	return windows.SetEvent(ev) == nil
+}
+
+// waitForShow shows the window whenever another start of the exe signals it.
+func waitForShow(dataDir string, w *statusWindow) {
+	name, _ := windows.UTF16PtrFromString(instanceID(dataDir) + "-show")
+	ev, err := windows.CreateEvent(nil, 0, 0, name) // auto-reset
+	if err != nil {
+		return
+	}
+	for {
+		if r, _ := windows.WaitForSingleObject(ev, windows.INFINITE); r != windows.WAIT_OBJECT_0 {
+			return
+		}
+		w.show()
+	}
 }
 
 // AttachConsole shows output when started from a command prompt (the app is built as
@@ -103,31 +138,6 @@ func RegisterLinks() error {
 	return c.SetStringValue("", fmt.Sprintf(`"%s" url "%%1"`, exe))
 }
 
-// edge finds Microsoft Edge, which opens pages as app windows without browser chrome.
-func edge() string {
-	for _, env := range []string{"ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA"} {
-		p := filepath.Join(os.Getenv(env), "Microsoft", "Edge", "Application", "msedge.exe")
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return ""
-}
-
-// OpenWindow opens a page as its own app window (Edge), else in the default browser.
-// profile keeps the window's size and place apart from the player's browsing.
-func OpenWindow(url, profile string, w, h int) {
-	if e := edge(); e != "" {
-		dir := filepath.Join(os.Getenv("LOCALAPPDATA"), "TabletDeck", "windows", profile)
-		cmd := exec.Command(e, "--app="+url, fmt.Sprintf("--window-size=%d,%d", w, h), "--user-data-dir="+dir,
-			"--no-first-run", "--disable-features=Translate")
-		if cmd.Start() == nil {
-			return
-		}
-	}
-	OpenBrowser(url)
-}
-
 // OpenBrowser opens a page in the default browser.
 func OpenBrowser(url string) {
 	cmd := exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", url)
@@ -142,49 +152,31 @@ func Message(title, text string) {
 	windows.NewLazySystemDLL("user32.dll").NewProc("MessageBoxW").Call(0, uintptr(unsafe.Pointer(m)), uintptr(unsafe.Pointer(t)), 0x10)
 }
 
-// Tray is what the tray menu can do.
-type Tray struct {
-	Title       string
-	OpenPanel   func()
-	OpenPairing func()
-	OpenTouch   func()
-	ReleaseAll  func()
-	ToggleAfk   func() bool // returns the new state
-	Quit        func()
-}
-
-// RunTray shows the tray icon and blocks until Quit. It must run on the main thread.
-func RunTray(t Tray) {
+// Run shows the status window (unless h.Hidden) and the tray icon, and blocks until
+// the app quits from either. It must run on the main goroutine.
+func Run(h Host) {
+	w := startWindow(h)
+	go waitForShow(h.DataDir, w)
+	systray.SetOnTapped(w.show) // a click on the icon shows the window; the menu is on right-click
 	systray.Run(func() {
 		systray.SetIcon(icon)
-		systray.SetTitle(t.Title)
-		systray.SetTooltip(t.Title)
-		open := systray.AddMenuItem("Open Tablet Deck", "Control panel")
-		pair := systray.AddMenuItem("Pair a tablet or phone…", "Show the QR code")
-		touch := systray.AddMenuItem("Touch deck on this PC", "Open the deck in a window for a touchscreen")
-		systray.AddSeparator()
-		afk := systray.AddMenuItemCheckbox("Away (AFK)", "Opens AFK-only share links for your crew", false)
+		systray.SetTitle(h.Title)
+		systray.SetTooltip(h.Title)
+		show := systray.AddMenuItem("Show Tablet Deck", "Show the status window")
 		release := systray.AddMenuItem("Release all keys", "Let go of any key Tablet Deck is holding")
+		settings := systray.AddMenuItem("Open settings in browser", "The full settings page, for advanced use")
 		startup := systray.AddMenuItemCheckbox("Start with Windows", "", StartsWithWindows())
 		systray.AddSeparator()
-		quit := systray.AddMenuItem("Quit", "")
+		quit := systray.AddMenuItem("Quit", "Release keys and stop Tablet Deck")
 		go func() {
 			for {
 				select {
-				case <-open.ClickedCh:
-					t.OpenPanel()
-				case <-pair.ClickedCh:
-					t.OpenPairing()
-				case <-touch.ClickedCh:
-					t.OpenTouch()
-				case <-afk.ClickedCh:
-					if t.ToggleAfk() {
-						afk.Check()
-					} else {
-						afk.Uncheck()
-					}
+				case <-show.ClickedCh:
+					w.show()
 				case <-release.ClickedCh:
-					t.ReleaseAll()
+					h.ReleaseAll()
+				case <-settings.ClickedCh:
+					h.OpenSettings()
 				case <-startup.ClickedCh:
 					on := !StartsWithWindows()
 					if SetStartWithWindows(on) == nil {
@@ -195,10 +187,14 @@ func RunTray(t Tray) {
 						}
 					}
 				case <-quit.ClickedCh:
+					w.hide()
 					systray.Quit()
 					return
 				}
 			}
 		}()
-	}, t.Quit)
+	}, h.Quit)
 }
+
+// quitApp ends the app from the status window, the same way the tray's Quit does.
+func quitApp() { systray.Quit() }

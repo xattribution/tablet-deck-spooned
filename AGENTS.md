@@ -23,7 +23,9 @@ project, not affiliated with Cloud Imperium Games.
 | `internal/input`, `internal/keys` | key sending and combo parsing |
 | `internal/config` | config.json and state.json |
 | `panels/` | built-in panels (embedded) |
-| `public/` | the deck (`index.html`, `deck3.*`, `panels.js`), the PC control panel, the editor |
+| `web/` | the deck: Svelte 5 + TypeScript, built into `public/app/` |
+| `public/` | the built deck (`app/`), the classic deck (`/legacy/`), the PC control panel, the editor |
+| `android/` | the Android app: a full-screen WebView that finds the PC and loads the deck |
 | `layouts/`, `keybinds/` | the classic layouts and the keybind profile |
 | `native/`, `installer/`, `integrations/` | the Windows app window, installer, Stream Deck plugin |
 | `site/` | the website on GitHub Pages |
@@ -48,7 +50,8 @@ These keep Tablet Deck safe to run next to an online game:
 - **The agent never presses self-destruct or eject** unless the player asks for it in
   that message. Keep this in its system prompt.
 - **Pairing is required.** The WebSocket and every data route check the pairing code
-  or a device token; settings, bind-all and agent routes only answer the PC itself.
+  or a device token; settings, bind-all and agent routes answer the PC itself and
+  paired owner devices, never a share link, and the API key never leaves the PC.
   New routes follow the same rules.
 - **No tracking.** No accounts or analytics. Outgoing traffic is the update check,
   the agent API the player configures, and the optional tunnel.
@@ -61,18 +64,26 @@ These keep Tablet Deck safe to run next to an online game:
   and `klauspost/compress`. Vet any new one before adding it.
 - **Windows is the target** for what runs on the PC; everything else must build and
   test on Linux. The deck must work in Safari (iPad, iPhone) and Chrome (Android).
-- **The deck has no build step.** Plain JS and CSS in `public/`, embedded at build
-  time, so rebuild the binary after changing them.
+- **The deck is built from `web/`.** `cd web && npm ci && npm run build` writes
+  `public/app/`, which is committed and embedded in the binary; rebuild both after a
+  change. The PC control panel and the editor are still plain JS in `public/`.
+- **Touch first.** A tap fires on lift without travel, so swipes start anywhere; drag
+  controls claim only their own axis (`touch-action`). Motion moves only transform and
+  opacity.
 - **Panels are data.** A new built-in panel is a JSON file in `panels/`, not code. A
   new widget needs: the name in `panels.Widgets` (and `ControlRefs` if it places
   controls), a renderer in `public/panels.js`, CSS, and a row in docs/PANELS.md.
 - **Design:** follow [docs/DESIGN.md](docs/DESIGN.md): theme tokens, category
-  colours, accent colours as variables, no scrolling on the deck.
+  colours, accent colours as variables, no scrolling on the deck. Everything is
+  built from the deck's own parts: keycaps, panes with plates, solid selected
+  states. No generic web-app styling: no chips or list rows with a coloured
+  left-edge stripe, no tinted pills, no card-per-section layouts.
 
 ## Checking your work
 
 1. `go vet ./... && go test ./...`
-2. `node --check` every JavaScript file you changed.
+2. `cd web && npx svelte-check && npm run build`; `node --check` any plain JS you
+   changed in `public/`.
 3. Run it: `go build -o td ./cmd/tabletdeck && ./td serve --dry-run --data /tmp/td`,
    then open the printed address with `?t=<pairing code>`. `--dry-run` presses no
    keys, only logs them.
