@@ -34,7 +34,8 @@ These keep Tablet Deck safe to run next to an online game:
 
 - **The game is never touched.** No reading or writing game memory, no injection,
   no hooks. The only game files used are read-only (keybinds, Data.p4k for the action
-  list) and the profiles copied into `Controls\Mappings` when the player asks.
+  list, Game.log for battle mode) and the profiles copied into `Controls\Mappings` when
+  the player asks.
 - **Keys reach Star Citizen by default.** The focus check stays on. A control marked
   `global` (a panel action, opted in per action) goes to whatever window is in front:
   this is how Discord, OBS and other apps are driven. Nothing else skips the check.

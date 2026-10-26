@@ -124,8 +124,11 @@ func (a *App) serveFile(w http.ResponseWriter, r *http.Request, name string) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	// Share links live at /g/<token>; the page's files are at the root.
-	b = []byte(strings.Replace(string(b), "<head>", `<head><base href="/">`, 1))
+	// Share links live at /g/<token>; the deck's files are at the root. (Only the deck:
+	// a base on the control panel would send its #section links to the deck.)
+	if name == "index.html" {
+		b = []byte(strings.Replace(string(b), "<head>", `<head><base href="/">`, 1))
+	}
 	_, _ = w.Write(b)
 }
 

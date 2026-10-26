@@ -615,16 +615,25 @@ func (a *App) DeleteView(id string) bool {
 func (a *App) ShowView(v config.View, device string) int {
 	n := 0
 	msg := map[string]any{"t": "view", "view": v, "groups": a.Resolve(v)}
+	cockpit := false
 	a.each(func(c *client) {
 		if c.p.grant != nil || !c.matches(device) {
+			return
+		}
+		if a.inCockpit(c) && (device == "" || device == "all") { // the cockpit changes view as one
+			cockpit = true
+			n++
 			return
 		}
 		c.mu.Lock()
 		c.view = v.ID
 		c.mu.Unlock()
-		c.send(msg)
+		c.send(msg) // one deck named: it shows the whole view on its own for now
 		n++
 	})
+	if cockpit {
+		a.SetCockpitView(v.ID)
+	}
 	a.Bus.Publish("view", map[string]any{"view": v.ID, "device": device, "decks": n})
 	return n
 }

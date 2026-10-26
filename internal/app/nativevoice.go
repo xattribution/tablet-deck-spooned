@@ -49,7 +49,12 @@ type nativeVoice struct {
 // modelDirs are where model files are looked for: the setting, then a "models"
 // folder in the settings folder and next to Tablet Deck.
 func (a *App) modelDirs() []string {
-	dirs := []string{a.Store.Config().ModelsDir, filepath.Join(a.Store.Dir, "models")}
+	md := a.Store.Config().ModelsDir
+	dirs := []string{md, filepath.Join(a.Store.Dir, "models")}
+	if md != "" {
+		// Pointing at "text-to-speech" also finds its sibling "Speech-to-text".
+		dirs = append(dirs, filepath.Dir(md))
+	}
 	if exe, err := os.Executable(); err == nil {
 		dirs = append(dirs, filepath.Join(filepath.Dir(exe), "models"))
 	}

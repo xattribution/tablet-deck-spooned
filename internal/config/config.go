@@ -368,6 +368,38 @@ type State struct {
 	Crew       []CrewLink     `json:"crew"`
 	Views      []View         `json:"views"`
 	Panels     []panels.Panel `json:"panels,omitempty"` // the player's own panels
+	Cockpit    Cockpit        `json:"cockpit"`
+}
+
+// Cockpit is every screen of one setup working as one: each console (a tablet, phone
+// or the PC's touch window) shows its share of the same view.
+type Cockpit struct {
+	View     string                         `json:"view,omitempty"`  // what the cockpit shows
+	Theme    string                         `json:"theme,omitempty"` // one theme on every console
+	Consoles []Console                      `json:"consoles,omitempty"`
+	Assign   map[string]map[string][]string `json:"assign,omitempty"` // view -> console -> panels
+}
+
+// Console is one screen of the cockpit, by its device id.
+type Console struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Order int    `json:"order"`          // left to right
+	Solo  bool   `json:"solo,omitempty"` // not part of the cockpit: shows whole views on its own
+}
+
+// Copy returns a deep copy.
+func (c Cockpit) Copy() Cockpit {
+	out := c
+	out.Consoles = append([]Console(nil), c.Consoles...)
+	out.Assign = map[string]map[string][]string{}
+	for v, m := range c.Assign {
+		out.Assign[v] = map[string][]string{}
+		for k, g := range m {
+			out.Assign[v][k] = append([]string(nil), g...)
+		}
+	}
+	return out
 }
 
 // State returns a copy of the saved state.
@@ -380,6 +412,7 @@ func (s *Store) State() State {
 	st.Crew = append([]CrewLink(nil), s.state.Crew...)
 	st.Views = append([]View(nil), s.state.Views...)
 	st.Panels = append([]panels.Panel(nil), s.state.Panels...)
+	st.Cockpit = s.state.Cockpit.Copy()
 	return st
 }
 

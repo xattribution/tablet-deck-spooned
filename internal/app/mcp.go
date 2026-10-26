@@ -225,6 +225,19 @@ var mcpTools = []tool{
 		InputSchema: obj(map[string]any{}),
 		run:         func(a *App, _ map[string]any) (any, error) { return a.BindAll() }},
 
+	{Name: "cockpit_status", Title: "The cockpit",
+		Description: "The cockpit: every console (tablet or screen) left to right, online or not, and the panels each shows in the cockpit's view.",
+		InputSchema: obj(map[string]any{}),
+		run:         func(a *App, _ map[string]any) (any, error) { return a.CockpitStatus(), nil }},
+	{Name: "move_panel", Title: "Move a panel to another console",
+		Description: "Move a panel (group id) of the cockpit's view to another console, by console id or name (\"move shields to the left screen\": cockpit_status first).",
+		InputSchema: obj(map[string]any{"panel": str("Panel (group) id"), "console": str("Console id or name")}, "panel", "console"),
+		run: func(a *App, args map[string]any) (any, error) {
+			if err := a.MovePanel(argStr(args, "panel"), argStr(args, "console"), ""); err != nil {
+				return nil, err
+			}
+			return a.CockpitStatus(), nil
+		}},
 	{Name: "deck_status", Title: "Deck status",
 		Description: "What's going on: whether Star Citizen is running and in front, connected decks (devices) and the view each shows, crew, away mode, voice, open requests.",
 		InputSchema: obj(map[string]any{}),

@@ -31,6 +31,7 @@ type client struct {
 	listens bool        // holding the talk button
 	view    string      // the view this deck shows
 	theme   string      // set by an agent; "" = the deck's own choice
+	form    string      // tablet or phone, as the deck said
 }
 
 // msg is anything a deck sends. Fields are shared between message types.
@@ -127,7 +128,7 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request, guestListener boo
 	}
 	conn.SetReadLimit(64 << 10)
 	ctx, cancel := context.WithCancel(r.Context())
-	c := &client{a: a, id: config.RandomHex(6), p: p, peer: q.Get("peer") != "", layout: l,
+	c := &client{a: a, id: config.RandomHex(6), p: p, peer: q.Get("peer") != "", layout: l, form: q.Get("device"),
 		out: make(chan []byte, 256), cancel: cancel, holds: map[string]*deck.Hold{}}
 
 	// A device that used the pairing code gets a token of its own, so changing the code
@@ -147,7 +148,11 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request, guestListener boo
 	if c.p.grant != nil && a.crew != nil {
 		a.crew.changed() // owners' crew lists show who's on their links
 	}
+	a.joinCockpit(c)
 	c.send(a.helloFor(c))
+	if a.inCockpit(c) {
+		a.pushCockpit() // a console that arrives may change how the view is shared out
+	}
 
 	go func() { // writer
 		for {
@@ -191,6 +196,7 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request, guestListener boo
 	a.clientsMu.Lock()
 	delete(a.clients, c)
 	a.clientsMu.Unlock()
+	a.leftCockpit(c)
 	a.Log.Printf("%s disconnected.", c.describe())
 	a.Bus.Publish("clients", a.clientSummary())
 	if c.p.grant != nil && a.crew != nil {
@@ -335,11 +341,33 @@ func (c *client) handle(m msg) {
 	case "share":
 		a.shareFromDeck(c, m)
 	case "view":
+		if a.inCockpit(c) {
+			// A console's first ask just gets its share; a pick changes the whole cockpit.
+			if m.Mode == "init" || !a.SetCockpitView(m.ID) {
+				a.pushCockpit()
+			}
+			return
+		}
 		if v, ok := a.ViewByID(m.ID); ok {
 			c.mu.Lock()
 			c.view = v.ID
 			c.mu.Unlock()
 			c.send(map[string]any{"t": "view", "view": v, "groups": a.Resolve(v)})
+		}
+	case "cockpit-move": // a panel dragged to another console
+		if err := a.MovePanel(m.ID, m.Text, c.consoleKey()); err != nil {
+			c.send(map[string]any{"t": "toast", "text": err.Error()})
+		}
+	case "cockpit-fallback": // where a lost console's panels go
+		a.PickFallback(m.ID, m.Text)
+	case "identify-ask": // show a console's name on it, to tell the screens apart
+		a.Identify(m.ID)
+	case "cockpit-solo": // this deck leaves (or rejoins) the cockpit
+		solo := m.On
+		_ = a.UpdateConsole(c.consoleKey(), nil, nil, &solo)
+	case "theme":
+		if a.inCockpit(c) && m.ID != "" {
+			a.SetCockpitTheme(m.ID)
 		}
 	case "save-view":
 		var v config.View
@@ -450,6 +478,11 @@ func (a *App) helloFor(c *client) map[string]any {
 	h["chat"] = a.chatLog()
 	h["live"] = cfg.AlwaysListen
 	h["agent"] = a.agentInfo()
+	h["battle"] = a.battleNow()
+	if a.inCockpit(c) {
+		h["cockpit"] = true
+		h["cockpitTheme"] = a.Store.State().Cockpit.Theme
+	}
 	h["requests"] = a.reqs.open()
 	h["crew"] = a.crew.summary()
 	return h

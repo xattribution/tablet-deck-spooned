@@ -141,6 +141,50 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		b, _ := tabletdeck.Files.ReadFile("docs/PANELS.md")
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 		_, _ = w.Write(b)
+	case route == "cockpit" && method == http.MethodGet:
+		writeJSON(w, 200, a.CockpitStatus())
+	case route == "cockpit" && method == http.MethodPost:
+		var body struct {
+			Action, View, Group, To, ID, Theme string
+			Name                               *string
+			Order                              *int
+			Solo                               *bool
+		}
+		if !decode(&body) {
+			return
+		}
+		var err error
+		switch body.Action {
+		case "view":
+			if !a.SetCockpitView(body.View) {
+				err = fmt.Errorf("no view %q", body.View)
+			}
+		case "move":
+			err = a.MovePanel(body.Group, body.To, body.ID)
+		case "console":
+			err = a.UpdateConsole(body.ID, body.Name, body.Order, body.Solo)
+		case "fallback":
+			a.PickFallback(body.ID, body.To)
+		case "theme":
+			a.SetCockpitTheme(body.Theme)
+		case "reset":
+			a.ResetCockpit()
+		case "identify":
+			a.Identify(body.ID)
+		case "forget":
+			if a.consoleOnline(body.ID) {
+				err = fmt.Errorf("that console is connected")
+			} else {
+				a.ForgetConsole(body.ID)
+			}
+		default:
+			err = fmt.Errorf("action: view, move, console, fallback, theme, reset or identify")
+		}
+		if err != nil {
+			jsonErr(w, 400, err.Error())
+			return
+		}
+		writeJSON(w, 200, a.CockpitStatus())
 	case route == "agent/ask" && method == http.MethodPost:
 		if !localOnly() {
 			return
@@ -240,7 +284,11 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		writeJSON(w, 200, map[string]any{"ok": a.RevokeGrant(parts[1])})
 
 	case route == "devices" && method == http.MethodGet:
-		writeJSON(w, 200, a.Store.State().Devices)
+		devs := a.Store.State().Devices
+		if devs == nil {
+			devs = []config.Device{}
+		}
+		writeJSON(w, 200, devs)
 	case len(parts) == 2 && parts[0] == "devices" && method == http.MethodDelete:
 		a.unpair(parts[1])
 		writeJSON(w, 200, map[string]any{"ok": true})
@@ -543,6 +591,7 @@ func (a *App) unpair(id string) {
 		}
 		s.Devices = kept
 	})
+	a.ForgetConsole(id)
 	a.each(func(c *client) {
 		if c.p.deviceID == id {
 			c.kick(map[string]any{"t": "unpaired"})

@@ -153,12 +153,17 @@
         if (m.guest) { S.guest = m.guest; S.groups = m.guest.groups || []; drawConsole("guest"); break; }
         S.views = m.views || []; S.crew = m.crew || []; S.requests = m.requests || []; S.grants = m.grants || [];
         S.voice = m.voiceStatus || S.voice; S.chat = m.chat || []; S.live = !!m.live; S.agentInfo = m.agent || {};
-        send({ t: "view", id: store.get(`view-${device}`) || "flight" });
+        S.member = !!m.cockpit;
+        if (m.battle) paintBattle("", m.battle);
+        if (m.cockpitTheme && m.cockpitTheme !== root.dataset.theme) applyTheme(m.cockpitTheme);
+        // A console of the cockpit is sent its share by the PC; a solo deck picks its view.
+        if (!S.member) send({ t: "view", id: store.get(`view-${device}`) || "flight" });
         break;
       case "paired": token = m.token; store.set("token", token); store.set("pairCode", urlCode); break;
       case "view": {
         const changed = !S.view || S.view.id !== m.view.id;
         S.view = m.view; S.groups = m.groups || []; window.DeckCat.set(S.groups);
+        S.cockpit = m.cockpit || null; S.member = !!m.cockpit;
         if (!m.view.id.startsWith("agent-")) store.set(`view-${device}`, m.view.id);
         if (changed) S.page = 0;
         later("draw", () => drawConsole("deck", { announce: changed }));
@@ -205,6 +210,10 @@
       case "chat-clear": S.chat = []; repaintComms(); break;
       case "agent-busy": S.busy = m.on; repaintComms(); break;
       case "agent-info": S.agentInfo = m.agent || {}; repaintComms(); break;
+      case "battle": paintBattle(m.event, m.state || {}); break;
+      case "cockpit-lost": lostConsole(m); break;
+      case "cockpit-back": ticker("COCKPIT", `${m.name} is back`); closeLost(m.console); break;
+      case "identify": identify(m.name); break;
       case "voice-live": S.live = m.on; repaintComms(); paintLamps(); break;
       case "heard": ticker("HEARD", m.text || m.label); break;
       case "unheard": ticker("VOICE", "didn't catch that"); break;
@@ -390,7 +399,8 @@
   function paintMaker(announce) {
     const el = $("#maker");
     if (!el) return;
-    const name = S.mode === "guest" ? `${S.owner || "Their"} deck` : S.view ? S.view.name : makerName();
+    const me = S.cockpit && (S.cockpit.consoles || []).find((c) => c.id === S.cockpit.me);
+    const name = S.mode === "guest" ? `${S.owner || "Their"} deck` : (S.view ? S.view.name : makerName()) + (me && S.cockpit.consoles.length > 1 ? ` · ${me.name}` : "");
     el.innerHTML = `<span class="em">${emblem()}</span><b>${esc(makerName())}</b><span class="vw${announce ? " new" : ""}">${esc(name)}</span><span class="tick" id="tick"></span>`;
   }
 
@@ -689,6 +699,56 @@
     track(e, () => { S.listening = false; send({ t: "voice", on: false }); paintLamps(); });
   }, true);
 
+  // ---------- battle mode ----------
+  // From the game's log: hits on your ship, your ship disabled or destroyed, you died.
+  function paintBattle(event, st) {
+    S.battle = st;
+    const lvl = st.dead ? "dead" : st.level >= 2 ? "destroyed" : st.level === 1 ? "disabled" : st.fire ? "fire" : "";
+    if (lvl) root.dataset.battle = lvl; else delete root.dataset.battle;
+    let bar = $("#battlebar");
+    if (!lvl) { if (bar) bar.remove(); }
+    else {
+      if (!bar) { bar = document.createElement("div"); bar.id = "battlebar"; document.body.appendChild(bar); }
+      const what = { dead: "YOU DIED", destroyed: "SHIP DESTROYED", disabled: "SHIP DISABLED", fire: "UNDER FIRE" }[lvl];
+      bar.innerHTML = `<b>${what}</b>${st.from && lvl !== "dead" ? `<span>${esc(st.from)}</span>` : ""}${st.fire && st.hits ? `<span>${st.hits} HIT${st.hits > 1 ? "S" : ""}</span>` : ""}${st.ship ? `<span>${esc(st.ship)}</span>` : ""}`;
+    }
+    if (event === "hit") {
+      root.classList.remove("hit"); void root.offsetWidth; root.classList.add("hit");
+      buzz([40, 30, 40]);
+    } else if (event === "kill") ticker("KILL", `${st.kills} this session`);
+    else if (event === "ship-1" || event === "ship-2" || event === "dead") { buzz([80, 60, 80, 60, 200]); alarm("game"); }
+  }
+
+  // ---------- the cockpit ----------
+
+  // A console dropped off: its panels are here (or on another console); send them on.
+  function lostConsole(m) {
+    closeLost(m.console);
+    const others = ((S.cockpit && S.cockpit.consoles) || []).filter((c) => c.id !== m.console && c.id !== m.to && c.online);
+    const el = document.createElement("div");
+    el.className = "lost";
+    el.dataset.console = m.console;
+    el.innerHTML = `<b>${esc(m.name)} LOST</b><span>Its panels are on ${esc(m.toName || "no screen")}.</span>
+      <span class="row">${others.map((c) => `<button type="button" class="btn" data-fallback="${esc(c.id)}">Send to ${esc(c.name)}</button>`).join("")}
+      <button type="button" class="btn primary" data-lost-ok>OK</button></span>`;
+    document.body.appendChild(el);
+    buzz([30, 60, 30]); alarm("comms");
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (b.dataset.fallback) send({ t: "cockpit-fallback", id: m.console, text: b.dataset.fallback });
+      el.remove();
+    });
+  }
+  function closeLost(id) { $$(`.lost[data-console="${CSS.escape(id)}"]`).forEach((e) => e.remove()); }
+  function identify(name) {
+    const el = document.createElement("div");
+    el.className = "ident";
+    el.innerHTML = `<b>${esc(name)}</b>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2600);
+  }
+
   // ---------- comms widgets ----------
 
   // Talk key: tap and talk until you pause; hold to talk; or switch live on and off.
@@ -834,14 +894,32 @@
     },
   });
   // Panels: drag a plate onto another panel to swap them (on any page).
+  // Neighbors in the cockpit, for dragging a panel onto another console.
+  function neighbors() {
+    const cs = ((S.cockpit && S.cockpit.consoles) || []).slice().sort((a, b) => a.order - b.order);
+    const i = cs.findIndex((c) => c.id === (S.cockpit || {}).me);
+    return i < 0 ? {} : { left: cs[i - 1], right: cs[i + 1] };
+  }
   drag(".editing .plate", {
     down(el, e) {
       const pane = el.closest(".pane");
       pane.classList.add("lifted");
+      const nb = neighbors();
+      for (const side of ["left", "right"]) {
+        if (!nb[side]) continue;
+        const z = document.createElement("div");
+        z.className = `czone ${side}${nb[side].online ? "" : " off"}`;
+        z.dataset.side = side;
+        z.innerHTML = `<span>${side === "left" ? "◀ " : ""}${esc(nb[side].name)}${side === "right" ? " ▶" : ""}</span>`;
+        con.appendChild(z);
+      }
       return { pane, x0: e.clientX, y0: e.clientY };
     },
     move(el, e, s) {
       s.pane.style.translate = `${e.clientX - s.x0}px ${e.clientY - s.y0}px`;
+      const zone = document.elementsFromPoint(e.clientX, e.clientY).find((n) => n.classList && n.classList.contains("czone"));
+      $$(".czone").forEach((z) => z.classList.toggle("hot", z === zone));
+      s.zone = zone ? zone.dataset.side : "";
       const over = document.elementsFromPoint(e.clientX, e.clientY).find((n) => n.classList && n.classList.contains("pane") && n !== s.pane);
       $$(".pane.target").forEach((p) => p !== over && p.classList.remove("target"));
       if (over) over.classList.add("target");
@@ -851,6 +929,9 @@
       s.pane.classList.remove("lifted");
       s.pane.style.translate = "";
       $$(".pane.target").forEach((p) => p.classList.remove("target"));
+      $$(".czone").forEach((z) => z.remove());
+      if (s.cancel) return;
+      if (s.zone) { send({ t: "cockpit-move", id: s.pane.dataset.panel, text: s.zone }); buzz([10, 30, 10]); return; }
       if (!s.over) return;
       const a = s.pane.dataset.panel, b = s.over.dataset.panel;
       saved.pages = saved.pages.map((p) => p.map((c) => c.map((id) => (id === a ? b : id === b ? a : id))));
@@ -1027,7 +1108,11 @@
       ["find", "Find", UI.find], ["share", "Share", UI.share], ["theme", "Panel", UI.theme],
       ["release", "Release", UI.release], ["full", "Full", UI.full], ["export", "Export", UI.dl], ["import", "Import", UI.ul],
     ];
+    const ck = !guest && S.cockpit ? (S.cockpit.consoles || []).slice().sort((a, b) => a.order - b.order) : [];
+    const strip = guest ? "" : `<div class="cockpit">${ck.map((c) => `<button type="button" class="con${c.id === S.cockpit.me ? " me" : ""}${c.online ? "" : " off"}" data-ident="${esc(c.id)}"><i></i><b>${esc(c.name)}</b><span>${c.panels} panels${c.hostedBy ? " · away" : ""}</span></button>`).join("")}
+      <button type="button" class="con join" data-solo="${S.member ? 1 : 0}">${S.member ? "Leave cockpit" : "Join cockpit"}</button></div>`;
     openSheet("systems", "bottom", guest ? "Map" : "Systems", `
+      ${strip}
       ${guest ? "" : `<div class="views" id="views"></div>`}
       <div class="map" id="map"></div>
       ${acts.length ? `<div class="acts">${acts.map(([id, l, ic]) => `<button type="button" class="act" data-act="${id}">${ic}<span>${l}</span></button>`).join("")}</div>` : ""}`,
@@ -1103,6 +1188,8 @@
     if (t.dataset.mpage) { closeSheet(); goPage(Number(t.dataset.mpage)); }
     else if (t.dataset.view === "+new") openFind(true);
     else if (t.dataset.view) { send({ t: "view", id: t.dataset.view }); closeSheet(); }
+    else if (t.dataset.solo !== undefined) { send({ t: "cockpit-solo", on: t.dataset.solo === "1" }); buzz(); closeSheet(); }
+    else if (t.dataset.ident) { send({ t: "identify-ask", id: t.dataset.ident }); buzz(6); }
     else if (t.dataset.act === "find") openFind();
     else if (t.dataset.act === "share") openShare();
     else if (t.dataset.act === "theme") openPanel();
@@ -1354,7 +1441,7 @@
   layer.addEventListener("click", (e) => {
     const t = e.target.closest("button");
     if (!t || sheetName() !== "panel") return;
-    if (t.dataset.pick) { applyTheme(t.dataset.pick); drawConsole(S.mode); openPanel(); }
+    if (t.dataset.pick) { applyTheme(t.dataset.pick); drawConsole(S.mode); openPanel(); if (S.member) send({ t: "theme", id: t.dataset.pick }); }
     else if (t.dataset.labels) { store.set("labels", t.dataset.labels === "full" ? "" : t.dataset.labels); root.dataset.labels = labelMode(); openPanel(); }
     else if (t.dataset.binds !== undefined) { store.set("binds", showBinds() ? "" : "on"); openPanel(); layoutPages(); }
     else if (t.dataset.do === "lights") { send({ t: "reset-states" }); ticker("DECK", "lights reset"); }

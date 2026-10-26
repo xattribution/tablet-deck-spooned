@@ -131,12 +131,73 @@
     }
   }
 
+  // ---------- cockpit ----------
+  const CATC = { flight: "#4aa3ff", nav: "#a78bfa", eng: "#f5a623", def: "#2dd4bf", combat: "#ef4444", ind: "#84cc16", crew: "#ec4899", ui: "#94a3b8", emerg: "#ff3b30" };
+  const THEMES = ["rsi", "hud", "mobiglas", "drake", "origin", "crusader", "aegis", "anvil", "misc", "argo", "cnou", "banu", "aopoa", "esperia"];
+  let cockpit = null, views = [];
+  async function refreshCockpit() {
+    try { [cockpit, views] = await Promise.all([api("cockpit"), api("views")]); paintCockpit(); } catch (e) { toast(e.message); }
+  }
+  const ckDo = (body) => post("cockpit", body).then((c) => { cockpit = c; paintCockpit(); }).catch((e) => toast(e.message));
+  function paintCockpit() {
+    if (!cockpit) return;
+    const ae = document.activeElement;
+    if (ae && ae.dataset && ae.dataset.rename) return; // don't redraw under someone typing a name
+    const v = $("#ckview"), th = $("#cktheme");
+    if (document.activeElement !== v) v.innerHTML = (views || []).map((x) => `<option value="${esc(x.id)}"${x.id === cockpit.view ? " selected" : ""}>${esc(x.name)}</option>`).join("");
+    if (document.activeElement !== th) th.innerHTML = `<option value="">Each its own theme</option>` + THEMES.map((t) => `<option value="${t}"${t === cockpit.theme ? " selected" : ""}>${t.toUpperCase()}</option>`).join("");
+    const cons = cockpit.consoles || [];
+    const members = cons.filter((c) => !c.solo);
+    $("#consoles").innerHTML = cons.length ? cons.map((c) => {
+      const i = members.indexOf(c);
+      const state = c.solo ? "" : c.online ? "good" : "bad";
+      const host = c.hostedBy && (cons.find((x) => x.id === c.hostedBy) || {}).name;
+      return `<div class="console${c.solo ? " solo" : ""}" data-con="${esc(c.id)}">
+        <header><i class="dot ${state}"></i><input class="field" value="${esc(c.name)}" data-rename="${esc(c.id)}" maxlength="24" aria-label="Console name"></header>
+        <div class="chips">${(c.panels || []).map((p) => `<div class="chip2" draggable="true" data-panel="${esc(p.id)}" style="--c:${CATC[p.category] || "var(--accent)"}">${esc(p.name)}<code>${esc(p.code || "")}</code></div>`).join("") || (c.solo ? "" : `<span class="note">Drop panels here</span>`)}</div>
+        ${c.solo ? `<span class="note">Solo: shows whole views on its own</span>` : !c.online ? `<span class="note">${c.lost ? "Lost" : "Not connected"}${host ? ` · panels on ${esc(host)}` : ""}</span>` : ""}
+        <footer>
+          ${c.solo ? "" : `<button type="button" class="sbtn" data-order="${esc(c.id)}" data-to="${i - 1}"${i <= 0 ? " disabled" : ""}>◀</button><button type="button" class="sbtn" data-order="${esc(c.id)}" data-to="${i + 1}"${i >= members.length - 1 ? " disabled" : ""}>▶</button>`}
+          <button type="button" class="sbtn" data-identify="${esc(c.id)}"${c.online ? "" : " disabled"}>Show name</button>
+          <button type="button" class="sbtn" data-solotoggle="${esc(c.id)}" data-solo="${c.solo ? 0 : 1}">${c.solo ? "Join cockpit" : "Make solo"}</button>
+          ${c.online ? "" : `<button type="button" class="sbtn" data-forget="${esc(c.id)}">Forget</button>`}
+        </footer></div>`;
+    }).join("") : `<span class="note">No consoles yet. Pair a tablet above; each one joins the cockpit.</span>`;
+  }
+  $("#ckview").onchange = (e) => ckDo({ action: "view", view: e.target.value });
+  $("#cktheme").onchange = (e) => ckDo({ action: "theme", theme: e.target.value });
+  $("#cksplit").onclick = () => ckDo({ action: "reset" });
+  const cons = $("#consoles");
+  cons.addEventListener("change", (e) => { const t = e.target.closest("[data-rename]"); if (t) ckDo({ action: "console", id: t.dataset.rename, name: t.value }); });
+  cons.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.order) ckDo({ action: "console", id: b.dataset.order, order: Number(b.dataset.to) });
+    else if (b.dataset.identify) ckDo({ action: "identify", id: b.dataset.identify });
+    else if (b.dataset.forget) ckDo({ action: "forget", id: b.dataset.forget });
+    else if (b.dataset.solotoggle) ckDo({ action: "console", id: b.dataset.solotoggle, solo: b.dataset.solo === "1" });
+  });
+  let dragged = "";
+  cons.addEventListener("dragstart", (e) => { const c = e.target.closest("[data-panel]"); if (c) { dragged = c.dataset.panel; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragged); } });
+  cons.addEventListener("dragover", (e) => { const c = e.target.closest(".console:not(.solo)"); if (c && dragged) { e.preventDefault(); document.querySelectorAll(".console.drop").forEach((x) => x !== c && x.classList.remove("drop")); c.classList.add("drop"); } });
+  cons.addEventListener("dragleave", (e) => { const c = e.target.closest(".console"); if (c && !c.contains(e.relatedTarget)) c.classList.remove("drop"); });
+  cons.addEventListener("drop", (e) => {
+    const c = e.target.closest(".console:not(.solo)");
+    document.querySelectorAll(".console.drop").forEach((x) => x.classList.remove("drop"));
+    if (!c || !dragged) return;
+    e.preventDefault();
+    ckDo({ action: "move", group: dragged, to: c.dataset.con });
+    dragged = "";
+  });
+
   async function refresh() {
     try {
       [status, cfg, devices, grants] = await Promise.all([api("status"), api("config"), api("devices"), api("grants")]);
+      devices = devices || []; grants = grants || [];
       const crew = await api("crew");
       crewLinks = crew.links || [];
       paintStatus(); paintGrants(); paintSettings();
+      refreshCockpit();
       api("nearby").then((list) => { $("#nearby").textContent = list.length ? list.map((n) => `${n.name} · ${n.address}`).join("   ") : "None found."; });
     } catch (e) { toast(e.message); }
   }
@@ -226,6 +287,8 @@
       case "request": src = "CREW"; text = `${d.from}: ${d.label || ""} ${d.text || ""}`; break;
       case "keybinds": src = "PC"; text = `Keybinds changed: ${d.actions} actions`; break;
       case "chat": src = d.who === "agent" ? (cfg && cfg.agentName) || "AGENT" : d.who === "you" ? "YOU" : "COMMS"; text = d.text; break;
+      case "battle": src = "BATTLE"; text = { hit: `Under fire${d.from ? ` from ${d.from}` : ""}`, "ship-1": "Ship disabled", "ship-2": "Ship destroyed", dead: "You died", kill: "Kill", clear: "Fight over", ship: `Flying ${d.ship || "—"}`, reset: "New game session" }[d.event] || d.event; break;
+      case "cockpit": return;
       case "afk": src = "PC"; text = d.on ? "Away mode on" : "Away mode off"; break;
       case "view": src = "VIEW"; text = `${d.view} → ${d.device || "all decks"} (${d.decks})`; break;
       default: return;
@@ -237,7 +300,8 @@
   }
   api("log").then((list) => list.forEach(addLog)).catch(() => {});
   const es = new EventSource(`/api/v1/events?k=${encodeURIComponent(key)}`);
-  es.onmessage = (m) => { try { const ev = JSON.parse(m.data); addLog(ev); if (["clients", "devices", "grants", "crew", "game", "tunnel", "voice", "keybinds"].includes(ev.t)) refresh(); } catch {} };
+  es.onmessage = (m) => { try { const ev = JSON.parse(m.data); addLog(ev); if (["clients", "devices", "grants", "crew", "game", "tunnel", "voice", "keybinds"].includes(ev.t)) refresh();
+      else if (ev.t === "cockpit") refreshCockpit(); } catch {} };
 
   refresh();
   refreshVoice();

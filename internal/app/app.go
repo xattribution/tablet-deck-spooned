@@ -68,6 +68,8 @@ type App struct {
 	panelGen     atomic.Int64 // bumps when panels change
 	folderStamps stampCache
 	agent        agentState
+	cockpit      cockpitRT
+	battle       battleRT
 }
 
 // bindSet is the keybinds in use and where they came from.
@@ -109,7 +111,8 @@ func New(opts Options) (*App, error) {
 	bus := deck.NewBus(300)
 	a := &App{Opts: opts, Store: store, Bus: bus, Log: opts.Log, Public: pub,
 		layouts: map[string]*layout.Layout{}, clients: map[*client]struct{}{}, pair: newLimiter(),
-		reqs: newRequests(), started: time.Now()}
+		cockpit: cockpitRT{lost: map[string]time.Time{}, fallback: map[string]string{}, timers: map[string]*time.Timer{}},
+		reqs:    newRequests(), started: time.Now()}
 	a.Engine = deck.New(drv, engineSettings(cfg), bus)
 	a.refreshBinds(true)
 	if _, err := a.Layout("tablet", ""); err != nil {
@@ -310,6 +313,7 @@ func (a *App) Start(ctx context.Context) error {
 	}
 	go a.background(ctx)
 	go a.forwardEvents(ctx)
+	go a.watchGameLog(ctx.Done())
 	a.Log.Printf("Tablet Deck %s on port %d (%s)%s", tabletdeck.Version, cfg.Port, a.Engine.Driver().Name(),
 		map[bool]string{true: " - DRY RUN, no keys are pressed", false: ""}[a.Opts.DryRun])
 	return nil

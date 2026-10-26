@@ -115,6 +115,11 @@ start with Windows, and updates with one click.
 - **Every game action.** About 700 actions from your own install, grouped like the
   game's keybind menus. Unbound ones show a BIND badge; **Bind every action** on the
   PC writes a profile that keeps all your binds, HOTAS included, and gives the rest a free key.
+- **Cockpit.** Several tablets side by side are one cockpit: each console shows its
+  share of the same view, and you move panels between them from the PC or by dragging
+  a panel to a screen's edge. If one dies, its panels move to another until it's back.
+- **Battle mode.** The deck reads the game's log: it goes red when you're hit, shows
+  who's shooting, and flags a disabled or destroyed ship.
 - **Your own panels.** A panel is a small JSON file: a name, the controls, and a
   layout of keys, toggles, sliders, levers, dials and guarded switches. Drop it in
   the `panels` folder, import it on the tablet, or ask an agent to build one over

@@ -78,7 +78,9 @@ func TestMCP(t *testing.T) {
 	if text, isErr := callTool(t, a, "show_view", map[string]any{"controls": []any{"landing gear", "vtol", "request landing"}, "title": "Landing", "device": "pixel"}); isErr {
 		t.Fatal(text)
 	}
-	pv := phone.wait("view", nil)
+	pv := phone.wait("view", func(m map[string]any) bool {
+		return strings.HasPrefix(m["view"].(map[string]any)["id"].(string), "agent-")
+	})
 	if n := len(pv["groups"].([]any)[0].(map[string]any)["controls"].([]any)); n != 3 {
 		t.Fatalf("one-off view has %d controls", n)
 	}

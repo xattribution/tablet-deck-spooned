@@ -46,6 +46,20 @@
   .seg.small button { height: 38px; font-size: 13px; }
   .qr { width: 160px; height: 160px; }
   .err { color: var(--danger-text); font-family: var(--mono); font-size: 12px; }
+  .consoles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .console { border: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 220px; }
+  .console.drop { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .console.solo { opacity: .55; }
+  .console header { display: flex; gap: 6px; align-items: center; padding: 8px; border-bottom: 1px solid var(--line); }
+  .console header input { flex: 1; min-width: 0; height: 34px; font: 600 15px var(--label); text-transform: uppercase; letter-spacing: .06em; }
+  .console .dot { flex: none; }
+  .console .chips { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+  .chip2 { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px; background: var(--raised, #1a2230); border-left: 4px solid var(--c, var(--accent)); cursor: grab;
+    font: 600 14px var(--label); letter-spacing: .06em; text-transform: uppercase; user-select: none; }
+  .chip2 code { margin-left: auto; font: 11px var(--mono); color: var(--dim); }
+  .console footer { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .console footer .sbtn { height: 32px; padding: 0 10px; font-size: 12px; }
+  .console .note { padding: 0 8px 8px; font: 11px var(--mono); color: var(--dim); text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -59,7 +73,7 @@
 </header>
 <div class="wrap">
   <nav class="side" aria-label="Sections">
-    <a href="#overview" aria-current="true">Overview</a><a href="#pair">Pair a device</a><a href="#devices">Devices and crew</a>
+    <a href="#overview" aria-current="true">Overview</a><a href="#cockpit">Cockpit</a><a href="#pair">Pair a device</a><a href="#devices">Devices and crew</a>
     <a href="#voice">Voice</a><a href="#comms">Comms</a><a href="#keybinds">Keybinds</a><a href="#agents">Agents and integrations</a><a href="#settings">Settings</a><a href="#activity">Activity</a>
   </nav>
   <main>
@@ -95,6 +109,16 @@
         </div>
       </section>
     </div>
+
+    <section id="cockpit" aria-label="Cockpit">
+      <div class="gh"><span class="name">Cockpit</span><span class="info" title="Every tablet that joins is a console of one cockpit: each shows its share of the same view. Drag panels between consoles. If a console drops off, its panels move to the nearest one until it's back. Phones start solo (whole views on their own).">i</span><span class="rule"></span></div>
+      <div class="inline">
+        <select class="field" id="ckview" style="width:200px" aria-label="Cockpit view"></select>
+        <select class="field" id="cktheme" style="width:170px" aria-label="Cockpit theme"></select>
+        <button type="button" class="sbtn" id="cksplit">Share out again</button>
+      </div>
+      <div class="consoles" id="consoles"></div>
+    </section>
 
     <section id="devices" aria-label="Devices and crew">
       <div class="gh"><span class="name">Devices and crew</span><span class="rule"></span></div>

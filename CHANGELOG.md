@@ -7,6 +7,18 @@ before tagging a release.
 
 ## Unreleased
 
+- **Cockpit:** every tablet you pair joins one cockpit. Each is a console showing its
+  share of the same view, in one theme. Drag panels between consoles on the PC (Cockpit)
+  or onto a screen edge on a tablet. When a console drops off, its panels move to the
+  nearest one and you can send them elsewhere; they go home when it's back. Phones start
+  solo.
+- **Battle mode:** from the game's own log, the deck goes red when your ship is hit,
+  shows who's shooting, and flags your ship disabled or destroyed and when you die.
+  (Shield, hull and oxygen levels aren't written anywhere a program can read.)
+- **Speech models** are also found in the folder next to the one you pick, so pointing
+  at "text-to-speech" finds "Speech-to-text" too.
+- The PC control panel's section links no longer open the deck, and a PC with no paired
+  devices no longer shows an error.
 - **Comms panel:** a voice key with tap (talk until you pause), hold and live modes;
   voice routed to commands, an agent, or both; push to talk for Discord, the game or
   both with a radio squelch; Discord mute and deafen; proximity talk, hail and
