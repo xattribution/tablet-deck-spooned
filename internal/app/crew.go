@@ -332,4 +332,5 @@ func (a *App) peerRequest(from, text string, reply func(map[string]any)) {
 	a.reqs.mu.Unlock()
 	a.broadcastOwners(map[string]any{"t": "request", "request": q})
 	a.Bus.Publish("request", q)
+	a.voice.say(from + " says: " + text)
 }

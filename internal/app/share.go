@@ -225,6 +225,11 @@ func (a *App) addRequest(c *client, m msg) {
 	}
 	a.reqs.mu.Unlock()
 	a.Log.Printf("Request from %s: %s %s", q.From, q.Label, q.Text)
+	if q.Label != "" {
+		a.voice.say(q.From + " asks for " + q.Label + ". " + q.Text)
+	} else {
+		a.voice.say(q.From + " says: " + q.Text)
+	}
 	a.broadcastOwners(map[string]any{"t": "request", "request": q})
 	a.Bus.Publish("request", q)
 	c.send(map[string]any{"t": "toast", "text": "Sent"})

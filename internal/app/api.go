@@ -409,7 +409,7 @@ func (a *App) status(local bool) map[string]any {
 		"presses": presses, "blocked": blocked, "clients": a.clientSummary(), "voice": a.voice.status(),
 		"tunnel": a.tunnel.Status(), "afk": a.Afk(), "uptime": int(time.Since(a.started).Seconds()),
 		"keybinds": map[string]any{"files": b.Files, "actions": len(b.Binds), "installs": b.Installs},
-		"devices": len(a.Store.State().Devices), "requests": a.reqs.open(),
+		"devices":  len(a.Store.State().Devices), "requests": a.reqs.open(),
 	}
 	if local {
 		lan := a.LanAddress()

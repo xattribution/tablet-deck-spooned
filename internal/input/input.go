@@ -16,7 +16,7 @@ type Game struct {
 	Running bool   `json:"running"`
 	Focused bool   `json:"focused"` // the game owns the window in front
 	PID     uint32 `json:"pid,omitempty"`
-	Exe     string `json:"exe,omitempty"` // full path, for finding its keybinds
+	Exe     string `json:"exe,omitempty"`   // full path, for finding its keybinds
 	Front   string `json:"front,omitempty"` // process name of the window in front
 }
 

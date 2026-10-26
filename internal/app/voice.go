@@ -32,6 +32,8 @@ type voice struct {
 	owner    *client        // the deck holding the talk button gets the result
 	fromKey  bool           // the last listening came from the PC's push-to-talk key
 	gen      int            // bumps on restart, so an old process's exit is ignored
+	nat      *nativeVoice   // the gorelaxor engine, when it's the one running
+	engine   string         // native or windows, once started
 }
 
 func newVoice(a *App) *voice { return &voice{a: a, state: map[string]any{"state": "off"}} }
@@ -56,6 +58,29 @@ func (v *voice) setState(state, reason string) {
 	v.mu.Unlock()
 	v.a.broadcastOwners(map[string]any{"t": "voice-status", "state": st["state"], "reason": st["reason"]})
 	v.a.Bus.Publish("voice", st)
+}
+
+// builtinCommands are what the gorelaxor engine understands besides the buttons.
+var builtinCommands = [][2]string{
+	{"release all keys", "Release all keys"}, {"i'm afk", "Away mode on"}, {"i'm back", "Away mode off"},
+	{"tell <crewmate> <message>", "Send a crew request"}, {"status", "Status report"}, {"reset lights", "Reset button lights"},
+}
+
+// say speaks a line with the gorelaxor engine's voice, if it's running.
+func (v *voice) say(text string) {
+	v.mu.Lock()
+	n := v.nat
+	v.mu.Unlock()
+	if n != nil && v.a.Store.Config().ReadRequests {
+		n.announce(text)
+	}
+}
+
+// Native is the gorelaxor engine, nil when it isn't running.
+func (v *voice) Native() *nativeVoice {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.nat
 }
 
 // Commands lists what can be said.
@@ -99,11 +124,6 @@ func (v *voice) start() {
 		v.setState("off", "")
 		return
 	}
-	exe, err := voiceExe()
-	if err != nil {
-		v.setState("unavailable", err.Error())
-		return
-	}
 	l, err := v.a.Layout("tablet", "")
 	if err != nil {
 		v.setState("unavailable", err.Error())
@@ -124,6 +144,42 @@ func (v *voice) start() {
 		return cmds[i][0] < cmds[j][0]
 	})
 
+	// The gorelaxor engine when its models are there (or asked for), else Windows'.
+	if cfg.VoiceEngine == "native" || (cfg.VoiceEngine != "windows" && len(v.a.FindSpeechModels().STT) > 0) {
+		v.mu.Lock()
+		v.gen++
+		gen := v.gen
+		v.commands = append(cmds, builtinCommands...)
+		v.mu.Unlock()
+		v.setState("starting", "")
+		n, err := startNative(v.a, l)
+		v.mu.Lock()
+		stale := v.gen != gen
+		if err == nil && !stale {
+			v.nat, v.engine = n, "native"
+		}
+		v.mu.Unlock()
+		if stale {
+			if n != nil {
+				n.close()
+			}
+			return
+		}
+		if err == nil {
+			v.setState("ready", "")
+			return
+		}
+		v.a.Log.Printf("Voice (gorelaxor) unavailable: %v", err)
+		if cfg.VoiceEngine == "native" {
+			v.setState("unavailable", err.Error())
+			return
+		}
+	}
+	exe, err := voiceExe()
+	if err != nil {
+		v.setState("unavailable", err.Error())
+		return
+	}
 	cmd := exec.Command(exe, cfg.VoiceLanguage)
 	hideWindow(cmd)
 	stdin, _ := cmd.StdinPipe()
@@ -136,7 +192,7 @@ func (v *voice) start() {
 	v.mu.Lock()
 	v.gen++
 	gen := v.gen
-	v.proc, v.stdin, v.ready, v.commands = cmd, stdin, false, cmds
+	v.proc, v.stdin, v.ready, v.commands, v.engine = cmd, stdin, false, cmds, "windows"
 	v.mu.Unlock()
 	v.setState("starting", "")
 	for p, id := range phrases {
@@ -236,6 +292,11 @@ func (v *voice) heard(l *layout.Layout, id string, conf float64, text string) {
 // listen starts or stops listening for a deck holding its talk button.
 func (v *voice) listen(c *client, on bool) {
 	v.mu.Lock()
+	if n := v.nat; n != nil {
+		v.mu.Unlock()
+		n.listen(c, on)
+		return
+	}
 	ready, stdin := v.ready, v.stdin
 	if on {
 		v.owner, v.fromKey = c, false
@@ -263,6 +324,11 @@ func (v *voice) stopFor(c *client) {
 		return
 	}
 	v.mu.Lock()
+	if n := v.nat; n != nil {
+		v.mu.Unlock()
+		n.listen(c, false)
+		return
+	}
 	mine := v.owner == c
 	if mine {
 		v.owner = nil
@@ -297,6 +363,10 @@ func (v *voice) sendPTT() {
 func (v *voice) stop() {
 	v.mu.Lock()
 	v.gen++
+	if v.nat != nil {
+		v.nat.close()
+		v.nat = nil
+	}
 	p := v.proc
 	v.proc, v.stdin, v.ready = nil, nil, false
 	v.mu.Unlock()

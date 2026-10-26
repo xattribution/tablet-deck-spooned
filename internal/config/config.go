@@ -62,6 +62,19 @@ type Config struct {
 	PttMode         string  `json:"pttMode"`
 	PttSound        *bool   `json:"pttSound,omitempty"`
 
+	// Native voice (gorelaxor): speech models on this PC, a wake word, spoken replies.
+	VoiceEngine   string `json:"voiceEngine"`   // auto (native when models are found), native, windows
+	ModelsDir     string `json:"modelsDir"`     // folder with the .gguf / ggml .bin files
+	SttModel      string `json:"sttModel"`      // file name, or auto
+	WakeWord      string `json:"wakeWord"`      // "computer"; empty = push-to-talk only
+	AlwaysListen  bool   `json:"alwaysListen"`  // listen for the wake word all the time
+	MicDevice     int    `json:"micDevice"`     // -1 = Windows default
+	SpeakerDevice int    `json:"speakerDevice"` // -1 = Windows default
+	TtsVoice      string `json:"ttsVoice"`      // Pocket TTS voice name
+	Replies       string `json:"replies"`       // off, short, full
+	ReadRequests  bool   `json:"readRequests"`  // read crew requests aloud
+	VoiceThreads  int    `json:"voiceThreads"`  // 0 = a quarter of the cores, at most 4
+
 	// Crew and sharing
 	Discovery bool   `json:"discovery"` // find other decks on the network
 	Tunnel    string `json:"tunnel"`    // "" or "cloudflare": share links reach the internet
@@ -77,7 +90,9 @@ func defaults() Config {
 		FocusMode: "local", TapMs: 60, ComboGapMs: 12, SettleMs: 45, MaxHoldMs: 120000, ReleaseOnFocusLoss: true,
 		GameProcesses: []string{"StarCitizen.exe"}, FollowGameBinds: true,
 		Actionmaps: []string{"keybinds/TabletDeck-StarCitizen.xml"},
-		Voice: true, VoiceLanguage: "en-US", VoiceConfidence: 0.6, PttMode: "hold",
+		Voice:      true, VoiceLanguage: "en-US", VoiceConfidence: 0.6, PttMode: "hold",
+		VoiceEngine: "auto", SttModel: "auto", WakeWord: "computer", AlwaysListen: true, MicDevice: -1, SpeakerDevice: -1,
+		TtsVoice: "alba", Replies: "short", ReadRequests: true,
 		Discovery: true, AutoUpdate: true,
 		Links: []Link{{"UEX", "https://uexcorp.space/"}, {"Erkul", "https://www.erkul.games/"},
 			{"SPViewer", "https://www.spviewer.eu/"}, {"SCMDB", "https://scmdb.net/"}},
@@ -239,6 +254,14 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("at most 12 links")
 	case c.Tunnel != "" && c.Tunnel != "cloudflare":
 		return fmt.Errorf("tunnel must be empty or cloudflare")
+	case c.VoiceEngine != "auto" && c.VoiceEngine != "native" && c.VoiceEngine != "windows":
+		return fmt.Errorf("voice engine must be auto, native or windows")
+	case c.Replies != "off" && c.Replies != "short" && c.Replies != "full":
+		return fmt.Errorf("replies must be off, short or full")
+	case len(c.WakeWord) > 24:
+		return fmt.Errorf("wake word is too long")
+	case c.VoiceThreads < 0 || c.VoiceThreads > 64:
+		return fmt.Errorf("voice threads must be 0-64")
 	}
 	switch c.FocusMode {
 	case "strict", "local", "always", "off":

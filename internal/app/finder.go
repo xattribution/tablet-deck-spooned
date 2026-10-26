@@ -35,11 +35,11 @@ type Nearby struct {
 }
 
 type finder struct {
-	a     *App
-	mu    sync.Mutex
-	seen  map[string]*Nearby
-	conn  *net.UDPConn
-	kick  chan struct{}
+	a    *App
+	mu   sync.Mutex
+	seen map[string]*Nearby
+	conn *net.UDPConn
+	kick chan struct{}
 }
 
 func newFinder(a *App) *finder {

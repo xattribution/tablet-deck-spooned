@@ -11,13 +11,13 @@ import (
 	"runtime"
 )
 
-func SingleInstance() bool              { return true }
-func AttachConsole()                    {}
-func StartsWithWindows() bool           { return false }
-func SetStartWithWindows(bool) error    { return fmt.Errorf("Windows only") }
-func RegisterLinks() error              { return nil }
+func SingleInstance() bool               { return true }
+func AttachConsole()                     {}
+func StartsWithWindows() bool            { return false }
+func SetStartWithWindows(bool) error     { return fmt.Errorf("Windows only") }
+func RegisterLinks() error               { return nil }
 func OpenWindow(url, _ string, _, _ int) { OpenBrowser(url) }
-func Message(title, text string)        { fmt.Fprintf(os.Stderr, "%s: %s\n", title, text) }
+func Message(title, text string)         { fmt.Fprintf(os.Stderr, "%s: %s\n", title, text) }
 
 func OpenBrowser(url string) {
 	if runtime.GOOS == "darwin" {

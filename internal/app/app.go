@@ -364,10 +364,18 @@ func (a *App) ApplyConfig(old, cfg config.Config) {
 	if old.Layout != cfg.Layout || old.PhoneLayout != cfg.PhoneLayout {
 		a.broadcastOwners(map[string]any{"t": "reload"})
 	}
-	if old.Voice != cfg.Voice || old.VoiceLanguage != cfg.VoiceLanguage || old.ShortEmotes != cfg.ShortEmotes {
+	if old.Voice != cfg.Voice || old.VoiceLanguage != cfg.VoiceLanguage || old.ShortEmotes != cfg.ShortEmotes ||
+		old.VoiceEngine != cfg.VoiceEngine || old.ModelsDir != cfg.ModelsDir || old.SttModel != cfg.SttModel ||
+		old.MicDevice != cfg.MicDevice || old.SpeakerDevice != cfg.SpeakerDevice || old.VoiceThreads != cfg.VoiceThreads ||
+		(old.Replies == "off") != (cfg.Replies == "off") {
 		a.voice.restart()
 	} else if old.PttKey != cfg.PttKey || old.PttMode != cfg.PttMode || old.PttSound != cfg.PttSound {
 		a.voice.sendPTT()
+	}
+	if old.TtsVoice != cfg.TtsVoice {
+		if n := a.voice.Native(); n != nil && n.sp != nil {
+			_ = n.sp.SetVoice(cfg.TtsVoice)
+		}
 	}
 	if old.Tunnel != cfg.Tunnel {
 		if cfg.Tunnel == "" {

@@ -135,13 +135,13 @@ func Message(title, text string) {
 
 // Tray is what the tray menu can do.
 type Tray struct {
-	Title        string
-	OpenPanel    func()
-	OpenPairing  func()
-	OpenTouch    func()
-	ReleaseAll   func()
-	ToggleAfk    func() bool // returns the new state
-	Quit         func()
+	Title       string
+	OpenPanel   func()
+	OpenPairing func()
+	OpenTouch   func()
+	ReleaseAll  func()
+	ToggleAfk   func() bool // returns the new state
+	Quit        func()
 }
 
 // RunTray shows the tray icon and blocks until Quit. It must run on the main thread.
