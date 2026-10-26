@@ -1,6 +1,18 @@
 // Manufacturer emblems: original badge designs on a 64x64 grid that suggest each maker's
 // character; they are not the manufacturers' real logos.
 window.DECK_EMBLEMS = {
+ "hud": {
+  "name": "HUD",
+  "full": "Ship HUD",
+  "tag": "The ship's own display",
+  "emblem": "<circle cx=\"32\" cy=\"32\" r=\"22\"/><path d=\"M32 4v14M32 46v14M4 32h14M46 32h14\"/><circle cx=\"32\" cy=\"32\" r=\"3\" fill=\"currentColor\" stroke=\"none\"/>"
+ },
+ "mobiglas": {
+  "name": "mobiGlas",
+  "full": "mobiGlas",
+  "tag": "The wrist hologram",
+  "emblem": "<path d=\"M32 6 54 19v26L32 58 10 45V19Z\"/><path d=\"M32 18 44 25v14L32 46 20 39V25Z\" opacity=\".55\"/><circle cx=\"32\" cy=\"32\" r=\"4\" fill=\"currentColor\" stroke=\"none\"/>"
+ },
  "rsi": {
   "name": "RSI",
   "full": "Roberts Space Industries",
