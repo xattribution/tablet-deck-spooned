@@ -207,26 +207,41 @@
     }
   }
 
-  function keyHTML(c, { locked = false } = {}) {
+  // Labels on keys: full, short (first word) or off (icon only); keybinds on or off.
+  const labelMode = () => store.get("labels") || "full";
+  const showBinds = () => store.get("binds") !== "off";
+  function shortLabel(l) {
+    const w = String(l).replace(/^(prev|toggle|request|engage|master:?|power:)\s+/i, "").split(/\s+/);
+    return w.length > 2 ? w.slice(0, 2).join(" ") : w.join(" ");
+  }
+
+  function keyHTML(c, group, { locked = false } = {}) {
     const on = c.state && S.lit[c.state.group];
     const hold = c.mode === "hold";
     let tag = "", tcls = "t";
-    if (c.danger) { tag = "HOLD 1S"; }
+    if (c.danger) tag = "HOLD 1S";
     else if (hold) { tag = "HOLD"; tcls += " hold"; }
     else if (c.state) tag = on ? "ON" : "OFF";
     if (locked) tag = "ASK";
-    const cls = ["k", on && !locked ? "on" : "", c.danger && !locked ? "danger" : "", locked ? "locked" : ""].filter(Boolean).join(" ");
-    return `<button type="button" class="${cls}" data-id="${esc(c.id)}" data-mode="${hold ? "hold" : "tap"}"${c.danger ? ' data-danger="1"' : ""}${c.state ? ` data-group="${esc(c.state.group)}"` : ""}${locked ? ' data-locked="1"' : ""}>
-      <span class="l">${esc(c.label)}</span><span class="f"><span class="b">${esc(keyText(c.keys))}</span><span class="${tcls}">${tag}</span></span><span class="p"></span></button>`;
+    const cat = window.DeckCat.of(group);
+    const icon = window.DeckCat.icon(c, group);
+    const badge = window.DeckCat.badge(c.label);
+    const lm = labelMode();
+    const label = lm === "short" ? shortLabel(c.label) : c.label;
+    const cls = ["k", on && !locked ? "on" : "", c.danger && !locked ? "danger" : "", locked ? "locked" : "", lm === "off" ? "iconly" : ""].filter(Boolean).join(" ");
+    return `<button type="button" class="${cls}" data-cat="${cat}" data-id="${esc(c.id)}" data-mode="${hold ? "hold" : "tap"}"${c.danger ? ' data-danger="1"' : ""}${c.state ? ` data-group="${esc(c.state.group)}"` : ""}${locked ? ' data-locked="1"' : ""} aria-label="${esc(c.label)}">
+      <span class="top"><span class="ic">${window.deckIcon(icon)}${badge ? `<i class="bd">${badge}</i>` : ""}</span><span class="${tcls}">${tag}</span></span>
+      <span class="l"${lm === "off" ? " hidden" : ""}>${esc(label)}</span>${showBinds() ? `<span class="b">${esc(keyText(c.keys))}</span>` : ""}<span class="p"></span></button>`;
   }
 
   function groupHTML(g, opts) {
     const n = g.controls.length;
     const cols = n <= 2 ? n : n === 4 ? 2 : 3;
     const wide = n > 12 ? " wide" : "";
-    return `<section class="grp${wide}" aria-label="${esc(g.name)}">
-      <div class="gh"><span class="code">${esc(g.code)}</span><span class="name">${esc(g.name)}</span><span class="rule"></span></div>
-      <div class="keys" style="--cols:${wide ? 6 : cols}">${g.controls.map((c) => keyHTML(c, { locked: opts && opts.locked && c.locked })).join("")}</div></section>`;
+    const cat = window.DeckCat.of(g.id);
+    return `<section class="grp${wide}" data-cat="${cat}" aria-label="${esc(g.name)}">
+      <div class="gh"><span class="code">${esc(g.code)}</span><span class="name">${esc(g.name)}</span><span class="rule"></span><span class="cat">${esc(window.DeckCat.name(cat))}</span></div>
+      <div class="keys" style="--cols:${wide ? 6 : cols}">${g.controls.map((c) => keyHTML(c, g.id, { locked: opts && opts.locked && c.locked })).join("")}</div></section>`;
   }
 
   function paintDeck() {
@@ -303,7 +318,7 @@
     if (k.dataset.locked) { // a guest asking for something not shared
       buzz();
       send({ t: "request", id: k.dataset.id });
-      toast(`Asked for ${$(".l", k).textContent}`);
+      toast(`Asked for ${k.getAttribute("aria-label")}`);
       return;
     }
     try { k.setPointerCapture(e.pointerId); } catch {}
@@ -414,7 +429,8 @@
     const code = Object.fromEntries(groups.map((g) => [g.id, g.code]));
     $("#fr").innerHTML = rows.slice(0, 120).map((c) => {
       const inDraft = draft && draft.controls.includes(c.id);
-      return `<div class="res"><span class="code">${esc(code[c.group] || "")}</span>
+      const cat = window.DeckCat.of(c.group);
+      return `<div class="res" data-cat="${cat}"><span class="code"><span class="ric">${window.deckIcon(window.DeckCat.icon(c, c.group))}</span>${esc(code[c.group] || "")}</span>
         <span class="nm"><b>${esc(c.label)}</b><span>${esc((c.tags || []).join(" · "))}</span></span>
         <span class="bind">${esc(keyText(c.keys))}</span>
         <span class="acts"><button type="button" class="sbtn" data-fpress="${esc(c.id)}">Press</button>
@@ -589,7 +605,9 @@
         <div class="sec"><div class="gh"><span class="name">Theme</span><span class="rule"></span></div>
           <div class="themes">${THEMES.map(([id, name, font]) => themeTile(id, name, font, id === cur)).join("")}</div></div>
         <div class="sec"><div class="gh"><span class="name">Display</span><span class="rule"></span></div>
-          <div class="grid-btns">${sw("night", "Night")}${sw("large", "Large text")}${sw("contrast", "High contrast")}</div></div>
+          <div class="seg">${[["full", "Full labels"], ["short", "Short labels"], ["off", "Icons only"]].map(([v, l]) => `<button type="button" data-labels="${v}" aria-pressed="${labelMode() === v}">${l}</button>`).join("")}</div>
+          <div class="grid-btns">${sw("night", "Night")}${sw("large", "Large text")}${sw("contrast", "High contrast")}
+            <button type="button" class="sw" role="switch" aria-checked="${showBinds()}" data-binds>Keybinds<span class="mono">${showBinds() ? "ON" : "OFF"}</span></button></div></div>
         <div class="sec"><div class="gh"><span class="name">Deck</span><span class="rule"></span></div>
           <div class="grid-btns">
             <button type="button" class="sw" data-do="release">Release all keys</button>
@@ -617,11 +635,15 @@
     if (!t || sheet.dataset.open !== "settings") return;
     if (t.dataset.themePick) { applyTheme(t.dataset.themePick); openSettings(); paintBar(); }
     else if (t.dataset.disp) { store.set(t.dataset.disp, store.get(t.dataset.disp) === "1" ? "" : "1"); applyDisplay(); openSettings(); }
+    else if (t.dataset.labels) { store.set("labels", t.dataset.labels === "full" ? "" : t.dataset.labels); openSettings(); redraw(); }
+    else if (t.dataset.binds !== undefined) { store.set("binds", showBinds() ? "off" : ""); openSettings(); redraw(); }
     else if (t.dataset.do === "release") { send({ t: "release-all" }); }
     else if (t.dataset.do === "lights") { send({ t: "reset-states" }); toast("Lights reset"); }
     else if (t.dataset.do === "fullscreen") { const d = document.documentElement; if (document.fullscreenElement) document.exitFullscreen(); else (d.requestFullscreen || d.webkitRequestFullscreen)?.call(d); }
     else if (t.dataset.do === "unpair") { store.set("token", ""); store.set("pairCode", ""); token = ""; stop(); closeSheet(); drawPair(); }
   });
+
+  function redraw() { if (S.guest) drawGuest(); else paintDeck(); }
 
   // ---------- pairing ----------
 

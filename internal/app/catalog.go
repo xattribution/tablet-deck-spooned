@@ -54,6 +54,7 @@ type Control struct {
 	State    *layout.State  `json:"state,omitempty"`
 	Danger   bool           `json:"danger,omitempty"`
 	ScAction string         `json:"scAction,omitempty"`
+	Icon     string         `json:"icon,omitempty"`
 	Voice    []string       `json:"voice,omitempty"`
 	Button   *layout.Button `json:"-"`
 }
@@ -242,6 +243,9 @@ func (a *App) Catalog() ([]*Control, map[string]*Control) {
 			}
 			if c.State == nil && x.b.State != nil {
 				c.State = x.b.State
+			}
+			if c.Icon == "" && x.b.Icon != "" {
+				c.Icon = x.b.Icon
 			}
 			if x.b.Panel != "" {
 				tags[slug(x.b.Panel)] = true

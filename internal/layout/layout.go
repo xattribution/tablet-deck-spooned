@@ -22,6 +22,7 @@ type Button struct {
 	Ms       int         `json:"ms,omitempty"`
 	VoiceMs  int         `json:"voiceMs,omitempty"`
 	ScAction string      `json:"scAction,omitempty"`
+	Icon     string      `json:"icon,omitempty"`
 	Voice    []string    `json:"voice,omitempty"`
 	NoVoice  bool        `json:"-"`
 	State    *State      `json:"state,omitempty"`
@@ -197,6 +198,7 @@ func buttonFrom(n map[string]any, id, ks string, binds map[string]string) (*Butt
 	}
 	b.Mode, _ = n["mode"].(string)
 	b.ScAction, _ = n["scAction"].(string)
+	b.Icon, _ = n["icon"].(string)
 	if v, ok := n["ms"].(float64); ok {
 		b.Ms = int(v)
 	}

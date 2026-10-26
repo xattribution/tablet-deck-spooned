@@ -95,6 +95,9 @@ func controlView(c *Control, states map[string]bool) map[string]any {
 	if c.Danger {
 		m["danger"] = true
 	}
+	if c.Icon != "" {
+		m["icon"] = c.Icon
+	}
 	return m
 }
 
