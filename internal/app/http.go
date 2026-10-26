@@ -38,7 +38,7 @@ func guestPath(p string) bool {
 	case p == "/gws", p == "/layout.json", p == "/sw.js", strings.HasPrefix(p, "/g/"):
 		return true
 	case p == "/" || strings.Contains(p, "..") || strings.HasPrefix(p, "/editor") || strings.HasPrefix(p, "/control") ||
-		strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/showcase"):
+		strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/showcase") || p == "/mcp":
 		return false
 	}
 	// The deck's own files (scripts, styles, icons).
@@ -72,6 +72,7 @@ func (a *App) routes(guest bool) http.Handler {
 	mux.HandleFunc("/events", a.owner(guest, a.handleShowcaseEvents))
 	mux.HandleFunc("/editor/", a.owner(guest, a.handleEditor))
 	mux.HandleFunc("/api/v1/", a.owner(guest, a.handleAPI))
+	mux.HandleFunc("/mcp", a.owner(guest, a.handleMCP))
 	mux.HandleFunc("/control", func(w http.ResponseWriter, r *http.Request) {
 		if !isLocal(r, guest) {
 			http.Error(w, "The control panel only opens on the PC running Tablet Deck.", 403)

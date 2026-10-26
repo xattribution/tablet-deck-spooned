@@ -316,12 +316,29 @@ type CrewLink struct {
 	Added time.Time `json:"added"`
 }
 
+// View is an arrangement of controls: whole groups (ship systems) and named sections
+// of single controls. Built-in views are presets; the player's own are saved here.
+type View struct {
+	ID       string    `json:"id"`
+	Name     string    `json:"name"`
+	Groups   []string  `json:"groups,omitempty"`
+	Sections []Section `json:"sections,omitempty"`
+	Preset   bool      `json:"preset,omitempty"`
+}
+
+// Section is a named set of controls in a view.
+type Section struct {
+	Name     string   `json:"name"`
+	Controls []string `json:"controls"`
+}
+
 // State is state.json.
 type State struct {
 	InstanceID string     `json:"instanceId"`
 	Devices    []Device   `json:"devices"`
 	Grants     []Grant    `json:"grants"`
 	Crew       []CrewLink `json:"crew"`
+	Views      []View     `json:"views"`
 }
 
 // State returns a copy of the saved state.
@@ -332,6 +349,7 @@ func (s *Store) State() State {
 	st.Devices = append([]Device(nil), s.state.Devices...)
 	st.Grants = append([]Grant(nil), s.state.Grants...)
 	st.Crew = append([]CrewLink(nil), s.state.Crew...)
+	st.Views = append([]View(nil), s.state.Views...)
 	return st
 }
 

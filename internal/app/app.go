@@ -51,6 +51,7 @@ type App struct {
 	clientsMu sync.Mutex
 	clients   map[*client]struct{}
 
+	cat     catalog
 	pair    *limiter
 	afk     atomic.Bool
 	reqs    *requests

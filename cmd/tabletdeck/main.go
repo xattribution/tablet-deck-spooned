@@ -10,6 +10,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -51,6 +52,8 @@ func main() {
 		os.Exit(handleURL(args))
 	case "release-all":
 		os.Exit(call("POST", "/api/v1/release-all", nil, nil))
+	case "mcp":
+		os.Exit(mcpStdio())
 	case "version":
 		fmt.Println(tabletdeck.Version)
 	case "help", "-h", "--help":
@@ -73,6 +76,7 @@ const usage = `Tablet Deck: a touch control deck for Star Citizen.
   tabletdeck down|up <button>      hold or let go of a button (Stream Deck hold keys)
   tabletdeck url tabletdeck://press/<button>
   tabletdeck release-all           let go of every key Tablet Deck holds
+  tabletdeck mcp                   MCP server on stdio, for AI agents (bridges to the running deck)
 `
 
 // run starts the deck. With tray (Windows) it lives in the notification area.
@@ -287,4 +291,47 @@ func handleURL(args []string) int {
 		return 0
 	}
 	return 2
+}
+
+// mcpStdio bridges MCP over stdio (one JSON-RPC message per line) to the running
+// deck's /mcp endpoint, for agents that launch a command (Claude Desktop and others).
+func mcpStdio() int {
+	c := loadCfg(os.Getenv("TABLETDECK_DATA"))
+	client := &http.Client{Timeout: 30 * time.Second}
+	in := bufio.NewScanner(os.Stdin)
+	in.Buffer(make([]byte, 1<<20), 1<<20)
+	out := bufio.NewWriter(os.Stdout)
+	for in.Scan() {
+		line := bytes.TrimSpace(in.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+		req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/mcp", c.Port), bytes.NewReader(line))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Deck-Key", c.APIKey)
+		resp, err := client.Do(req)
+		if err != nil {
+			var id json.RawMessage
+			var probe struct {
+				ID json.RawMessage `json:"id"`
+			}
+			if json.Unmarshal(line, &probe) == nil {
+				id = probe.ID
+			}
+			if len(id) > 0 {
+				b, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "error": map[string]any{"code": -32000, "message": "Tablet Deck isn't running: start it, then try again"}})
+				out.Write(append(b, '\n'))
+				out.Flush()
+			}
+			continue
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusAccepted || len(bytes.TrimSpace(body)) == 0 {
+			continue
+		}
+		out.Write(append(bytes.TrimSpace(body), '\n'))
+		out.Flush()
+	}
+	return 0
 }

@@ -29,6 +29,8 @@ type client struct {
 	holds   map[string]*deck.Hold
 	rate    []time.Time // guest presses in the last minute
 	listens bool        // holding the talk button
+	view    string      // the view this deck shows
+	theme   string      // set by an agent; "" = the deck's own choice
 }
 
 // msg is anything a deck sends. Fields are shared between message types.
@@ -307,6 +309,24 @@ func (c *client) handle(m msg) {
 		a.answerRequest(c, m.ID, m.Do)
 	case "share":
 		a.shareFromDeck(c, m)
+	case "view":
+		if v, ok := a.ViewByID(m.ID); ok {
+			c.mu.Lock()
+			c.view = v.ID
+			c.mu.Unlock()
+			c.send(map[string]any{"t": "view", "view": v, "groups": a.Resolve(v)})
+		}
+	case "save-view":
+		var v config.View
+		if json.Unmarshal([]byte(m.Text), &v) == nil {
+			if saved, err := a.SaveView(v); err != nil {
+				c.send(map[string]any{"t": "toast", "text": err.Error()})
+			} else {
+				c.send(map[string]any{"t": "toast", "text": "Saved " + saved.Name})
+			}
+		}
+	case "delete-view":
+		a.DeleteView(m.ID)
 	case "crew-press":
 		a.crew.press(m.Peer, m.ID, c)
 	case "crew-request":
@@ -317,6 +337,12 @@ func (c *client) handle(m msg) {
 func (c *client) press(m msg) {
 	a := c.a
 	b := c.layout.Buttons[m.ID]
+	if b == nil && c.p.grant == nil {
+		// Views press catalog controls by their catalog id.
+		if _, byID := a.Catalog(); byID[m.ID] != nil {
+			b = byID[m.ID].Button
+		}
+	}
 	if b == nil {
 		return
 	}
@@ -393,6 +419,8 @@ func (a *App) helloFor(c *client) map[string]any {
 	}
 	h["voice"] = cfg.Voice
 	h["voiceStatus"] = a.voice.status()
+	h["views"] = a.Views()
+	h["groups"] = groups
 	h["requests"] = a.reqs.open()
 	h["crew"] = a.crew.summary()
 	return h

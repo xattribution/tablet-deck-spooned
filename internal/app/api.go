@@ -90,6 +90,25 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		res, status := a.apiPress(p, body.ID, body.Label, body.Action, body.Keys, body.Mode, body.Ms, body.Layout, body.Who)
 		writeJSON(w, status, res)
 
+	case route == "catalog":
+		all, _ := a.Catalog()
+		states := a.Engine.States()
+		list := make([]map[string]any, 0, len(all))
+		for _, c := range all {
+			list = append(list, controlView(c, states))
+		}
+		writeJSON(w, 200, map[string]any{"groups": groups, "controls": list, "views": a.Views()})
+
+	case route == "views" && method == http.MethodGet:
+		writeJSON(w, 200, a.Views())
+	case len(parts) == 2 && parts[0] == "views" && method == http.MethodGet:
+		v, ok := a.ViewByID(parts[1])
+		if !ok {
+			jsonErr(w, 404, "No such view.")
+			return
+		}
+		writeJSON(w, 200, map[string]any{"view": v, "groups": a.Resolve(v)})
+
 	case route == "release-all" && method == http.MethodPost:
 		a.Engine.ReleaseAll(deck.ReasonReleaseAll)
 		writeJSON(w, 200, map[string]any{"ok": true})
