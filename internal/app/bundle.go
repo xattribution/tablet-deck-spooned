@@ -59,18 +59,44 @@ func (a *App) Import(data []byte) (map[string]any, error) {
 	} else if !strings.HasPrefix(b.Format, "tabletdeck/") {
 		return nil, fmt.Errorf("unknown format %q", b.Format)
 	}
-	var saved []string
-	for _, p := range b.Panels {
-		sp, err := a.SavePanel(p)
-		if err != nil {
-			return nil, fmt.Errorf("panel %q: %v", p.Name, err)
-		}
-		saved = append(saved, sp.ID)
+	if len(b.Panels) > 200 {
+		return nil, fmt.Errorf("up to 200 panels in one file")
 	}
 	var views []config.View
 	if len(b.Views) > 0 {
 		if err := json.Unmarshal(b.Views, &views); err != nil {
 			return nil, fmt.Errorf("views: %v", err)
+		}
+	}
+	// Check the views before saving anything: their panels may be in this file.
+	coming := map[string]bool{}
+	for _, p := range b.Panels {
+		id := strings.ToLower(strings.TrimSpace(p.ID))
+		if id == "" {
+			id = panels.Slug(p.Name)
+		}
+		coming[id] = true
+	}
+	for _, v := range views {
+		for _, g := range v.Groups {
+			if _, ok := a.GroupByID(g); !ok && !coming[g] {
+				return nil, fmt.Errorf("view %q uses %q, which isn't on this PC or in the file", v.Name, g)
+			}
+		}
+	}
+	existing := map[string]string{}
+	for _, p := range a.Panels() {
+		existing[p.ID] = p.Source
+	}
+	saved, err := a.SavePanels(b.Panels)
+	if err != nil {
+		return nil, err
+	}
+	var ids, replaced []string
+	for _, p := range saved {
+		ids = append(ids, p.ID)
+		if src, ok := existing[p.ID]; ok {
+			replaced = append(replaced, p.ID+" ("+src+")")
 		}
 	}
 	var vs []string
@@ -81,7 +107,11 @@ func (a *App) Import(data []byte) (map[string]any, error) {
 		}
 		vs = append(vs, sv.ID)
 	}
-	return map[string]any{"ok": true, "panels": saved, "views": vs}, nil
+	res := map[string]any{"ok": true, "panels": ids, "views": vs}
+	if len(replaced) > 0 {
+		res["replaced"] = replaced
+	}
+	return res, nil
 }
 
 // BindAll writes a keybind profile that keeps the player's keyboard binds and gives
@@ -103,11 +133,15 @@ func (a *App) BindAll() (map[string]any, error) {
 		}
 	}
 	const name = "Tablet Deck - every action"
-	profile, added := sc.BindAll(a.GameActions().Actions, current, name)
+	var reserved []string // keys the deck's own binds use (its bundled profile)
+	for _, k := range a.Binds().Binds {
+		reserved = append(reserved, k)
+	}
+	profile, added := sc.BindAll(a.GameActions().Actions, current, name, reserved...)
 	written, err := sc.InstallProfile(profile, "TabletDeck-EveryAction.xml", installs)
 	if err != nil {
 		return nil, err
 	}
 	return map[string]any{"ok": true, "added": len(added), "written": written, "profile": name,
-		"next": "In Star Citizen: Options > Keybindings > Control Profiles > " + name + ". Your own keyboard binds are kept."}, nil
+		"next": "In Star Citizen: Options > Keybindings > Control Profiles > " + name + ". Your keyboard, joystick and mouse binds are kept."}, nil
 }

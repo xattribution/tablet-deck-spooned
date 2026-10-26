@@ -82,8 +82,7 @@ func Lookup(name string) (Scan, bool) {
 	return s, ok
 }
 
-// ParseCombo turns "lalt+n" into its scancodes, modifiers first and the main key last,
-// in the order they're written.
+// ParseCombo turns "lalt+n" into its scancodes, modifiers first and the main key last.
 func ParseCombo(combo string) ([]Scan, error) {
 	var out []Scan
 	for _, part := range strings.Split(combo, "+") {
@@ -99,6 +98,23 @@ func ParseCombo(combo string) ([]Scan, error) {
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("no keys in %q", combo)
+	}
+	// The game writes some binds modifier last ("u+lshift"); press modifiers first
+	// anyway, or U goes down on its own.
+	sort.SliceStable(out, func(i, j int) bool { return out[i].IsModifier() && !out[j].IsModifier() })
+	nonMod := 0
+	seen := map[Scan]bool{}
+	for _, sc := range out {
+		if seen[sc] {
+			return nil, fmt.Errorf("%q has a key twice", combo)
+		}
+		seen[sc] = true
+		if !sc.IsModifier() {
+			nonMod++
+		}
+	}
+	if nonMod > 1 {
+		return nil, fmt.Errorf("%q has more than one main key", combo)
 	}
 	return out, nil
 }

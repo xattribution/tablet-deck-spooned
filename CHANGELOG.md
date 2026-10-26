@@ -15,7 +15,7 @@ before tagging a release.
   on the PC under Comms. Fast or Crew style; replies are spoken.
 - **Every game action** from your install is on the deck, grouped like the game's
   keybind menus. Unbound actions show a BIND badge; **Bind every action** writes a
-  profile that keeps your binds and binds the rest.
+  profile that keeps all your binds (keyboard, HOTAS, mouse) and binds the rest.
 - **Panels are data:** built-in panels are JSON, and your own come from the
   `panels` folder, import, or an agent over MCP (`panel_guide`, `save_panel`). Guide:
   docs/PANELS.md.

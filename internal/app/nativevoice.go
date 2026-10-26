@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/xattribution/gorelaxor/conformer"
@@ -35,11 +36,14 @@ type nativeVoice struct {
 	out      audio.Player
 	phrases  map[string]string // phrase -> button id
 	list     []string
-	armed    time.Time // "Computer" alone: the next utterance within a few seconds is a command
-	owner    *client
+	armed    time.Time        // "Computer" alone: the next utterance within a few seconds is a command
+	holders  map[*client]bool // decks holding talk right now
+	tapper   *client          // the deck that tapped to talk
+	replyTo  *client          // where the next result goes (the deck that last talked)
 	stopPTT  chan struct{}
 	lastText string
-	tapUntil time.Time // tap to talk: listening until the next pause, or this time
+	tapUntil time.Time    // tap to talk: listening until the next pause, or this time
+	talkGen  atomic.Int64 // each spoken line; the mic reopens only after the last one
 }
 
 // modelDirs are where model files are looked for: the setting, then a "models"
@@ -70,7 +74,7 @@ func startNative(a *App, l *layout.Layout) (*nativeVoice, error) {
 		return nil, fmt.Errorf("no speech-to-text model found (looked in %s)", strings.Join(nonEmpty(a.modelDirs()), ", "))
 	}
 	threads := voiceThreads(cfg.VoiceThreads)
-	n := &nativeVoice{a: a, models: models}
+	n := &nativeVoice{a: a, models: models, holders: map[*client]bool{}}
 	t0 := time.Now()
 	rec, err := speech.LoadRecognizer(stt, threads)
 	if err != nil {
@@ -89,12 +93,19 @@ func startNative(a *App, l *layout.Layout) (*nativeVoice, error) {
 		} else {
 			_ = n.sp.SetVoice(cfg.TtsVoice)
 			n.sp.SetOutput(n.play, n.waitPlayed, func(talking bool) {
-				if n.lis != nil {
-					if talking {
-						n.lis.Mute(true)
-					} else {
-						time.AfterFunc(250*time.Millisecond, func() { n.lis.Mute(false) })
-					}
+				if n.lis == nil {
+					return
+				}
+				g := n.talkGen.Add(1)
+				if talking {
+					n.lis.Mute(true)
+				} else {
+					// Reopen the mic a moment after the line, unless another line started.
+					time.AfterFunc(250*time.Millisecond, func() {
+						if n.talkGen.Load() == g {
+							n.lis.Mute(false)
+						}
+					})
 				}
 			})
 		}
@@ -145,7 +156,7 @@ func (n *nativeVoice) setPhrases(l *layout.Layout, short bool) {
 func (n *nativeVoice) feed(pcm []float32) {
 	cfg := n.a.Store.Config()
 	n.mu.Lock()
-	ptt := n.owner != nil || time.Now().Before(n.tapUntil)
+	ptt := len(n.holders) > 0 || time.Now().Before(n.tapUntil)
 	n.mu.Unlock()
 	if !cfg.AlwaysListen && !ptt && !pttKeyDown(cfg.PttKey) {
 		n.lis.Feed(make([]float32, len(pcm))) // keep time moving, hear nothing
@@ -160,6 +171,12 @@ func (n *nativeVoice) close() {
 	}
 	if n.mic != nil {
 		_ = n.mic.Close()
+	}
+	if n.sp != nil {
+		n.sp.Close()
+	}
+	if n.lis != nil {
+		n.lis.Close()
 	}
 	n.mu.Lock()
 	if n.out != nil {
@@ -218,22 +235,41 @@ func (n *nativeVoice) announce(text string) {
 func (n *nativeVoice) listen(c *client, on bool) {
 	n.mu.Lock()
 	if on {
-		n.owner = c
-	} else if n.owner != c {
-		n.mu.Unlock()
-		return
+		n.holders[c] = true
+		n.replyTo = c
+	} else {
+		delete(n.holders, c)
 	}
+	held := len(n.holders) > 0
 	n.mu.Unlock()
-	n.lis.SetPTT(on)
+	n.lis.SetPTT(held)
 	if !on {
-		// The owner stays set until the utterance is handled, so results go to that deck.
+		// Results still go to this deck until the utterance is handled.
 		time.AfterFunc(5*time.Second, func() {
 			n.mu.Lock()
-			if n.owner == c {
-				n.owner = nil
+			if n.replyTo == c && !n.holders[c] {
+				n.replyTo = nil
 			}
 			n.mu.Unlock()
 		})
+	}
+}
+
+// dropClient forgets a deck that disconnected (it can't be holding talk any more).
+func (n *nativeVoice) dropClient(c *client) {
+	n.mu.Lock()
+	was := n.holders[c]
+	delete(n.holders, c)
+	held := len(n.holders) > 0
+	if n.replyTo == c {
+		n.replyTo = nil
+	}
+	if n.tapper == c {
+		n.tapper, n.tapUntil = nil, time.Time{}
+	}
+	n.mu.Unlock()
+	if was {
+		n.lis.SetPTT(held)
 	}
 }
 
@@ -241,7 +277,7 @@ func (n *nativeVoice) listen(c *client, on bool) {
 // handle what was said as addressed to us, wake word or not.
 func (n *nativeVoice) tap(c *client) {
 	n.mu.Lock()
-	n.owner = c
+	n.tapper, n.replyTo = c, c
 	n.tapUntil = time.Now().Add(12 * time.Second)
 	until := n.tapUntil
 	n.mu.Unlock()
@@ -249,7 +285,7 @@ func (n *nativeVoice) tap(c *client) {
 		n.mu.Lock()
 		expired := n.tapUntil.Equal(until)
 		if expired {
-			n.tapUntil = time.Time{}
+			n.tapUntil, n.tapper = time.Time{}, nil
 		}
 		n.mu.Unlock()
 		if expired {
@@ -262,8 +298,8 @@ func (n *nativeVoice) tap(c *client) {
 func (n *nativeVoice) endTap() bool {
 	n.mu.Lock()
 	on := time.Now().Before(n.tapUntil)
-	n.tapUntil = time.Time{}
-	owner := n.owner
+	owner := n.tapper
+	n.tapUntil, n.tapper = time.Time{}, nil
 	n.mu.Unlock()
 	if on && owner != nil {
 		owner.send(map[string]any{"t": "listening", "on": false})
@@ -307,7 +343,7 @@ func (n *nativeVoice) togglePTT() {
 
 func (n *nativeVoice) reply(m map[string]any) {
 	n.mu.Lock()
-	owner := n.owner
+	owner := n.replyTo
 	n.mu.Unlock()
 	if owner != nil {
 		owner.send(m)
@@ -358,12 +394,13 @@ func (n *nativeVoice) utterance(pcm []float32, ptt bool) {
 		return
 	}
 	a.Log.Printf("Voice: %q (%d ms)", text, took.Milliseconds())
+	// Deck commands ("release all", "AFK") work on every route, without a network call.
+	if n.intent(cmd) {
+		return
+	}
 	if cfg.VoiceRoute == "agent" && a.agentReady() {
 		n.reply(map[string]any{"t": "heard", "text": text, "agent": true})
 		a.AskAgent(cmd, "voice")
-		return
-	}
-	if n.intent(cmd) {
 		return
 	}
 	n.mu.Lock()
@@ -371,6 +408,9 @@ func (n *nativeVoice) utterance(pcm []float32, ptt bool) {
 	n.mu.Unlock()
 	best, score := speech.Match(cmd, list)
 	need := 0.55 + 0.35*cfg.VoiceConfidence // strictness 0.6 asks for 0.76
+	if reNotACommand.MatchString(cmd) {
+		best, score = "", 0 // "don't eject", "how are my shields": never a press
+	}
 	if (best == "" || score < need) && cfg.VoiceRoute == "auto" && a.agentReady() {
 		// Not a control: the agent takes it.
 		n.reply(map[string]any{"t": "heard", "text": text, "agent": true})
@@ -414,6 +454,9 @@ func spokenReason(r string) string {
 	}
 	return "That didn't go through."
 }
+
+// reNotACommand: a negation or a question, which must never press a control.
+var reNotACommand = regexp.MustCompile(`(?i)\b(don'?t|do not|never|not|no|stop|cancel|wait)\b|^(what|what's|how|why|when|where|who|which|is|are|am|can|could|should|would|do|does|did|will)\b`)
 
 var (
 	reRelease = regexp.MustCompile(`^(release|let go of|drop)( all)?( the)?( keys| buttons)?$|^let go$`)

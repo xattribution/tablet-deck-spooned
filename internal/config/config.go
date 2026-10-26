@@ -226,6 +226,12 @@ func (s *Store) Config() Config {
 	defer s.mu.RUnlock()
 	c := s.cfg
 	c.Links = append([]Link(nil), s.cfg.Links...)
+	if s.cfg.Rebinds != nil { // a map is shared by copies; callers range over it while others write
+		c.Rebinds = make(map[string]string, len(s.cfg.Rebinds))
+		for k, v := range s.cfg.Rebinds {
+			c.Rebinds[k] = v
+		}
+	}
 	return c
 }
 

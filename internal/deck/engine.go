@@ -81,11 +81,13 @@ type Engine struct {
 	settings atomic.Pointer[Settings]
 	Bus      *Bus
 
-	jobs   chan func()
-	down   map[keys.Scan]int // worker only
-	holds  map[uint64]*Hold  // worker only
-	nextID uint64
-	active atomic.Int32 // holds in progress, for the focus watcher
+	jobs         chan func()
+	down         map[keys.Scan]int  // presses holding each key, worker only
+	phys         map[keys.Scan]bool // keys actually down at the keyboard, worker only
+	holds        map[uint64]*Hold   // worker only
+	nextID       uint64
+	active       atomic.Int32 // holds in progress, for the focus watcher
+	watchPending atomic.Bool
 
 	stMu   sync.Mutex
 	states map[string]bool
@@ -97,7 +99,7 @@ type Engine struct {
 
 // New starts an engine on a driver.
 func New(drv input.Driver, s Settings, bus *Bus) *Engine {
-	e := &Engine{drv: drv, Bus: bus, jobs: make(chan func(), 256), down: map[keys.Scan]int{},
+	e := &Engine{drv: drv, Bus: bus, jobs: make(chan func(), 256), down: map[keys.Scan]int{}, phys: map[keys.Scan]bool{},
 		holds: map[uint64]*Hold{}, states: map[string]bool{}, stop: make(chan struct{})}
 	e.SetSettings(s)
 	go e.work()
@@ -162,9 +164,15 @@ func (e *Engine) watch() {
 		if e.active.Load() == 0 {
 			continue
 		}
-		s := e.Settings()
-		lost := s.ReleaseOnFocusLoss && s.FocusMode != FocusOff && !e.drv.Game().Focused
+		if !e.watchPending.CompareAndSwap(false, true) {
+			continue // the last check hasn't run yet (the worker is busy)
+		}
 		e.jobs <- func() {
+			defer e.watchPending.Store(false)
+			s := e.Settings()
+			// Read focus now, on the worker, not when the check was queued: a press that
+			// just brought the game to front mustn't be ended by an old reading.
+			lost := s.ReleaseOnFocusLoss && s.FocusMode != FocusOff && !e.drv.Game().Focused
 			for _, h := range e.holds {
 				switch {
 				case lost && !h.Button.Global: // Discord push to talk keeps talking
@@ -211,9 +219,23 @@ func (e *Engine) gap() {
 	}
 }
 
+// send presses or lets go of a key and remembers what the keyboard has down. A key-up
+// that fails is tried once more, so a key can't stay down at the keyboard.
+func (e *Engine) send(sc keys.Scan, down bool) {
+	if err := e.drv.Key(sc, down); err != nil && !down {
+		time.Sleep(5 * time.Millisecond)
+		_ = e.drv.Key(sc, false)
+	}
+	if down {
+		e.phys[sc] = true
+	} else {
+		delete(e.phys, sc)
+	}
+}
+
 func (e *Engine) keyDown(sc keys.Scan) {
-	if e.down[sc] == 0 {
-		e.drv.Key(sc, true)
+	if !e.phys[sc] { // also when another hold lifted this modifier for a moment
+		e.send(sc, true)
 	}
 	e.down[sc]++
 }
@@ -224,7 +246,9 @@ func (e *Engine) keyUp(sc keys.Scan) {
 		return
 	case n == 1:
 		delete(e.down, sc)
-		e.drv.Key(sc, false)
+		if e.phys[sc] {
+			e.send(sc, false)
+		}
 	default:
 		e.down[sc] = n - 1
 	}
@@ -235,10 +259,10 @@ func (e *Engine) keyUp(sc keys.Scan) {
 func (e *Engine) liftForeign(scans []keys.Scan) []keys.Scan {
 	var lifted []keys.Scan
 	for sc, n := range e.down {
-		if n == 0 || !sc.IsModifier() || contains(scans, sc) {
+		if n == 0 || !sc.IsModifier() || contains(scans, sc) || !e.phys[sc] {
 			continue
 		}
-		e.drv.Key(sc, false)
+		e.send(sc, false)
 		lifted = append(lifted, sc)
 	}
 	return lifted
@@ -246,8 +270,8 @@ func (e *Engine) liftForeign(scans []keys.Scan) []keys.Scan {
 
 func (e *Engine) restore(lifted []keys.Scan) {
 	for _, sc := range lifted {
-		if e.down[sc] > 0 {
-			e.drv.Key(sc, true)
+		if e.down[sc] > 0 && !e.phys[sc] {
+			e.send(sc, true)
 		}
 	}
 }
@@ -389,10 +413,15 @@ func (e *Engine) ReleaseAll(reason string) {
 		for _, h := range e.holds {
 			e.endHold(h, reason)
 		}
-		for sc := range e.down {
-			e.drv.Key(sc, false)
+		for sc := range e.phys {
+			_ = e.drv.Key(sc, false)
 		}
-		e.down = map[keys.Scan]int{}
+		for sc := range e.down { // and anything counted, to be safe
+			if !e.phys[sc] {
+				_ = e.drv.Key(sc, false)
+			}
+		}
+		e.down, e.phys = map[keys.Scan]int{}, map[keys.Scan]bool{}
 	})
 }
 

@@ -226,9 +226,13 @@ func buttonFrom(n map[string]any, id, ks string, binds map[string]string) (*Butt
 		}
 	}
 	// The player's own key for this action wins, and the deck shows it too.
+	cleared := false
 	if b.ScAction != "" {
-		if combo, ok := binds[b.ScAction]; ok && combo != "" {
-			if _, err := keys.ParseCombo(combo); err == nil {
+		if combo, ok := binds[b.ScAction]; ok {
+			if combo == "" {
+				cleared = true // the player removed this bind in the game
+				n["keys"] = ""
+			} else if _, err := keys.ParseCombo(combo); err == nil {
 				b.Keys = combo
 				n["keys"] = combo
 			}
@@ -237,6 +241,9 @@ func buttonFrom(n map[string]any, id, ks string, binds map[string]string) (*Butt
 	scans, err := keys.ParseCombo(b.Keys)
 	if err != nil {
 		return nil, err
+	}
+	if cleared {
+		scans = nil // pressing reports "unbound" instead of pressing the old default
 	}
 	b.Scans = scans
 	return b, nil

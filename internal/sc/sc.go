@@ -190,12 +190,10 @@ func parseBinds(r io.Reader, out map[string]string) {
 				if action == "" || !strings.HasPrefix(in, "kb") {
 					continue
 				}
-				// "kb1_lalt+n"; an unbound key is written "kb1_ " and is skipped, so the
-				// layout's own key stays.
+				// "kb1_lalt+n"; a bind the player cleared is written "kb1_ " and kept as
+				// "": that action has no key now (its default key may do something else).
 				if i := strings.IndexByte(in, '_'); i > -1 {
-					if combo := strings.TrimSpace(in[i+1:]); combo != "" {
-						out[action] = combo
-					}
+					out[action] = strings.TrimSpace(in[i+1:])
 				}
 			}
 		case xml.EndElement:

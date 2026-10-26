@@ -193,3 +193,40 @@ func mustPanel(s string) (p panels.Panel) {
 	}
 	return p
 }
+
+func TestAgentDangerGuard(t *testing.T) {
+	a, f := startApp(t, "Pilot")
+	c := a.FindControl("sc.v_self_destruct")
+	if c == nil || !c.Danger {
+		t.Fatalf("self-destruct isn't marked dangerous: %+v", c)
+	}
+	if r := a.runTool("press", map[string]any{"control": "sc.v_self_destruct", "__player": "drop the gear"}); !strings.Contains(r, "ask for it") {
+		t.Fatalf("the agent pressed self-destruct unasked: %s", r)
+	}
+	if r := a.runTool("press", map[string]any{"control": "sc.v_self_destruct", "mode": "hold_start", "__player": "self destruct"}); !strings.Contains(r, "ask for it") {
+		t.Fatalf("the agent held self-destruct: %s", r)
+	}
+	if len(f.Events()) != 0 {
+		t.Fatal("keys went out")
+	}
+	// Holding twice and letting go once leaves nothing down; the turn's end lets go too.
+	a.runTool("press", map[string]any{"control": "landing-gear", "mode": "hold_start", "__player": "hold the gear"})
+	a.runTool("press", map[string]any{"control": "landing-gear", "mode": "hold_start", "__player": "hold the gear"})
+	a.releaseAgentHolds()
+	if n := a.Engine.HeldKeys(); n != 0 {
+		t.Fatalf("%d keys left down", n)
+	}
+}
+
+func TestVoiceNeverPressesOnNegationsOrQuestions(t *testing.T) {
+	for _, s := range []string{"don't eject", "never touch the landing gear", "how are my shields doing", "is the gear down", "do not fire"} {
+		if !reNotACommand.MatchString(s) {
+			t.Errorf("%q would press", s)
+		}
+	}
+	for _, s := range []string{"landing gear", "eject", "shields front", "engage quantum", "lights"} {
+		if reNotACommand.MatchString(s) {
+			t.Errorf("%q is a command", s)
+		}
+	}
+}

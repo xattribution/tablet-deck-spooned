@@ -45,8 +45,10 @@ keys. Game actions come back as `sc.<name>`; `sc:<name>` and `sc.<name>` both wo
 
 **Unbound actions.** About 440 game actions have no default keyboard key. They still
 show on the deck, dimmed with a BIND badge, and a press reports "not bound". Fix it
-once on the PC: Keybinds › **Bind every action** writes a profile that keeps the
-player's own binds and gives every unbound action a free key. `bind_all_actions`
+once on the PC: Keybinds › **Bind every action** writes a profile that keeps
+everything in your own (keyboard, joystick, gamepad and mouse binds, device options)
+and gives each action without a key a free one, on right-hand modifiers. Binds you
+cleared on purpose stay cleared. `bind_all_actions`
 (MCP) does the same. `GET /api/v1/keybinds/unbound` lists them.
 
 ## Actions
@@ -60,7 +62,7 @@ behavior, or a hotkey for another app.
 
 | Field | What it does |
 |---|---|
-| `id` | Unique within the panel. If another panel already uses it, the deck names it `<panel id>.<id>`; layouts in this panel still use the short id. |
+| `id` | Unique: saving or importing a panel whose action id another control already has is refused. (A file in the panels folder is renamed `<panel id>.<id>` instead; its layout still uses the short id.) |
 | `label` | Spoken and shown. Required. |
 | `keys` | A combo: `ralt+k`, `lctrl+lshift+f5`, `np_add`, `f13`. Modifiers: `lalt ralt lctrl rctrl lshift rshift`. |
 | `sc` | A game action instead of keys: `foip_pushtotalk`. Pressed with the player's bind. |
@@ -219,7 +221,8 @@ Later sources replace earlier ones with the same id.
 1. **Built in**: the `panels` folder in the app.
 2. **The panels folder**: drop `.json` files in the `panels` folder next to
    config.json (Windows: `%APPDATA%\TabletDeck\panels`). Each file is one panel or an
-   export bundle. The deck picks up changes within a couple of seconds.
+   export bundle (its panels; views come in through Import). The PC picks up changes
+within a couple of seconds; a deck shows them the next time it loads a view.
 3. **Saved**: panels saved over MCP, the API, or by import, kept in state.json.
 
 ## Getting it on the deck
@@ -255,7 +258,8 @@ by the deck and read back by a deck; the PC ignores it.
 
 ## API
 
-All under `/api/v1/`, with the API key (PC panel › Agents and integrations).
+All under `/api/v1/`. From the PC itself, with the API key (PC panel › Agents and
+integrations); from a paired device, with its token.
 
 | Route | What it does |
 |---|---|
@@ -280,9 +284,9 @@ All under `/api/v1/`, with the API key (PC panel › Agents and integrations).
 | `save_panel` | Create or replace a panel. Returns `missing` (ids that match no control) and `unbound` (controls with no key yet). |
 | `delete_panel` | Delete a saved panel. |
 | `find_controls` | Search controls by words; returns ids for panels and `press`. |
-| `export_layout`, `import_layout` | The export file, as above. |
-| `set_control_keys` | Change a control's keys (`{ "id": "discord-ptt", "keys": "f16" }`). |
-| `bind_all_actions` | Bind every unbound game action. |
+| `export_layout`, `import_layout` | The export file, as above. Import checks everything first and saves all or nothing, and lists the panels it replaced. |
+| `set_control_keys` | Change a control's keys (`{ "control": "discord-ptt", "keys": "f16" }`). From the PC only. |
+| `bind_all_actions` | Give every game action without a key a free one. From the PC only. |
 | `show_view`, `save_view` | Put panels on decks. |
 
 ### For agents: building a panel from a request

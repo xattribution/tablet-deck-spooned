@@ -4,6 +4,7 @@ package input
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -231,6 +232,9 @@ func enumWindow(h uintptr, _ uintptr) uintptr {
 // window's input queue and, if that isn't enough, presses an unassigned key first so
 // the last input is ours.
 func (d *winDriver) BringToFront(timeout time.Duration) bool {
+	// AttachThreadInput works per OS thread; keep this goroutine on one.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	d.mu.Lock()
 	h := d.findGameWindow()
 	d.mu.Unlock()

@@ -194,3 +194,31 @@ func TestReleaseAllAndStates(t *testing.T) {
 		t.Fatal("gear state not toggled off")
 	}
 }
+
+// A modifier another hold lifted is pressed again for a combo that needs it.
+func TestLiftedModifierComesBackForACombo(t *testing.T) {
+	e, f := newEngine(t)
+	b, _ := e.Down(btn(t, "b", "lalt+w"), Source{}, nil)
+	a, _ := e.Down(btn(t, "a", "space"), Source{}, nil) // lifts Alt while held
+	f.Events()
+	e.Tap(btn(t, "c", "lalt+n"), Source{}, 0, "")
+	if got := names(f.Events()); !strings.HasPrefix(got, "lalt:down n:down") {
+		t.Fatalf("Alt+N went out without Alt: %q", got)
+	}
+	e.Up(a)
+	e.Up(b)
+	e.ReleaseAll("test")
+	if e.HeldKeys() != 0 {
+		t.Fatal("keys left down")
+	}
+	// Whatever happened, nothing is physically down at the end.
+	down := map[keys.Scan]bool{}
+	for _, ev := range f.Events() {
+		down[ev.Scan] = ev.Down
+	}
+	for sc, d := range down {
+		if d {
+			t.Fatalf("scan %v still down", sc)
+		}
+	}
+}

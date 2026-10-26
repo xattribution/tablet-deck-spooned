@@ -95,7 +95,7 @@ var labelGroup = []struct {
 	{regexp.MustCompile(`(?i)^power: `), "power"},
 }
 
-var reDanger = regexp.MustCompile(`(?i)self-?d|eject|jettison`)
+var reDanger = regexp.MustCompile(`(?i)self[\s-]?d|eject|jettison`)
 var reParen = regexp.MustCompile(`\s*\([^)]*\)`)
 
 // Words that don't tell controls apart within their group.
@@ -141,8 +141,14 @@ type catalog struct {
 func (a *App) Catalog() ([]*Control, map[string]*Control) {
 	a.cat.mu.Lock()
 	defer a.cat.mu.Unlock()
-	stamp := fmt.Sprintf("%s%s|%d|%s|%s|%d", a.Binds().stamp, strings.Join(a.LayoutFiles(), ","), a.panelGen.Load(),
-		a.folderStamp(), a.GameActions().Version, len(a.Store.Config().Rebinds))
+	rb := a.Store.Config().Rebinds
+	rbk := make([]string, 0, len(rb))
+	for k, v := range rb {
+		rbk = append(rbk, k+"="+v)
+	}
+	sort.Strings(rbk)
+	stamp := fmt.Sprintf("%s%s|%d|%s|%s|%s", a.Binds().stamp, strings.Join(a.LayoutFiles(), ","), a.panelGen.Load(),
+		a.folderStamp(), a.GameActions().Version, strings.Join(rbk, ","))
 	if a.cat.byID != nil && a.cat.stamp == stamp {
 		return a.cat.controls, a.cat.byID
 	}
@@ -412,6 +418,13 @@ func sharedIn(g map[string]any) bool {
 
 // FindControl finds a control by id, label, Star Citizen action or voice phrase.
 func (a *App) FindControl(ref string) *Control {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return nil // an empty reference would match every control without a game action
+	}
+	if strings.HasPrefix(ref, "sc:") {
+		ref = "sc." + ref[3:]
+	}
 	all, byID := a.Catalog()
 	if c := byID[ref]; c != nil {
 		return c

@@ -221,7 +221,7 @@ var mcpTools = []tool{
 			return map[string]any{"ok": err == nil, "control": c.ID, "keys": k}, err
 		}},
 	{Name: "bind_all_actions", Title: "Give every game action a key",
-		Description: "Write a keybind profile that keeps the player's keyboard binds and gives every unbound game action a free key, so the deck can press anything. The player then loads it in the game (Options > Keybindings > Control Profiles).",
+		Description: "Write a keybind profile that keeps all the player's binds (keyboard, joystick, gamepad, mouse) and gives every game action without a key a free one, so the deck can press anything. The player then loads it in the game (Options > Keybindings > Control Profiles).",
 		InputSchema: obj(map[string]any{}),
 		run:         func(a *App, _ map[string]any) (any, error) { return a.BindAll() }},
 
@@ -299,7 +299,18 @@ var mcpTools = []tool{
 				return nil, fmt.Errorf("no control %q; use find_controls", argStr(args, "control"))
 			}
 			mode := map[string]string{"hold_start": "down", "hold_end": "up"}[argStr(args, "mode")]
-			res, _ := a.agentPress(c, mode, argNum(args, "ms"))
+			ms := argNum(args, "ms")
+			if said, comms := args["__player"].(string); comms {
+				// The Comms agent: dangerous controls only when the player asked in this
+				// message, never held, and no long presses.
+				if c.Danger && (!reAskedDanger.MatchString(said) || mode == "down") {
+					return nil, fmt.Errorf("%s needs the player to ask for it by name; ask them to confirm", c.Label)
+				}
+				if ms > 1000 {
+					ms = 1000
+				}
+			}
+			res, _ := a.agentPress(c, mode, ms)
 			return res, nil
 		}},
 	{Name: "release_all", Title: "Release all keys", Description: "Let go of every key the deck is holding down.",
@@ -509,16 +520,26 @@ func (a *App) agentPress(c *Control, mode string, ms int) (map[string]any, int) 
 	b := c.Button
 	switch mode {
 	case "down":
+		apiHoldsMu.Lock()
+		_, held := apiHolds[b.ID]
+		apiHoldsMu.Unlock()
+		if held {
+			return map[string]any{"ok": true, "control": c.ID, "held": true, "note": "already held"}, 200
+		}
 		var h *deck.Hold
 		var r deck.Result
 		h, r = a.Engine.Down(b, src, func(string) {
 			apiHoldsMu.Lock()
-			delete(apiHolds, b.ID)
+			if apiHolds[b.ID] == h {
+				delete(apiHolds, b.ID)
+				delete(agentHolds, b.ID)
+			}
 			apiHoldsMu.Unlock()
 		})
 		if h != nil {
 			apiHoldsMu.Lock()
 			apiHolds[b.ID] = h
+			agentHolds[b.ID] = true
 			apiHoldsMu.Unlock()
 		}
 		return map[string]any{"ok": r.OK, "reason": r.Reason, "control": c.ID, "held": h != nil}, 200
@@ -541,8 +562,28 @@ func (a *App) agentPress(c *Control, mode string, ms int) (map[string]any, int) 
 	return out, 200
 }
 
+// agentHolds are the apiHolds an agent started (by button id).
+var agentHolds = map[string]bool{}
+
+// releaseAgentHolds lets go of everything the Comms agent is holding when its turn ends.
+func (a *App) releaseAgentHolds() {
+	apiHoldsMu.Lock()
+	var hs []*deck.Hold
+	for id := range agentHolds {
+		if h := apiHolds[id]; h != nil {
+			hs = append(hs, h)
+			delete(apiHolds, id)
+		}
+		delete(agentHolds, id)
+	}
+	apiHoldsMu.Unlock()
+	for _, h := range hs {
+		a.Engine.Up(h)
+	}
+}
+
 // handleMCP answers MCP requests (JSON-RPC 2.0 over HTTP POST).
-func (a *App) handleMCP(w http.ResponseWriter, r *http.Request, _ principal) {
+func (a *App) handleMCP(w http.ResponseWriter, r *http.Request, pr principal) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
 		http.Error(w, "MCP takes POST", http.StatusMethodNotAllowed)
@@ -562,7 +603,7 @@ func (a *App) handleMCP(w http.ResponseWriter, r *http.Request, _ principal) {
 		}
 		var out []any
 		for _, q := range reqs {
-			if resp := a.mcpCall(q); resp != nil {
+			if resp := a.mcpCall(q, pr.local); resp != nil {
 				out = append(out, resp)
 			}
 		}
@@ -578,7 +619,7 @@ func (a *App) handleMCP(w http.ResponseWriter, r *http.Request, _ principal) {
 		writeJSON(w, 400, map[string]any{"jsonrpc": "2.0", "id": nil, "error": rpcErr{-32600, "invalid request"}})
 		return
 	}
-	resp := a.mcpCall(q)
+	resp := a.mcpCall(q, pr.local)
 	if resp == nil {
 		w.WriteHeader(http.StatusAccepted)
 		return
@@ -587,7 +628,11 @@ func (a *App) handleMCP(w http.ResponseWriter, r *http.Request, _ principal) {
 }
 
 // mcpCall runs one JSON-RPC message; nil for notifications.
-func (a *App) mcpCall(q rpcReq) map[string]any {
+// localOnlyTools change the game's files or the PC's settings: only from the PC itself.
+var localOnlyTools = map[string]bool{"bind_all_actions": true, "set_control_keys": true}
+
+// mcpCall runs one JSON-RPC message; nil for notifications. local is a caller on this PC.
+func (a *App) mcpCall(q rpcReq, local bool) map[string]any {
 	if len(q.ID) == 0 { // notification
 		return nil
 	}
@@ -621,9 +666,24 @@ func (a *App) mcpCall(q rpcReq) map[string]any {
 		if p.Arguments == nil {
 			p.Arguments = map[string]any{}
 		}
+		for k := range p.Arguments {
+			if strings.HasPrefix(k, "__") {
+				delete(p.Arguments, k) // internal fields aren't the caller's to set
+			}
+		}
 		for _, t := range mcpTools {
 			if t.Name != p.Name {
 				continue
+			}
+			if localOnlyTools[t.Name] && !local {
+				return ok(map[string]any{"content": []any{map[string]any{"type": "text", "text": t.Name + " only works from the PC itself"}}, "isError": true})
+			}
+			if req, _ := t.InputSchema["required"].([]string); len(req) > 0 {
+				for _, k := range req {
+					if v, has := p.Arguments[k]; !has || v == nil || v == "" {
+						return ok(map[string]any{"content": []any{map[string]any{"type": "text", "text": "missing argument " + k}}, "isError": true})
+					}
+				}
 			}
 			t0 := time.Now()
 			res, err := t.run(a, p.Arguments)

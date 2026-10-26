@@ -493,7 +493,9 @@ func (a *App) apiPress(p principal, id, label, action, combo, mode string, ms in
 		var h *deck.Hold
 		h, r = a.Engine.Down(b, src, func(string) {
 			apiHoldsMu.Lock()
-			delete(apiHolds, b.ID)
+			if apiHolds[b.ID] == h {
+				delete(apiHolds, b.ID)
+			}
 			apiHoldsMu.Unlock()
 		})
 		if h != nil {

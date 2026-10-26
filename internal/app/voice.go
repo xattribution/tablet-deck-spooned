@@ -119,6 +119,10 @@ func voiceExe() (string, error) {
 }
 
 func (v *voice) start() {
+	v.mu.Lock()
+	v.gen++
+	gen := v.gen // a restart while this one is still starting makes it stale
+	v.mu.Unlock()
 	cfg := v.a.Store.Config()
 	if !cfg.Voice {
 		v.setState("off", "")
@@ -147,8 +151,6 @@ func (v *voice) start() {
 	// The gorelaxor engine when its models are there (or asked for), else Windows'.
 	if cfg.VoiceEngine == "native" || (cfg.VoiceEngine != "windows" && len(v.a.FindSpeechModels().STT) > 0) {
 		v.mu.Lock()
-		v.gen++
-		gen := v.gen
 		v.commands = append(cmds, builtinCommands...)
 		v.mu.Unlock()
 		v.setState("starting", "")
@@ -190,8 +192,11 @@ func (v *voice) start() {
 		return
 	}
 	v.mu.Lock()
-	v.gen++
-	gen := v.gen
+	if v.gen != gen { // restarted meanwhile: this listener is not wanted
+		v.mu.Unlock()
+		_ = cmd.Process.Kill()
+		return
+	}
 	v.proc, v.stdin, v.ready, v.commands, v.engine = cmd, stdin, false, cmds, "windows"
 	v.mu.Unlock()
 	v.setState("starting", "")
@@ -340,7 +345,7 @@ func (v *voice) stopFor(c *client) {
 	v.mu.Lock()
 	if n := v.nat; n != nil {
 		v.mu.Unlock()
-		n.listen(c, false)
+		n.dropClient(c)
 		return
 	}
 	mine := v.owner == c
@@ -387,6 +392,27 @@ func (v *voice) stop() {
 	if p != nil && p.Process != nil {
 		_ = p.Process.Kill()
 	}
+}
+
+// reloadPhrases updates what can be said after the layout or keybinds change. The
+// native engine just swaps its phrase list; the Windows listener restarts.
+func (v *voice) reloadPhrases() {
+	if v == nil {
+		return
+	}
+	v.mu.Lock()
+	n := v.nat
+	v.mu.Unlock()
+	if n == nil {
+		v.restart()
+		return
+	}
+	cfg := v.a.Store.Config()
+	l, err := v.a.Layout("tablet", "")
+	if err != nil {
+		return
+	}
+	n.setPhrases(l, cfg.ShortEmotes)
 }
 
 func (v *voice) restart() {

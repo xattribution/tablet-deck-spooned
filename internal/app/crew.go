@@ -146,6 +146,10 @@ func (cr *crew) session(ctx context.Context, p *peerConn, conn *websocket.Conn) 
 	sctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	defer conn.CloseNow()
+	// Presses queued while the link was down are stale now: drop them, don't replay.
+	for len(p.out) > 0 {
+		<-p.out
+	}
 	go func() {
 		t := time.NewTicker(1500 * time.Millisecond)
 		defer t.Stop()

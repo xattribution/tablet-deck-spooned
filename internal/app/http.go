@@ -376,6 +376,7 @@ func (a *App) handleEditor(w http.ResponseWriter, r *http.Request, p principal) 
 		a.layoutsMu.Lock()
 		delete(a.layouts, file)
 		a.layoutsMu.Unlock()
+		a.panelGen.Add(1) // the catalog is built from layouts too
 		a.Log.Printf("Saved layout %s.", file)
 		kind := "layout"
 		if l.Phone() {
@@ -395,7 +396,7 @@ func (a *App) handleEditor(w http.ResponseWriter, r *http.Request, p principal) 
 		if cfg.Layout == file || cfg.PhoneLayout == file {
 			a.broadcastOwners(map[string]any{"t": "reload"})
 			if kind == "layout" {
-				a.voice.restart()
+				a.voice.reloadPhrases()
 			}
 		}
 		a.ApplyConfig(old, cfg)

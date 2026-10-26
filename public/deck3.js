@@ -93,16 +93,46 @@
   let ws = null, backoff = 500, lastPong = 0;
   const send = (obj) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); };
 
+  // ---------- holds ----------
+  // Every finger holding something, by pointer id. Its release runs exactly once, from
+  // the window (so a re-rendered or removed element can't swallow the lift), or when
+  // the page goes away. Two fingers on one control send one down and one up.
+  const active = new Map(); // pointerId -> release(ev)
+  const downs = new Map(); // control id -> fingers holding it
+  function sendDown(id) { const n = (downs.get(id) || 0) + 1; downs.set(id, n); if (n === 1) send({ t: "down", id }); }
+  function sendUp(id) { const n = (downs.get(id) || 0) - 1; if (n > 0) { downs.set(id, n); return; } downs.delete(id); send({ t: "up", id }); }
+  function track(e, release) { active.set(e.pointerId, release); }
+  function finish(ev) {
+    const r = active.get(ev.pointerId);
+    if (!r) return;
+    active.delete(ev.pointerId);
+    try { r(ev); } catch {}
+    if (!active.size) flushLater();
+  }
+  addEventListener("pointerup", finish, true);
+  addEventListener("pointercancel", finish, true);
+  const releaseEverything = () => { for (const id of [...active.keys()]) finish({ type: "pointercancel", pointerId: id, clientX: 0, clientY: 0 }); };
+  addEventListener("pagehide", releaseEverything);
+  addEventListener("blur", releaseEverything);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) releaseEverything(); });
+  // Redraws wait while a finger is down, so nothing is replaced under it.
+  const pending = new Map();
+  function later(key, fn) { if (active.size) pending.set(key, fn); else fn(); }
+  function flushLater() { const fns = [...pending.values()]; pending.clear(); fns.forEach((f) => f()); }
+
   function connect() {
     const proto = location.protocol === "https:" ? "wss" : "ws";
     ws = new WebSocket(`${proto}://${location.host}/${GUEST ? "gws" : "ws"}?${auth()}&device=${device}`);
     ws.onopen = () => { backoff = 500; lastPong = Date.now(); S.online = true; ping(); paintLamps(); };
     ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } handle(m); };
+    const me = ws;
     ws.onclose = () => {
-      S.online = false;
+      if (me !== ws) return; // an older socket
+      S.online = false; S.listening = false;
+      downs.clear(); // the PC let go of everything this deck held
       paintLamps();
-      $$(".k.pressed").forEach((k) => k.classList.remove("pressed"));
-      if (ws && ws.dead) return;
+      $$(".k.pressed, .k.charging, .radiok.tx").forEach((k) => k.classList.remove("pressed", "charging", "tx"));
+      if (me.dead) return;
       setTimeout(connect, backoff);
       backoff = Math.min(backoff * 1.7, 8000);
     };
@@ -116,10 +146,10 @@
 
   function handle(m) {
     switch (m.t) {
-      case "pong": lastPong = Date.now(); S.latency = Math.round(performance.now() - m.n); paintLamps(); break;
+      case "pong": lastPong = Date.now(); S.latency = Math.round(performance.now() - m.n); paintLink(); break;
       case "hello":
         window.DeckCat.set(m.groups); if (m.guest) window.DeckCat.set(m.guest.groups);
-        S.hello = m; S.lit = m.states || {}; S.game = m.game; S.afk = !!m.afk; S.owner = m.name || "";
+        S.hello = m; S.lit = m.states || {}; S.game = m.game; S.afk = !!m.afk; S.owner = m.name || ""; S.listening = false;
         if (m.guest) { S.guest = m.guest; S.groups = m.guest.groups || []; drawConsole("guest"); break; }
         S.views = m.views || []; S.crew = m.crew || []; S.requests = m.requests || []; S.grants = m.grants || [];
         S.voice = m.voiceStatus || S.voice; S.chat = m.chat || []; S.live = !!m.live; S.agentInfo = m.agent || {};
@@ -131,7 +161,7 @@
         S.view = m.view; S.groups = m.groups || []; window.DeckCat.set(S.groups);
         if (!m.view.id.startsWith("agent-")) store.set(`view-${device}`, m.view.id);
         if (changed) S.page = 0;
-        drawConsole("deck", { announce: changed });
+        later("draw", () => drawConsole("deck", { announce: changed }));
         if (sheetName() === "systems") openSystems();
         break;
       }
@@ -141,7 +171,7 @@
       case "game": S.game = m; paintLamps(); break;
       case "afk":
         S.afk = m.on;
-        if (S.guest) drawConsole("guest"); else paintLamps();
+        if (S.guest) later("draw", () => drawConsole("guest")); else paintLamps();
         if (sheetName() === "comms") openComms();
         break;
       case "crew": S.crew = m.crew || []; paintLamps(); if (sheetName() === "comms") openComms(); break;
@@ -162,11 +192,13 @@
         break;
       }
       case "released":
-        $$(`.k[data-id="${CSS.escape(m.id)}"]`).forEach((k) => k.classList.remove("pressed"));
+        downs.delete(m.id); // the PC let go (focus lost, max hold); the next press starts fresh
+        $$(`.k[data-id="${CSS.escape(m.id)}"]`).forEach((k) => k.classList.remove("pressed", "charging"));
+        $$(".radiok").forEach((k) => { if ((k.dataset.radio || "").split(",").includes(m.id)) k.classList.remove("tx"); });
         if (m.reason === "focus-lost") { toast("RELEASED · GAME LOST FOCUS"); alarm("game"); }
         break;
       case "highlight": highlight(m.ids || []); break;
-      case "theme": applyTheme(m.id); drawConsole(S.mode); break;
+      case "theme": later("draw", () => { applyTheme(m.id); drawConsole(S.mode); }); break;
       case "voice-status": S.voice = m; paintLamps(); break;
       case "listening": S.listening = m.on; paintLamps(); repaintComms(); break;
       case "chat": S.chat = (S.chat || []).concat(m.line).slice(-40); if (m.line.who === "agent") ticker((S.agentInfo || {}).name || "AGENT", m.line.text); repaintComms(); break;
@@ -176,7 +208,7 @@
       case "voice-live": S.live = m.on; repaintComms(); paintLamps(); break;
       case "heard": ticker("HEARD", m.text || m.label); break;
       case "unheard": ticker("VOICE", "didn't catch that"); break;
-      case "voice-off": toast(m.reason); break;
+      case "voice-off": S.listening = false; toast(m.reason); repaintComms(); paintLamps(); break;
       case "toast": toast(m.text, 2600); break;
       case "opened": ticker("PC", `opened ${m.name}`); break;
       case "shared": shareResult = m; paintShare(); break;
@@ -251,7 +283,8 @@
   const panelOpts = () => ({ guest: S.mode === "guest", lit: S.lit, local: (k) => store.get(k),
     comms: { chat: S.chat || [], busy: S.busy, live: S.live, listening: S.listening, agent: S.agentInfo || {}, talkMode: store.get("talk-mode") || "tap", radioCh: store.get("radio-ch") } });
   // Redraw the panes that show comms state (talk key, route, transcript).
-  function repaintComms() {
+  function repaintComms() { later("comms", repaintCommsNow); }
+  function repaintCommsNow() {
     for (const pane of $$(".pane")) {
       if (!pane.querySelector(".talk, .route, .transcript, .radio")) continue;
       const g = S.groups.find((x) => x.id === pane.dataset.panel);
@@ -349,7 +382,9 @@
   // Panels power on in a short stagger when they arrive, so the eye catches the change.
   function boot(panes) {
     if (reduced()) return;
-    panes.forEach((p, j) => { p.classList.remove("boot"); p.style.setProperty("--d", `${j * 45}ms`); void p.offsetWidth; p.classList.add("boot"); });
+    panes.forEach((p, j) => { p.classList.remove("boot"); p.style.setProperty("--d", `${j * 45}ms`); });
+    if (panes.length) void panes[0].offsetWidth; // one reflow for all
+    panes.forEach((p) => p.classList.add("boot"));
   }
 
   function paintMaker(announce) {
@@ -397,6 +432,14 @@
     }
     el.innerHTML = html;
     tickClock();
+  }
+  // The link lamp changes every ping; patch it rather than rebuilding the lamps.
+  function paintLink() {
+    const l = $('[data-lamp="link"]');
+    if (!l || S.editing) return paintLamps();
+    const cls = !S.online ? "bad" : S.latency > 120 ? "caution" : "good";
+    l.classList.remove("bad", "caution", "good"); l.classList.add(cls);
+    l.querySelector("span").textContent = S.online && S.latency ? `${S.latency}MS` : "LINK";
   }
   function alarm(id) {
     const l = $(`[data-lamp="${id}"]`);
@@ -459,7 +502,7 @@
     resizeTimer = setTimeout(() => {
       root.style.setProperty("--vvh", `${(window.visualViewport ? visualViewport.height : innerHeight)}px`);
       const vp = $("#vp");
-      if (vp && `${vp.clientWidth}x${vp.clientHeight}` !== lastSize && (S.mode === "deck" || S.mode === "guest")) layoutPages();
+      if (vp && `${vp.clientWidth}x${vp.clientHeight}` !== lastSize && (S.mode === "deck" || S.mode === "guest")) later("layout", layoutPages);
       if (layer.firstElementChild && layer.firstElementChild.reflow) layer.firstElementChild.reflow();
       if (window.DeckFX3) window.DeckFX3.resize();
       if (window.DeckArt) window.DeckArt.apply(root.dataset.theme);
@@ -480,11 +523,10 @@
   const fxOf = (el) => el.dataset.fx || (FX_BY_ID.find(([re]) => re.test(el.dataset.id || "")) || [])[1] || "press";
   const fx = (name, el, e) => { if (window.DeckFX3) window.DeckFX3.play(name, el, e); };
 
-  const holds = new Map();
   function press(el, e, id = el.dataset.id, mode = el.dataset.mode) {
     buzz();
     if (el.dataset.locked) { send({ t: "request", id }); ticker("ASKED", el.getAttribute("aria-label")); return null; }
-    send({ t: mode === "hold" ? "down" : "tap", id });
+    if (mode === "hold") sendDown(id); else send({ t: "tap", id });
     if (!el.classList.contains("unbound")) fx(fxOf(el), el, e);
     if (el.classList.contains("pos")) { const d = el.closest(".dial"); if (d) d.style.setProperty("--pa", el.style.getPropertyValue("--a")); }
     return mode === "hold" ? id : null;
@@ -500,23 +542,18 @@
     k.classList.add("pressed");
     const h = { el: k, start: performance.now(), held: press(k, e) };
     if (h.held) { k.classList.add("charging"); if (k.classList.contains("spool")) h.spool = setTimeout(() => fx("warp", k, e), 1100); }
-    holds.set(e.pointerId, h);
+    track(e, () => lift(h));
   });
-  const lift = (e) => {
-    const h = holds.get(e.pointerId);
-    if (!h) return;
-    holds.delete(e.pointerId);
+  const lift = (h) => {
     const k = h.el;
     clearTimeout(h.spool);
     k.classList.remove("charging");
-    if (h.held) send({ t: "up", id: h.held });
+    if (h.held) sendUp(h.held);
     const g = k.closest(".guard");
     if (g) setTimeout(() => g.classList.remove("open"), 600);
     const left = Math.max(0, 110 - (performance.now() - h.start));
     setTimeout(() => k.classList.remove("pressed"), left);
   };
-  con.addEventListener("pointerup", lift);
-  con.addEventListener("pointercancel", lift);
   addEventListener("contextmenu", (e) => { if (e.target.closest(".k, .lampb, .grip, .fader, .lever, .slide, .lock")) e.preventDefault(); });
 
   // Guarded covers lift with a tap or a flick up, and close again on their own.
@@ -536,8 +573,10 @@
     store.set(b.dataset.local, b.dataset.v);
     buzz(6);
     const pane = b.closest(".pane");
-    const g = S.groups.find((x) => x.id === pane.dataset.panel);
-    if (g) { pane.querySelector(".pbody").innerHTML = window.DeckPanels.render(g, panelOpts()); window.DeckPanels.fitGrids(pane); }
+    later(`pane-${pane.dataset.panel}`, () => {
+      const g = S.groups.find((x) => x.id === pane.dataset.panel);
+      if (g && pane.isConnected) { pane.querySelector(".pbody").innerHTML = window.DeckPanels.render(g, panelOpts()); window.DeckPanels.fitGrids(pane); }
+    });
   });
 
   // Drag controls: faders, the gear lever, slide to eject.
@@ -550,12 +589,12 @@
       try { el.setPointerCapture(e.pointerId); } catch {}
       const st = h.down(el, e) || {};
       const move = (ev) => { if (ev.pointerId === e.pointerId) h.move(el, ev, st); };
-      const up = (ev) => {
-        if (ev.pointerId !== e.pointerId) return;
-        el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up);
+      addEventListener("pointermove", move, true);
+      track(e, (ev) => {
+        removeEventListener("pointermove", move, true);
+        st.cancel = ev.type === "pointercancel"; // the OS took the touch: undo, don't fire
         h.up(el, ev, st);
-      };
-      el.addEventListener("pointermove", move); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+      });
     }, true);
   }
 
@@ -565,7 +604,7 @@
     down(t, e) {
       const f = t.closest(".fader"), r = t.getBoundingClientRect(), horiz = f.classList.contains("horiz");
       const len = horiz ? r.width : r.height;
-      if (f.dataset.locked) { send({ t: "request", id: f.dataset.up }); ticker("ASKED", t.getAttribute("aria-label")); return { dead: true }; }
+      if (f.dataset.locked) { send({ t: "request", id: f.dataset.up || f.dataset.down }); ticker("ASKED", t.getAttribute("aria-label")); return { dead: true }; }
       f.classList.add("active");
       return { f, horiz, len, half: len / 2 - 14, step: Math.max(16, len / 12), x0: e.clientX, y0: e.clientY, n: 0, moved: false,
         at: horiz ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height, throttle: f.classList.contains("throttle"), held: "" };
@@ -580,8 +619,8 @@
       if (s.throttle) {
         const want = d > s.step ? s.f.dataset.up : d < -s.step ? s.f.dataset.down : "";
         if (want !== s.held) {
-          if (s.held) send({ t: "up", id: s.held });
-          if (want) { send({ t: "down", id: want }); buzz(8); }
+          if (s.held) sendUp(s.held);
+          if (want) { sendDown(want); buzz(8); }
           s.held = want;
         }
         return;
@@ -596,8 +635,8 @@
     },
     up(t, e, s) {
       if (s.dead) return;
-      if (s.held) send({ t: "up", id: s.held });
-      if (!s.moved) {
+      if (s.held) sendUp(s.held);
+      if (!s.moved && !s.cancel) {
         const upward = s.horiz ? s.at > 0.5 : s.at < 0.5;
         const id = upward ? s.f.dataset.up : s.f.dataset.down;
         if (id) { send({ t: "tap", id }); buzz(); tick(s.f); }
@@ -616,8 +655,9 @@
     up(el, e, s) {
       el.style.setProperty("--pull", "0px");
       const dy = e.clientY - s.y0, on = el.classList.contains("on");
+      if (s.cancel) return;
       if (Math.abs(dy) < 12 || (dy > 0 && !on) || (dy < 0 && on)) {
-        press(el, e);
+        press(el, e, undefined, "tap"); // a lever throw is one press, even on a hold control
         el.classList.remove("transit"); void el.offsetWidth; el.classList.add("transit");
       } else buzz(4);
     },
@@ -631,7 +671,7 @@
     },
     move(h, e, st) { const d = Math.max(0, Math.min(st.max, e.clientX - st.x0)); st.d = d; st.s.style.setProperty("--slid", `${d}px`); st.s.style.setProperty("--sp", (d / st.max).toFixed(3)); },
     up(h, e, st) {
-      if ((st.d || 0) >= st.max * 0.94) { press(st.s, e); st.s.classList.add("fired"); setTimeout(() => st.s.classList.remove("fired"), 1200); }
+      if (!st.cancel && (st.d || 0) >= st.max * 0.94) { press(st.s, e, undefined, "tap"); st.s.classList.add("fired"); setTimeout(() => st.s.classList.remove("fired"), 1200); }
       st.s.style.setProperty("--slid", "0px"); st.s.style.setProperty("--sp", 0);
     },
   });
@@ -646,9 +686,7 @@
     buzz();
     S.listening = true; b.classList.add("good", "blink");
     send({ t: "voice", on: true });
-    const end = () => { S.listening = false; b.classList.remove("good", "blink"); send({ t: "voice", on: false }); b.removeEventListener("pointerup", end); b.removeEventListener("pointercancel", end); };
-    b.addEventListener("pointerup", end);
-    b.addEventListener("pointercancel", end);
+    track(e, () => { S.listening = false; send({ t: "voice", on: false }); paintLamps(); });
   }, true);
 
   // ---------- comms widgets ----------
@@ -665,9 +703,7 @@
     try { b.setPointerCapture(e.pointerId); } catch {}
     S.listening = true; b.classList.add("on");
     send({ t: "voice", on: true });
-    const end = () => { S.listening = false; b.classList.remove("on"); send({ t: "voice", on: false }); b.removeEventListener("pointerup", end); b.removeEventListener("pointercancel", end); };
-    b.addEventListener("pointerup", end);
-    b.addEventListener("pointercancel", end);
+    track(e, () => { S.listening = false; send({ t: "voice", on: false }); const k = $(".talkk"); if (k) k.classList.remove("on"); });
   });
 
   // Radio: hold to transmit on Discord, the game, or both, with a squelch at each end.
@@ -676,6 +712,7 @@
     if (store.get("squelch") === "off") return;
     try {
       audio = audio || new AudioContext();
+      if (audio.state === "suspended") audio.resume();
       const t = audio.currentTime, n = audio.sampleRate * (open ? 0.06 : 0.12);
       const buf = audio.createBuffer(1, n, audio.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
@@ -692,17 +729,16 @@
     e.preventDefault();
     const ids = (b.dataset.radio || "").split(",").filter(Boolean);
     if (!ids.length) return;
+    if (b.dataset.locked) { ids.forEach((id) => send({ t: "request", id })); ticker("ASKED", "Push to talk"); return; }
     try { b.setPointerCapture(e.pointerId); } catch {}
     buzz(12); squelch(true);
-    ids.forEach((id) => send({ t: "down", id }));
+    ids.forEach(sendDown);
     b.classList.add("tx");
-    const end = () => {
-      ids.forEach((id) => send({ t: "up", id }));
-      b.classList.remove("tx"); squelch(false);
-      b.removeEventListener("pointerup", end); b.removeEventListener("pointercancel", end);
-    };
-    b.addEventListener("pointerup", end);
-    b.addEventListener("pointercancel", end);
+    track(e, () => {
+      ids.forEach(sendUp);
+      $$(".radiok").forEach((k) => { if (k.dataset.radio === b.dataset.radio) k.classList.remove("tx"); });
+      squelch(false);
+    });
   });
 
   // The switches on the comms widgets.
@@ -760,7 +796,7 @@
     },
     up(el, e, s) {
       el.style.setProperty("--lx", "0px"); el.style.setProperty("--ly", "0px");
-      if (s.phase === 2) setEditing(true);
+      if (s.phase === 2 && !s.cancel) setEditing(true);
     },
   });
   function setEditing(on) {
@@ -1007,9 +1043,11 @@
   // Export: the player's panels and views from the PC, plus how this deck arranged them.
   async function exportDeck() {
     try {
-      const b = await (await fetch(`/api/v1/export?${auth()}`)).json();
+      const res = await fetch(`/api/v1/export?${auth()}`);
+      if (!res.ok) throw new Error("export");
+      const b = await res.json();
       const layout = {};
-      try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (/^(layout-|talk-mode|radio-ch|landing-mode)/.test(k)) layout[k] = localStorage.getItem(k); } } catch {}
+      try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (/^(layout-|talk-mode|radio-ch|mode:)/.test(k)) layout[k] = localStorage.getItem(k); } } catch {}
       b.layout = layout;
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([JSON.stringify(b, null, 2)], { type: "application/json" }));
@@ -1031,8 +1069,8 @@
         const r = await fetch(`/api/v1/import?${auth()}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: text });
         const d = await r.json();
         if (!r.ok) { toast(d.error || "Import failed", 3200); return; }
-        try { const b = JSON.parse(text); if (b.layout && typeof b.layout === "object") for (const [k, v] of Object.entries(b.layout)) if (/^(layout-|talk-mode|radio-ch|landing-mode)/.test(k)) store.set(k, v); } catch {}
-        ticker("DECK", `imported ${(d.panels || []).length} panels, ${(d.views || []).length} views`);
+        try { const b = JSON.parse(text); if (b.layout && typeof b.layout === "object") for (const [k, v] of Object.entries(b.layout)) if (/^(layout-|talk-mode|radio-ch|mode:)/.test(k)) store.set(k, v); } catch {}
+        ticker("DECK", `imported ${(d.panels || []).length} panels, ${(d.views || []).length} views${d.replaced ? `, replaced ${d.replaced.length}` : ""}`);
         closeSheet();
       } catch { toast("Import failed"); }
     };

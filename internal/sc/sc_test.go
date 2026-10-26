@@ -3,6 +3,7 @@ package sc
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/xml"
 	"strings"
 	"testing"
 )
@@ -96,31 +97,69 @@ func TestBindAllKeepsPlayerBinds(t *testing.T) {
 		{Map: "spaceship_general", Name: "gear", Label: "Gear", Key: "n"},
 		{Map: "spaceship_general", Name: "hail", Label: "Hail"},
 		{Map: "spaceship_general", Name: "wave", Label: "Wave"},
+		{Map: "vehicle_general", Name: "wave", Label: "Wave"},
 		{Map: "spaceship_general", Name: "lights", Label: "Lights", Key: "l"},
+		{Map: "spaceship_general", Name: "look", Label: "Look", Key: "mouse3"},
 	}
-	current := []byte(`<ActionMaps><actionmap name="spaceship_general">
-  <action name="gear"><rebind input="kb1_m"/></action>
-  <action name="lights"><rebind input="kb1_ "/></action>
-</actionmap></ActionMaps>`)
-	out, added := BindAll(acts, current, "Every action")
-	if len(added) != 3 || added["hail"] == "" || added["wave"] == "" || added["lights"] == "" {
-		t.Fatalf("want hail, wave and the cleared lights bound: %v", added)
+	// The shape of a real actionmaps.xml: a HOTAS, device options, one keyboard rebind
+	// and one cleared bind.
+	current := []byte(`<ActionMaps>
+ <ActionProfiles version="1" optionsVersion="2" rebindVersion="2" profileName="default">
+  <options type="keyboard" instance="1" Product="Keyboard"/>
+  <options type="joystick" instance="1" Product=" VKB L">
+   <flight_strafe_longitudinal invert="1"/>
+  </options>
+  <options type="joystick" instance="3"/>
+  <modifiers />
+  <actionmap name="spaceship_general">
+   <action name="gear">
+    <rebind input="kb1_m"/>
+   </action>
+   <action name="hail">
+    <rebind input="js1_button6" multiTap="2"/>
+   </action>
+   <action name="lights">
+    <rebind input="kb1_ "/>
+   </action>
+  </actionmap>
+ </ActionProfiles>
+</ActionMaps>`)
+	out, added := BindAll(acts, current, "Every action", "ralt+a")
+	if len(added) != 3 || added["hail"] == "" || added["wave"] == "" || added["look"] == "" || added["lights"] != "" {
+		t.Fatalf("want hail, wave and the mouse-only look bound, cleared lights left alone: %v", added)
 	}
-	if added["hail"] == added["wave"] {
-		t.Fatalf("two actions got the same key %s", added["hail"])
+	if added["hail"] == "ralt+a" {
+		t.Fatal("used a reserved combination")
 	}
 	x := string(out)
-	for _, want := range []string{`profileName="Every action"`, `kb1_m`, `kb1_` + added["hail"]} {
+	for _, want := range []string{`profileName="Every action"`, `kb1_m`, `js1_button6" multiTap="2"`, `kb1_` + added["hail"],
+		`<flight_strafe_longitudinal invert="1"/>`, `<joystick instance="1"/>`, `<actionmap name="vehicle_general">`} {
 		if !strings.Contains(x, want) {
 			t.Fatalf("profile is missing %s:\n%s", want, x)
 		}
 	}
-	if strings.Count(x, `name="lights"`) != 1 {
-		t.Fatalf("lights written twice:\n%s", x)
+	if strings.Contains(x, `<joystick instance="3"/>`) {
+		t.Fatal("listed a device that isn't connected")
+	}
+	if strings.Count(x, `<action name="hail">`) != 1 || strings.Count(x, `name="wave"`) != 2 {
+		t.Fatalf("actions duplicated or missing:\n%s", x)
+	}
+	if strings.Count(x, "kb1_"+added["wave"]) != 2 {
+		t.Fatal("the same action in two maps should get the same key")
+	}
+	// It still parses as XML.
+	d := xml.NewDecoder(strings.NewReader(x))
+	for {
+		if _, err := d.Token(); err != nil {
+			if err.Error() != "EOF" {
+				t.Fatalf("not valid XML: %v\n%s", err, x)
+			}
+			break
+		}
 	}
 	for _, k := range added {
-		if k == "m" || k == "n" {
-			t.Fatalf("reused a bound key %s", k)
+		if strings.Contains(k, "f4") || k == "m" || k == "n" {
+			t.Fatalf("bad key %s", k)
 		}
 	}
 }

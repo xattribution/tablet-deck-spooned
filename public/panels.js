@@ -86,7 +86,7 @@
     const hold = (up || down).mode === "hold";
     const cat = o.cat || x.cat;
     const end = (c, cls, ic) => c ? `<button type="button" class="k cap ${cls}" ${attrs(x, c).replace(`data-cat="${x.cat}"`, `data-cat="${cat}"`)}><span class="kin"><span class="ic">${icon(ic)}</span><span class="l">${cls.toUpperCase()}</span></span></button>` : "";
-    return `<div class="fader ${o.h ? "horiz" : ""}${hold ? " throttle" : ""}" data-cat="${cat}" data-up="${up ? esc(up.id) : ""}" data-down="${down ? esc(down.id) : ""}"${up && x.locked(up) ? ' data-locked="1"' : ""} style="flex:${o.f || 1}">
+    return `<div class="fader ${o.h ? "horiz" : ""}${hold ? " throttle" : ""}" data-cat="${cat}" data-up="${up ? esc(up.id) : ""}" data-down="${down ? esc(down.id) : ""}"${(up && x.locked(up)) || (down && x.locked(down)) ? ' data-locked="1"' : ""} style="flex:${o.f || 1}">
       ${end(max, "max", o.h ? "chev-up" : "chev-up")}
       <span class="track" aria-label="${esc(o.label)}" role="slider" tabindex="0"><i class="ticks"></i><i class="fill"></i><span class="thumb"></span></span>
       ${end(min, "min", "chev-down")}
@@ -133,7 +133,7 @@
 
   // A grid that sizes itself to fill its box (cols set after layout).
   const grid = (x, cs, f, cls = "") => {
-    const ks = cs.filter(Boolean).map((c) => key(x, c)).filter(Boolean);
+    const ks = cs.filter(Boolean).map((c) => (c.danger ? guard(x, c.cid || c.id) : key(x, c))).filter(Boolean);
     return ks.length ? `<div class="agrid ${cls}" style="flex:${f || 1}" data-n="${ks.length}">${ks.join("")}</div>` : "";
   };
 
@@ -165,15 +165,31 @@
     const o = n.radio || {}, c = x.opts.comms || {};
     const d = o.discord && x.take(o.discord), g = o.game && x.take(o.game);
     if (!d && !g) return "";
-    const ch = c.radioCh || (d ? "discord" : "game");
+    const want = c.radioCh;
+    const ch = (want === "game" && g) || (want === "both" && d && g) || (want === "discord" && d) ? want : d ? "discord" : "game";
     const ids = { discord: d ? [d.id] : [], game: g ? [g.id] : [], both: [d, g].filter(Boolean).map((z) => z.id) }[ch] || [];
     return `<div class="bx bcol radio" style="flex:${n.flex || 1}">
-      <button type="button" class="k hero radiok" data-radio="${esc(ids.join(","))}" data-cat="${x.cat}" aria-label="Push to talk"><span class="kin"><span class="ic">${icon("radio")}</span><span class="l">${ch === "both" ? "Discord + game" : ch === "game" ? "Game PTT" : "Discord PTT"}</span></span><i class="tx">TX</i></button>
+      <button type="button" class="k hero radiok" data-radio="${esc(ids.join(","))}"${[d, g].some((z) => z && x.locked(z)) ? ' data-locked="1"' : ""} data-cat="${x.cat}" aria-label="Push to talk"><span class="kin"><span class="ic">${icon("radio")}</span><span class="l">${ch === "both" ? "Discord + game" : ch === "game" ? "Game PTT" : "Discord PTT"}</span></span><i class="tx">TX</i></button>
       ${SEG("radio", [d && ["discord", "Discord"], g && ["game", "Game"], d && g && ["both", "Both"]].filter(Boolean), ch, "radioch")}</div>`;
   }
 
   // ---------- panels from their definition ----------
-  const ids = (n) => { const out = []; const walk = (v) => { if (typeof v === "string") out.push(v); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.values(v).forEach(walk); }; walk(n); return out; };
+  // The controls a layout places (like ControlRefs on the PC): not labels, icons or options.
+  const SUB = ["up", "down", "max", "min", "front", "back", "left", "right", "top", "bottom", "reset", "discord", "game"];
+  const ids = (n) => {
+    const out = [];
+    const add = (v) => { if (typeof v === "string") { if (v !== "rest") out.push(v); } else if (Array.isArray(v)) v.forEach((x) => typeof x === "string" && out.push(x)); else if (v && typeof v === "object") SUB.forEach((k) => typeof v[k] === "string" && out.push(v[k])); };
+    const walk = (m) => {
+      if (!m || typeof m !== "object") return;
+      for (const [k, v] of Object.entries(m)) {
+        if (k === "row" || k === "col" || k === "flip") (v || []).forEach(walk);
+        else if (k === "options") (v || []).forEach((o) => walk(o && o.layout));
+        else if (["key", "toggle", "lever", "guard", "slide", "pair", "dial", "center", "grid", "fader", "shieldpad", "radio"].includes(k)) add(v);
+      }
+    };
+    walk(n);
+    return out;
+  };
   const kopts = (n) => ({ label: n.label, icon: n.icon, fx: n.fx, f: n.flex, cls: [n.size === "hero" ? "hero" : n.size === "wide" ? "wide" : "", n.spool ? "spool" : ""].filter(Boolean).join(" ") });
   function node(x, n) {
     if (!n || typeof n !== "object") return "";
@@ -182,6 +198,9 @@
       const kids = (n.row || n.col || n.flip).map((k) => node(x, k)).filter(Boolean);
       return kids.length ? `<div class="bx ${kind}${n.style === "hazard" ? " hazard" : ""}"${n.flex ? ` style="flex:${n.flex}"` : ""}>${kids.join("")}</div>` : "";
     }
+    // A dangerous control (eject, self-destruct) always gets a cover, whatever the layout says.
+    const risky = (id) => { const c = typeof id === "string" && (x.by[x.g.id + "." + id] || x.by[id]); return c && c.danger && !x.used.has(c); };
+    if ((n.key && risky(n.key)) || (n.toggle && risky(n.toggle))) return guard(x, n.key || n.toggle, n.flex);
     if (n.key) return key(x, n.key, kopts(n));
     if (n.toggle) return toggle(x, n.toggle, kopts(n));
     if (n.lever) return lever(x, n.lever, n.flex);
@@ -194,12 +213,13 @@
     if (n.grid) return n.grid === "rest" ? `<!--rest:${n.flex || 1}:${n.small ? "small" : ""}-->` : grid(x, n.grid.map((id) => x.take(id)), n.flex, n.small ? "small" : "");
     if (n.modes) {
       const opts = n.options || [];
-      const cur = (x.opts.local && x.opts.local(n.modes)) || (opts[0] && opts[0].value);
+      const cur = (x.opts.local && x.opts.local(`mode:${n.modes}`)) || (opts[0] && opts[0].value);
       const pick = opts.find((o) => o.value === cur) || opts[0];
       opts.forEach((o) => { if (o !== pick) ids(o.layout).forEach((id) => x.take(id)); });
-      const sw = `<div class="seg2 local" style="flex:.42">${opts.map((o) => `<button type="button" class="k segk${o === pick ? " on" : ""}" data-local="${esc(n.modes)}" data-v="${esc(o.value)}"><span class="kin"><span class="l">${esc(o.name)}</span></span></button>`).join("")}</div>`;
+      const sw = `<div class="seg2 local" style="flex:.42">${opts.map((o) => `<button type="button" class="k segk${o === pick ? " on" : ""}" data-local="mode:${esc(n.modes)}" data-v="${esc(o.value)}"><span class="kin"><span class="l">${esc(o.name)}</span></span></button>`).join("")}</div>`;
       return `<div class="bx bcol"${n.flex ? ` style="flex:${n.flex}"` : ""}>${sw}<div class="bx bcol" style="flex:3">${node(x, pick.layout)}</div></div>`;
     }
+    if ((n.talk || n.route || n.transcript) && x.opts.guest) return "";
     if (n.talk) return talk(x, n);
     if (n.route) return route(x, n);
     if (n.transcript) return transcript(x, n);
@@ -225,8 +245,10 @@
 
   // After layout: auto grids pick a column count that keeps keys near square and big.
   function fitGrids(root) {
-    for (const el of root.querySelectorAll(".agrid")) {
-      const n = Number(el.dataset.n) || el.children.length, W = el.clientWidth, H = el.clientHeight, gap = 6;
+    // Measure every grid first, then set them all: one layout pass, not one per grid.
+    const grids = [...root.querySelectorAll(".agrid")].map((el) => [el, el.clientWidth, el.clientHeight]);
+    for (const [el, W, H] of grids) {
+      const n = Number(el.dataset.n) || el.children.length, gap = 6;
       let best = 1, score = 0;
       for (let c = 1; c <= n; c++) {
         const r = Math.ceil(n / c), w = (W - gap * (c - 1)) / c, h = (H - gap * (r - 1)) / r;

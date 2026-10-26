@@ -235,7 +235,7 @@ func (a *App) refreshBinds(force bool) {
 		a.broadcastOwners(map[string]any{"t": "reload"})
 		a.Bus.Publish("keybinds", map[string]any{"files": resolved, "actions": len(binds)})
 		if a.voice != nil {
-			a.voice.restart()
+			a.voice.reloadPhrases()
 		}
 	}
 }
@@ -344,12 +344,20 @@ func (a *App) background(ctx context.Context) {
 
 // Stop lets go of every key and closes the listeners.
 func (a *App) Stop() {
-	a.Engine.ReleaseAll(deck.ReasonReleaseAll)
-	if a.tunnel != nil {
-		a.tunnel.Stop()
-	}
+	// Shut out everything that can press first, then let go of every key, so nothing
+	// arriving in between is left down when the program exits.
 	if a.voice != nil {
 		a.voice.stop()
+	}
+	a.clientsMu.Lock()
+	for c := range a.clients {
+		if c.cancel != nil {
+			c.cancel()
+		}
+	}
+	a.clientsMu.Unlock()
+	if a.tunnel != nil {
+		a.tunnel.Stop()
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -358,6 +366,7 @@ func (a *App) Stop() {
 			_ = s.Shutdown(ctx)
 		}
 	}
+	a.Engine.ReleaseAll(deck.ReasonReleaseAll)
 }
 
 // ApplyConfig pushes changed settings to the running parts.

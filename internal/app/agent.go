@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -112,7 +113,7 @@ func (a *App) AskAgent(text, via string) {
 		}
 		a.addChat("agent", reply)
 		if n := a.voice.Native(); n != nil {
-			n.announce(reply)
+			n.say(reply, false)
 		} else {
 			a.voice.say(reply)
 		}
@@ -132,6 +133,7 @@ func (a *App) agentTools(style string) []map[string]any {
 }
 
 func (a *App) runAgent(ctx context.Context, text string) (string, error) {
+	defer a.releaseAgentHolds() // nothing the agent held outlives its answer
 	cfg := a.Store.Config()
 	name := cfg.AgentName
 	if name == "" {
@@ -168,6 +170,7 @@ func (a *App) runAgent(ctx context.Context, text string) (string, error) {
 			break
 		}
 		msgs = append(msgs, msg)
+		done := map[string]bool{} // a model that repeats a call in one answer presses once
 		for _, c := range calls {
 			cm, _ := c.(map[string]any)
 			fn, _ := cm["function"].(map[string]any)
@@ -175,9 +178,15 @@ func (a *App) runAgent(ctx context.Context, text string) (string, error) {
 			argText, _ := fn["arguments"].(string)
 			args := map[string]any{}
 			_ = json.Unmarshal([]byte(argText), &args)
+			key := tname + string(argText)
+			if done[key] {
+				msgs = append(msgs, map[string]any{"role": "tool", "tool_call_id": toolID(cm), "content": "already done in this turn"})
+				continue
+			}
+			done[key] = true
+			args["__player"] = text // what the player said, for the danger check in press
 			result := a.runTool(tname, args)
-			id, _ := cm["id"].(string)
-			msgs = append(msgs, map[string]any{"role": "tool", "tool_call_id": id, "content": result})
+			msgs = append(msgs, map[string]any{"role": "tool", "tool_call_id": toolID(cm), "content": result})
 		}
 	}
 	reply = strings.TrimSpace(reply)
@@ -189,6 +198,11 @@ func (a *App) runAgent(ctx context.Context, text string) (string, error) {
 	a.agent.mu.Unlock()
 	return reply, nil
 }
+
+func toolID(cm map[string]any) string { id, _ := cm["id"].(string); return id }
+
+// reAskedDanger: the player's own words name a dangerous control.
+var reAskedDanger = regexp.MustCompile(`(?i)self[- ]?destruct|self[- ]?d\b|eject|jettison`)
 
 // runTool runs one deck tool for the agent, the same way MCP does.
 func (a *App) runTool(name string, args map[string]any) string {

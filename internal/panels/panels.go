@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/xattribution/tablet-deck-spooned/internal/keys"
 )
 
 // Format names the export format, so imports can tell what they were given.
@@ -119,9 +121,15 @@ func Clean(p *Panel) error {
 		if strings.TrimSpace(a.Label) == "" {
 			return fmt.Errorf("action %q needs a label", a.ID)
 		}
-		a.SC = strings.TrimPrefix(a.SC, "sc:")
+		a.SC = strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(a.SC), "sc:"), "sc.")
+		a.Keys = strings.ToLower(strings.TrimSpace(a.Keys))
 		if a.Keys == "" && a.SC == "" {
 			return fmt.Errorf("action %q needs keys (\"ralt+k\") or a game action (sc)", a.ID)
+		}
+		if a.Keys != "" {
+			if _, err := keys.ParseCombo(a.Keys); err != nil {
+				return fmt.Errorf("action %q: %v", a.ID, err)
+			}
 		}
 		switch a.Mode {
 		case "", "tap", "hold", "timed":

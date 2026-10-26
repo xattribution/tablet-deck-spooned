@@ -28,6 +28,9 @@ type Listener struct {
 	pttStart  int
 	muted     bool
 	level     float32 // recent loudness, for a level meter
+
+	qmu sync.Mutex
+	q   chan func() // utterances waiting for emit; nil once closed
 }
 
 // Endpointing settings, in samples at 16 kHz.
@@ -52,12 +55,28 @@ func NewListener(vad *conformer.VAD, threads int, emit func(pcm []float32, ptt b
 		}
 	}()
 	l.emit = func(pcm []float32, ptt bool) {
+		l.qmu.Lock()
+		defer l.qmu.Unlock()
+		if l.q == nil {
+			return
+		}
 		select {
-		case q <- func() { emit(pcm, ptt) }:
+		case l.q <- func() { emit(pcm, ptt) }:
 		default: // still busy with earlier speech: drop rather than fall behind
 		}
 	}
+	l.q = q
 	return l
+}
+
+// Close ends the listener's goroutine once the utterance it is on is handled.
+func (l *Listener) Close() {
+	l.qmu.Lock()
+	defer l.qmu.Unlock()
+	if l.q != nil {
+		close(l.q)
+		l.q = nil
+	}
 }
 
 // Level is the recent loudness, 0 to 1.

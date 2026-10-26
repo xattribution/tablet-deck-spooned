@@ -82,6 +82,10 @@ func LoadActions(dir, cacheFile string) ([]Action, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+	// A patch that moved the labels gives a short list; the built-in one is better then.
+	if len(acts) < len(BuiltinActions())/2 {
+		return nil, "", fmt.Errorf("only %d labeled actions found (the game's files changed?)", len(acts))
+	}
 	if cacheFile != "" {
 		if b, err := json.Marshal(actionCache{Stamp: stamp, Version: version, Actions: acts}); err == nil {
 			_ = os.WriteFile(cacheFile, b, 0o600)
@@ -200,6 +204,9 @@ func ReadP4K(path string, names ...string) (map[string][]byte, error) {
 			return nil, err
 		}
 		start := e.lho + 30 + int64(binary.LittleEndian.Uint16(lh[26:])) + int64(binary.LittleEndian.Uint16(lh[28:]))
+		if e.csize < 0 || e.csize > 256<<20 || e.lho < 0 { // these files are a few hundred KB
+			return nil, fmt.Errorf("%s: unexpected size %d in Data.p4k", name, e.csize)
+		}
 		data := make([]byte, e.csize)
 		if _, err := f.ReadAt(data, start); err != nil {
 			return nil, err

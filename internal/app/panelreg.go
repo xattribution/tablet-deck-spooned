@@ -203,29 +203,52 @@ func (a *App) panelsNow() *panelSet {
 
 // SavePanel stores one of the player's panels (replacing one with the same id).
 func (a *App) SavePanel(p panels.Panel) (panels.Panel, error) {
-	if err := panels.Clean(&p); err != nil {
+	out, err := a.SavePanels([]panels.Panel{p})
+	if err != nil {
 		return p, err
 	}
-	p.Source = ""
-	// Its actions mustn't take the ids of controls it doesn't own.
+	return out[0], nil
+}
+
+// SavePanels checks every panel first and saves them all in one go, or none.
+func (a *App) SavePanels(list []panels.Panel) ([]panels.Panel, error) {
 	_, byID := a.Catalog()
-	for _, act := range p.Actions {
-		if c := byID[act.ID]; c != nil && c.Group != p.ID {
-			return p, fmt.Errorf("action id %q is already the control %q in %s; pick another id", act.ID, c.Label, c.Group)
+	taken := map[string]string{} // action id -> panel, within this batch
+	for i := range list {
+		p := &list[i]
+		if err := panels.Clean(p); err != nil {
+			return nil, fmt.Errorf("panel %q: %v", p.Name, err)
+		}
+		p.Source = ""
+		if len(p.Actions) > 100 {
+			return nil, fmt.Errorf("panel %q: up to 100 actions", p.Name)
+		}
+		// Its actions mustn't take the ids of controls it doesn't own.
+		for _, act := range p.Actions {
+			if c := byID[act.ID]; c != nil && c.Group != p.ID {
+				return nil, fmt.Errorf("panel %q: action id %q is already the control %q in %s; pick another id", p.Name, act.ID, c.Label, c.Group)
+			}
+			if other, dup := taken[act.ID]; dup && other != p.ID {
+				return nil, fmt.Errorf("panel %q: action id %q is also in panel %s", p.Name, act.ID, other)
+			}
+			taken[act.ID] = p.ID
 		}
 	}
 	err := a.Store.UpdateState(func(st *config.State) {
-		for i := range st.Panels {
-			if st.Panels[i].ID == p.ID {
-				st.Panels[i] = p
-				return
+	next:
+		for _, p := range list {
+			for i := range st.Panels {
+				if st.Panels[i].ID == p.ID {
+					st.Panels[i] = p
+					continue next
+				}
 			}
+			st.Panels = append(st.Panels, p)
 		}
-		st.Panels = append(st.Panels, p)
 	})
 	a.panelGen.Add(1)
 	a.broadcastOwners(map[string]any{"t": "reload"})
-	return p, err
+	return list, err
 }
 
 // DeletePanel removes a saved panel (a built-in one with the same id comes back).
@@ -374,8 +397,8 @@ func pressOf(act sc.Action) (mode string, ms int) {
 
 // keyFor is the keys a game action is pressed with: the player's bind, else the game's.
 func (a *App) keyFor(name string) string {
-	if k := a.Binds().Binds[name]; k != "" {
-		return k
+	if k, ok := a.Binds().Binds[name]; ok {
+		return k // "" when the player cleared it
 	}
 	if act := a.GameActions().byName[name]; act != nil {
 		return act.Key
@@ -397,13 +420,18 @@ func buttonFor(c *Control, mode string, ms int, global bool) *layout.Button {
 // extendCatalog adds the panels' own actions and every game action to the catalog.
 func (a *App) extendCatalog(out []*Control, byID map[string]*Control) []*Control {
 	rebinds := a.Store.Config().Rebinds
+	game := a.GameActions() // one snapshot: the set can be swapped while this runs
 	for _, p := range a.panelsNow().list {
 		for _, act := range p.Actions {
 			id := act.ID
 			if c := byID[id]; c != nil && c.Group != p.ID {
 				id = p.ID + "." + act.ID
 			}
-			c := &Control{ID: id, Label: act.Label, Group: p.ID, Icon: act.Icon, Danger: act.Danger, ScAction: act.SC, Global: act.Global,
+			danger := act.Danger || reDanger.MatchString(act.Label)
+			if g := game.byName[act.SC]; g != nil && reDanger.MatchString(g.Label) {
+				danger = true // a friendly label on self-destruct is still self-destruct
+			}
+			c := &Control{ID: id, Label: act.Label, Group: p.ID, Icon: act.Icon, Danger: danger, ScAction: act.SC, Global: act.Global,
 				Tags: []string{p.ID, slug(act.Label)}}
 			c.Keys = act.Keys
 			if act.SC != "" {
@@ -431,14 +459,14 @@ func (a *App) extendCatalog(out []*Control, byID map[string]*Control) []*Control
 		}
 	}
 	binds := a.Binds().Binds
-	for i := range a.GameActions().Actions {
-		act := &a.GameActions().Actions[i]
+	for i := range game.Actions {
+		act := &game.Actions[i]
 		id := "sc." + act.Name
 		if byID[id] != nil {
 			continue
 		}
-		key := binds[act.Name]
-		if key == "" {
+		key, ok := binds[act.Name]
+		if !ok {
 			key = act.Key
 		}
 		if k := rebinds[id]; k != "" {
@@ -497,6 +525,12 @@ func (a *App) missingRefs(p panels.Panel) []string {
 	_, byID := a.Catalog()
 	var out []string
 	seen := map[string]bool{}
+	game := a.GameActions()
+	for _, act := range p.Actions {
+		if act.SC != "" && game.byName[act.SC] == nil {
+			out = append(out, "sc:"+act.SC+" (action "+act.ID+")")
+		}
+	}
 	for _, ref := range append(append([]string(nil), p.Controls...), panels.ControlRefs(p.Layout)...) {
 		if seen[ref] || byID[ref] != nil || byID[p.ID+"."+ref] != nil {
 			continue

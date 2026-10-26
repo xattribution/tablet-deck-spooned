@@ -114,7 +114,7 @@ start with Windows, and updates with one click.
   Replies are spoken and shown on the panel; tap the transcript to type.
 - **Every game action.** About 700 actions from your own install, grouped like the
   game's keybind menus. Unbound ones show a BIND badge; **Bind every action** on the
-  PC writes a profile that keeps your binds and gives the rest a free key.
+  PC writes a profile that keeps all your binds, HOTAS included, and gives the rest a free key.
 - **Your own panels.** A panel is a small JSON file: a name, the controls, and a
   layout of keys, toggles, sliders, levers, dials and guarded switches. Drop it in
   the `panels` folder, import it on the tablet, or ask an agent to build one over

@@ -18,6 +18,7 @@ type Speaker struct {
 	voices map[string]*pockettts.Voice
 	voice  string
 	queue  chan string
+	closed bool
 	play   func(pcm []float32) error // plays samples at SampleRate()
 	wait   func()
 	onTalk func(talking bool)
@@ -88,9 +89,24 @@ func (s *Speaker) Say(text string) {
 	if text == "" {
 		return
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return
+	}
 	select {
 	case s.queue <- text:
 	default:
+	}
+}
+
+// Close stops the speaker after the line it is on; the model is freed with it.
+func (s *Speaker) Close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed {
+		s.closed = true
+		close(s.queue)
 	}
 }
 
