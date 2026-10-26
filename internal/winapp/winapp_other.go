@@ -11,7 +11,7 @@ import (
 	"runtime"
 )
 
-func SingleInstance() bool               { return true }
+func SingleInstance(string) bool         { return true }
 func AttachConsole()                     {}
 func StartsWithWindows() bool            { return false }
 func SetStartWithWindows(bool) error     { return fmt.Errorf("Windows only") }

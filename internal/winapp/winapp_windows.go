@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -25,8 +26,16 @@ var icon []byte
 const runKey = `Software\Microsoft\Windows\CurrentVersion\Run`
 
 // SingleInstance returns false when Tablet Deck is already running for this user.
-func SingleInstance() bool {
-	name, _ := windows.UTF16PtrFromString(`Local\TabletDeck-2`)
+func SingleInstance(dataDir string) bool {
+	id := `Local\TabletDeck-2`
+	if dataDir != "" { // another settings folder is another deck
+		h := uint32(2166136261)
+		for _, c := range []byte(strings.ToLower(filepath.Clean(dataDir))) {
+			h = (h ^ uint32(c)) * 16777619
+		}
+		id += fmt.Sprintf("-%08x", h)
+	}
+	name, _ := windows.UTF16PtrFromString(id)
 	_, err := windows.CreateMutex(nil, false, name)
 	return err != windows.ERROR_ALREADY_EXISTS
 }

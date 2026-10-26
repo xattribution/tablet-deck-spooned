@@ -91,8 +91,9 @@ func run(args []string, tray bool) {
 	trayOnly := fs.Bool("tray", false, "start in the tray without opening the control panel")
 	_ = fs.Parse(args)
 
-	if !winapp.SingleInstance() {
-		// Already running: just open its control panel.
+	// One tray app per settings folder. Starting it again opens the running one's
+	// control panel. A console run ("serve") is for testing and doesn't take part.
+	if tray && !winapp.SingleInstance(*data) {
 		if !*trayOnly {
 			openPanel(loadCfg(*data), "")
 		}
