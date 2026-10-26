@@ -1,0 +1,27 @@
+# Checks every push and pull request: Go tests (with the race detector), vet for
+# Windows and Linux, a Windows build, and the deck's scripts.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: GOOS=windows go vet ./...
+      - run: go test -race ./...
+      - run: GOOS=windows go build -o /dev/null ./cmd/tabletdeck
+      - name: Check the deck's scripts
+        run: for f in public/*.js tools/*.js scripts/*.js; do node --check "$f"; done
+      - run: node tools/make-profile.js --check

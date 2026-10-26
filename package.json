@@ -1,17 +1,12 @@
 {
   "name": "tablet-deck",
-  "version": "1.6.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Turn any tablet into a touch control panel for Star Citizen. Fan project, not affiliated with Cloud Imperium Games.",
+  "description": "Touch control deck for Star Citizen on any tablet or phone. The app is Go (go build ./cmd/tabletdeck); these scripts are the layout and profile generators.",
   "license": "MIT",
-  "repository": "github:nodieCode/tablet-deck",
+  "repository": "github:xattribution/tablet-deck-spooned",
   "scripts": {
-    "start": "node server.js",
     "check-profile": "node tools/make-profile.js --check",
-    "build": "node scripts/build.js"
-  },
-  "devDependencies": {
-    "postject": "1.0.0-alpha.6",
-    "rcedit": "5.0.2"
+    "layouts": "node tools/make-phone-layout.js && node tools/make-starter-layouts.js && node tools/make-profile.js"
   }
 }

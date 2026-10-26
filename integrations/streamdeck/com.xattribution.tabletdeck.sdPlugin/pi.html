@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tablet Deck</title>
+<style>
+  body { margin: 0; padding: 8px 10px; background: #2D2D2D; color: #D8D8D8; font: 13px "Segoe UI", system-ui, sans-serif; }
+  label { display: block; margin: 10px 0 4px; color: #9A9A9A; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  select, input { width: 100%; box-sizing: border-box; height: 30px; padding: 0 6px; background: #3D3D3D; color: #E8E8E8; border: 1px solid #4D4D4D; border-radius: 2px; font: inherit; }
+  p { margin: 10px 0 0; color: #9A9A9A; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="press" hidden>
+  <label for="search">Find</label><input id="search" placeholder="landing gear, quantum, shields…">
+  <label for="control">Control</label><select id="control"></select>
+  <label for="label">Label on the key (optional)</label><input id="label" maxlength="16">
+</div>
+<div id="view" hidden>
+  <label for="viewpick">View</label><select id="viewpick"></select>
+  <label for="device">Deck (optional: a name, or part of it)</label><input id="device" placeholder="All decks">
+</div>
+<p id="msg"></p>
+<script>
+  // Stream Deck calls this with the connection details.
+  let ws, uuid, action, settings = {}, catalog = null;
+  window.connectElgatoStreamDeckSocket = (port, piUUID, registerEvent, info, actionInfo) => {
+    uuid = piUUID;
+    const ai = JSON.parse(actionInfo);
+    action = ai.action;
+    settings = (ai.payload && ai.payload.settings) || {};
+    ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    ws.onopen = () => { ws.send(JSON.stringify({ event: registerEvent, uuid })); ws.send(JSON.stringify({ event: "sendToPlugin", action, context: uuid, payload: { get: "catalog" } })); };
+    ws.onmessage = (e) => {
+      const m = JSON.parse(e.data);
+      if (m.event === "sendToPropertyInspector") { catalog = m.payload.catalog; draw(); }
+    };
+    document.getElementById(action.endsWith(".press") ? "press" : action.endsWith(".view") ? "view" : "msg").hidden = false;
+    if (action.endsWith(".afk")) document.getElementById("msg").textContent = "Turns away mode on and off. Lights while you're away.";
+  };
+  const save = () => ws.send(JSON.stringify({ event: "setSettings", context: uuid, payload: settings }));
+  const $ = (id) => document.getElementById(id);
+  function draw() {
+    if (!catalog) { $("msg").textContent = "Start Tablet Deck on this PC, then reopen this key's settings."; return; }
+    $("msg").textContent = "";
+    const q = $("search").value.toLowerCase().split(/\s+/).filter(Boolean);
+    const names = Object.fromEntries(catalog.groups.map((g) => [g.id, g.name]));
+    const by = {};
+    for (const c of catalog.controls) {
+      const hay = `${c.label} ${c.group} ${(c.tags || []).join(" ")}`.toLowerCase();
+      if (q.length && !q.every((w) => hay.includes(w)) && c.id !== settings.control) continue;
+      (by[c.group] = by[c.group] || []).push(c);
+    }
+    $("control").innerHTML = `<option value="">Pick a control…</option>` + Object.entries(by).map(([g, list]) =>
+      `<optgroup label="${names[g] || g}">${list.map((c) => `<option value="${c.id}">${c.label}${c.mode === "hold" ? " (hold)" : ""}</option>`).join("")}</optgroup>`).join("");
+    $("control").value = settings.control || "";
+    $("label").value = settings.label || "";
+    $("viewpick").innerHTML = catalog.views.map((v) => `<option value="${v.id}">${v.name}</option>`).join("");
+    $("viewpick").value = settings.view || "flight";
+    $("device").value = settings.device || "";
+  }
+  $("search").oninput = draw;
+  $("control").onchange = () => { settings.control = $("control").value; save(); };
+  $("label").onchange = () => { settings.label = $("label").value.trim(); save(); };
+  $("viewpick").onchange = () => { settings.view = $("viewpick").value; save(); };
+  $("device").onchange = () => { settings.device = $("device").value.trim(); save(); };
+</script>
+</body>
+</html>

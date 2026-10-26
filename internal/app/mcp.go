@@ -91,6 +91,7 @@ func controlView(c *Control, states map[string]bool) map[string]any {
 	}
 	if c.State != nil {
 		m["on"] = states[c.State.Group]
+		m["stateGroup"] = c.State.Group
 	}
 	if c.Danger {
 		m["danger"] = true

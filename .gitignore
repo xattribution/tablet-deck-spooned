@@ -1,24 +1,16 @@
-# Per-player settings: pairing code, ports and local game paths.
+# Per-player settings and state, when run with TABLETDECK_DATA pointing here.
 config.json
+state.json
 
-# Built on first run from native/keysender.cs.
-native/*.exe
-
-# Other keybind profiles you keep locally.
-# The Tablet Deck profile lives in keybinds/ and is committed.
-profiles/
-
-node_modules/
-
-# npm run build: intermediate files and the finished installer.
+# Built by the Release workflow or by hand.
 build/
 dist/
+*.exe
+cmd/tabletdeck/rsrc_*.syso
 
-# scripts/build-site.js: the assembled website.
+# The website, assembled by scripts/build-site.js.
 _site/
 
-# Local tooling and notes, not part of the project: the working rules for AI coding
-# sessions, Claude Code's config, and drafts for posts about Tablet Deck.
-CLAUDE.md
+node_modules/
+profiles/
 .claude/
-promo/

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "UUID": "com.xattribution.tabletdeck",
+  "Name": "Tablet Deck",
+  "Version": "2.0.0.0",
+  "Author": "xattribution",
+  "Description": "Star Citizen controls from Tablet Deck on your Stream Deck: the same icons, colours and lit toggles as your tablets, your keybinds followed, and views pushed to your decks.",
+  "Icon": "imgs/plugin",
+  "Category": "Tablet Deck",
+  "CategoryIcon": "imgs/category",
+  "CodePath": "bin/plugin.js",
+  "SDKVersion": 2,
+  "Software": { "MinimumVersion": "6.5" },
+  "OS": [{ "Platform": "windows", "MinimumVersion": "10" }],
+  "Nodejs": { "Version": "20", "Debug": "disabled" },
+  "Actions": [
+    {
+      "UUID": "com.xattribution.tabletdeck.press",
+      "Name": "Control",
+      "Tooltip": "Press a Star Citizen control (holds while the key is held, for hold controls)",
+      "Icon": "imgs/action",
+      "PropertyInspectorPath": "pi.html",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/key", "ShowTitle": false }]
+    },
+    {
+      "UUID": "com.xattribution.tabletdeck.view",
+      "Name": "Show view",
+      "Tooltip": "Put a view (Flight, Combat, Mining…) on your tablets",
+      "Icon": "imgs/action",
+      "PropertyInspectorPath": "pi.html",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/key", "ShowTitle": false }]
+    },
+    {
+      "UUID": "com.xattribution.tabletdeck.afk",
+      "Name": "Away (AFK)",
+      "Tooltip": "Toggle away mode: your AFK-only share links open for your crew",
+      "Icon": "imgs/action",
+      "PropertyInspectorPath": "pi.html",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/key", "ShowTitle": false }]
+    }
+  ]
+}

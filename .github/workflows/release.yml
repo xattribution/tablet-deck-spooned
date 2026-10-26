@@ -1,211 +1,131 @@
-# Builds the Windows installer and publishes it as a GitHub Release.
+# Builds TabletDeck.exe, voice.exe and the installer on Windows, and publishes a GitHub
+# Release for v* tags.
 #
-#   git tag v1.0.0 && git push origin v1.0.0    build and publish "Tablet Deck 1.0.0"
-#   Actions tab -> Release -> Run workflow       build only; download it from the run's artifacts
-#   ... -> Run workflow with "Publish" ticked     build and publish the version in package.json,
-#                                                tagging the commit it ran on
+#   git tag v2.0.0 && git push origin v2.0.0    build and publish "Tablet Deck 2.0.0"
+#   Actions -> Release -> Run workflow          build only; download from the run's artifacts
 #
-# The tag must match "version" in package.json.
+# Code signing is optional (Azure Artifact Signing). Set these and release builds are
+# signed; otherwise they're unsigned and SmartScreen warns about an unknown publisher:
+#   secrets   AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
+#   variables SIGNING_ENDPOINT (e.g. https://wus2.codesigning.azure.net/),
+#             SIGNING_ACCOUNT, SIGNING_PROFILE
 name: Release
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
-    inputs:
-      publish:
-        description: "Publish a release for the version in package.json (creates its v<version> tag)"
-        type: boolean
-        default: false
 
 permissions:
-  contents: write # create the release and upload the installer
+  contents: write
 
 jobs:
   build:
     runs-on: windows-latest
     env:
-      # ---- Code signing (optional) ----
-      # Builds are unsigned until one of these is set up. Unsigned installers work, but
-      # Windows SmartScreen shows an "unknown publisher" warning.
-      #
-      # Option A, a code signing certificate (.pfx) stored in repo secrets:
-      #   SIGNING_CERT_PFX_BASE64   the .pfx file, base64-encoded
-      #                             (PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx")))
-      #   SIGNING_CERT_PASSWORD     its password
-      SIGNING_CERT_PFX_BASE64: ${{ secrets.SIGNING_CERT_PFX_BASE64 }}
-      SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
-      #
-      # Option B, SignPath Foundation (free for open source; see CODE_SIGNING.md):
-      #   secret   SIGNPATH_API_TOKEN         the CI user's API token from SignPath
-      #   variable SIGNPATH_ORGANIZATION_ID   your SignPath organization ID
-      #   variable SIGNPATH_PROJECT_SLUG      optional, default "tablet-deck"
-      #   variable SIGNPATH_POLICY_SLUG       optional, default "release-signing"
-      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      SIGN: ${{ secrets.AZURE_CLIENT_ID != '' && vars.SIGNING_ACCOUNT != '' && github.ref_type == 'tag' }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-go@v5
         with:
-          node-version: 24
-          cache: npm
+          go-version-file: go.mod
 
-      - run: npm ci
-
-      # RELEASE_TAG is the release this run publishes: the pushed tag, or v<version> when
-      # run by hand with "Publish" ticked. Empty for a build-only run.
-      - name: Work out the release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $tag = ""
-          if ("${{ github.ref_type }}" -eq "tag") { $tag = "${{ github.ref_name }}" }
-          elseif ("${{ inputs.publish }}" -eq "true") {
-            $tag = "v" + (Get-Content package.json -Raw | ConvertFrom-Json).version
-            gh release view $tag 2>$null | Out-Null
-            if ($LASTEXITCODE -eq 0) { throw "$tag is already released. Set a new version in package.json first." }
-            $global:LASTEXITCODE = 0
-          }
-          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
-
-      - name: Check the tag matches package.json and CHANGELOG.md
-        if: env.RELEASE_TAG != ''
+      - name: Version
         shell: pwsh
         run: |
-          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          if ($env:RELEASE_TAG -ne "v$version") {
-            throw "Tag $env:RELEASE_TAG doesn't match package.json version $version. Update package.json or the tag."
-          }
-          node scripts/release-notes.js $version > $null
-          if ($LASTEXITCODE -ne 0) { throw "Add a '## $version' section to CHANGELOG.md." }
-
-      - name: Install Inno Setup if missing
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe") -and -not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
-            choco install innosetup -y --no-progress
+          $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "2.0.0-dev." + "${{ github.run_number }}" }
+          $num = ($v -split "[-+]")[0]
+          "VERSION=$v" >> $env:GITHUB_ENV
+          "FILEVERSION=$num.0" >> $env:GITHUB_ENV
+          if ("${{ github.ref_type }}" -eq "tag") {
+            node scripts/release-notes.js $v > $null
+            if ($LASTEXITCODE -ne 0) { throw "Add a '## $v' section to CHANGELOG.md." }
           }
 
-      # ---- Code signing ----
-      # Only release runs (RELEASE_TAG set) are signed; build-only runs, such as test builds
-      # from a branch, stay unsigned and never send a signing request.
-      #
-      # ---- Code signing, option A: certificate in repo secrets ----
-      # Runs only when SIGNING_CERT_PFX_BASE64 is set. scripts/build.js signs TabletDeck.exe
-      # and the native helpers with SIGN_CMD, and Inno Setup signs the installer and
-      # uninstaller with it ($f is the file to sign).
-      - name: Set up signing (certificate)
-        if: env.SIGNING_CERT_PFX_BASE64 != '' && env.RELEASE_TAG != ''
+      - name: Test
+        run: go test ./...
+
+      - name: Build TabletDeck.exe
         shell: pwsh
         run: |
-          $pfx = Join-Path $env:RUNNER_TEMP "signing.pfx"
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_CERT_PFX_BASE64))
-          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
-          "SIGN_CMD=`"$($signtool.FullName)`" sign /fd sha256 /tr http://timestamp.digicert.com /td sha256 /f `"$pfx`" /p `"$env:SIGNING_CERT_PASSWORD`" `$f" >> $env:GITHUB_ENV
+          New-Item -ItemType Directory -Force build\app | Out-Null
+          Copy-Item cmd\tabletdeck\app.ico build\icon.ico
+          go run github.com/tc-hib/go-winres@v0.3.3 simply --icon cmd/tabletdeck/app.ico --manifest gui `
+            --product-name "Tablet Deck" --file-description "Tablet Deck" --product-version $env:FILEVERSION --file-version $env:FILEVERSION `
+            --out cmd/tabletdeck/rsrc
+          go build -trimpath -ldflags "-H windowsgui -s -w -X github.com/xattribution/tablet-deck-spooned.Version=$env:VERSION" -o build\app\TabletDeck.exe ./cmd/tabletdeck
 
-      # The build runs in two stages so SignPath (option B) can sign the app files before
-      # they go into the installer, and then the installer itself. Without SignPath the
-      # signing steps are skipped; with option A, SIGN_CMD signs everything in the build.
-      - name: Build the app files
-        run: npm run build -- --app
-
-      # ---- Code signing, option B: SignPath ----
-      # Runs only when SIGNPATH_API_TOKEN is set. The artifact configurations "app" and
-      # "installer" in SignPath are copies of .signpath/artifact-configurations/*.xml.
-      - name: Upload the app files for signing
-        id: unsigned-app
-        if: env.SIGNPATH_API_TOKEN != '' && env.RELEASE_TAG != ''
-        uses: actions/upload-artifact@v7
-        with:
-          name: app-unsigned
-          path: build/app
-
-      - name: Sign the app files (SignPath)
-        if: env.SIGNPATH_API_TOKEN != '' && env.RELEASE_TAG != ''
-        uses: signpath/github-action-submit-signing-request@v2
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'tablet-deck' }}
-          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
-          artifact-configuration-slug: app
-          github-artifact-id: ${{ steps.unsigned-app.outputs.artifact-id }}
-          output-artifact-directory: build/app-signed
-          # Each request waits for an approver in SignPath; an hour leaves time to approve from a phone.
-          wait-for-completion-timeout-in-seconds: 3600
-
-      - name: Use the signed app files
-        if: env.SIGNPATH_API_TOKEN != '' && env.RELEASE_TAG != ''
+      # The fallback voice engine (Windows speech), for PCs without the speech models.
+      - name: Build voice.exe
         shell: pwsh
-        run: Copy-Item build/app-signed/* build/app -Recurse -Force
+        run: |
+          $fw = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319"
+          & "$fw\csc.exe" /nologo /optimize /target:exe /platform:x64 "/lib:$fw\WPF" /r:System.Speech.dll /out:build\app\voice.exe native\voice.cs
+          if ($LASTEXITCODE -ne 0) { throw "voice.cs didn't compile" }
+
+      - name: Sign the app
+        if: env.SIGN == 'true'
+        uses: azure/trusted-signing-action@v0.5.1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.SIGNING_PROFILE }}
+          files-folder: build\app
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
 
       - name: Build the installer
-        run: npm run build -- --installer
-
-      - name: Upload the installer for signing
-        id: unsigned-setup
-        if: env.SIGNPATH_API_TOKEN != '' && env.RELEASE_TAG != ''
-        uses: actions/upload-artifact@v7
-        with:
-          name: setup-unsigned
-          path: dist/*.exe
-
-      - name: Sign the installer (SignPath)
-        if: env.SIGNPATH_API_TOKEN != '' && env.RELEASE_TAG != ''
-        uses: signpath/github-action-submit-signing-request@v2
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'tablet-deck' }}
-          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
-          artifact-configuration-slug: installer
-          github-artifact-id: ${{ steps.unsigned-setup.outputs.artifact-id }}
-          output-artifact-directory: dist-signed
-          # Each request waits for an approver in SignPath; an hour leaves time to approve from a phone.
-          wait-for-completion-timeout-in-seconds: 3600
-
-      # Signing changes the installer, so its checksum (which the app's updater checks) is redone.
-      - name: Use the signed installer
-        if: env.SIGNPATH_API_TOKEN != '' && env.RELEASE_TAG != ''
         shell: pwsh
         run: |
-          Copy-Item dist-signed/*.exe dist -Force
-          npm run build -- --checksum
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$env:VERSION" "/DFileVersion=$env:FILEVERSION" "/DBuildDir=$PWD\build" installer\TabletDeck.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
 
-      - uses: actions/upload-artifact@v7
+      - name: Sign the installer
+        if: env.SIGN == 'true'
+        uses: azure/trusted-signing-action@v0.5.1
         with:
-          name: TabletDeck-Setup
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.SIGNING_PROFILE }}
+          files-folder: build
+          files-folder-filter: exe
+          files-folder-depth: 1
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $setup = "build\TabletDeck-Setup-$env:VERSION.exe"
+          (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower() + "  " + (Split-Path $setup -Leaf) | Set-Content "$setup.sha256"
+          Compress-Archive -Path build\app\* -DestinationPath "build\TabletDeck-$env:VERSION-portable.zip"
+          Copy-Item scripts\install.ps1 build\install.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TabletDeck-${{ env.VERSION }}
           path: |
-            dist/*.exe
-            dist/*.sha256
+            build/TabletDeck-Setup-*.exe*
+            build/TabletDeck-*-portable.zip
+            build/install.ps1
 
       - name: Publish the release
-        if: env.RELEASE_TAG != ''
+        if: github.ref_type == 'tag'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version = $env:RELEASE_TAG.TrimStart("v")
-          $setup = "dist/TabletDeck-Setup-$version.exe"
-          $hash = (Get-Content "$setup.sha256").Split(" ")[0]
-          $changes = (node scripts/release-notes.js $version) -join "`n"
-          $notes = @"
-          ## What's new
-
-          $changes
-
-          ## Download
-
-          Download **TabletDeck-Setup-$version.exe** below and run it. No Node.js needed. Already have Tablet Deck? Run it over your copy; your settings are kept. After that it offers updates itself.
-
-          If Windows shows "Windows protected your PC" (unknown publisher), click **More info**, then **Run anyway**. See the README for details.
-
-          Releases aren't code-signed yet; check the installer against the SHA-256 below. See the [code signing policy](https://github.com/nodieCode/tablet-deck/blob/main/CODE_SIGNING.md).
-
-          SHA-256: ``$hash``
-
-          > Fan project. Not affiliated with or endorsed by Cloud Imperium Games.
-          "@
-          # --target tags this commit when the tag doesn't exist yet (a run by hand).
-          gh release create $env:RELEASE_TAG $setup "$setup.sha256" --target "${{ github.sha }}" --title "Tablet Deck $version" --notes $notes
+          $notes = (node scripts/release-notes.js $env:VERSION) -join "`n"
+          gh release create "${{ github.ref_name }}" "build\TabletDeck-Setup-$env:VERSION.exe" "build\TabletDeck-Setup-$env:VERSION.exe.sha256" `
+            "build\TabletDeck-$env:VERSION-portable.zip" build\install.ps1 --title "Tablet Deck $env:VERSION" --notes $notes

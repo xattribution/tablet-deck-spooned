@@ -100,6 +100,18 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		writeJSON(w, 200, map[string]any{"groups": groups, "controls": list, "views": a.Views()})
 
+	case route == "show-view" && method == http.MethodPost:
+		var body struct{ View, Device string }
+		if !decode(&body) {
+			return
+		}
+		v, ok := a.ViewByID(body.View)
+		if !ok {
+			jsonErr(w, 404, "No such view.")
+			return
+		}
+		writeJSON(w, 200, map[string]any{"ok": true, "decks": a.ShowView(v, body.Device)})
+
 	case route == "views" && method == http.MethodGet:
 		writeJSON(w, 200, a.Views())
 	case len(parts) == 2 && parts[0] == "views" && method == http.MethodGet:
@@ -347,11 +359,23 @@ func (a *App) apiPress(p principal, id, label, action, combo, mode string, ms in
 		}
 		b = &layout.Button{ID: "keys:" + combo, Label: combo, Keys: combo, Scans: scans}
 	} else {
+		// Catalog ids first (landing-gear), then the layout's own ids and labels.
+		for _, ref := range []string{id, label, action} {
+			if ref == "" || file != "" {
+				continue
+			}
+			if c := a.FindControl(ref); c != nil {
+				b = c.Button
+				break
+			}
+		}
 		l, err := a.apiLayout(file)
 		if err != nil {
 			return map[string]any{"ok": false, "error": err.Error()}, 404
 		}
-		b = findButton(l, id, label, action)
+		if b == nil {
+			b = findButton(l, id, label, action)
+		}
 		if b == nil && action != "" {
 			// Not on the deck, but the player has it bound in the game.
 			if c, ok := a.Binds().Binds[action]; ok {
