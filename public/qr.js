@@ -1,9 +1,11 @@
 // Minimal QR code generator (byte mode, error correction level M, versions 1-40) for
-// the pairing link, in the console and the app window. No dependencies.
+// pairing and share links. No dependencies; works in the browser (window.DeckQR) and
+// in Node.
 //
 //   const qr = require("./qr");
 //   qr.matrix("http://192.168.1.20:8765/?t=1a2b")  -> rows of booleans (true = dark)
 //   qr.toTerminal("http://...")                     -> string of block characters
+(function () {
 "use strict";
 
 // Per version (index 1-40), level M: error correction codewords per block and block count.
@@ -213,7 +215,7 @@ function penalty(dark) {
 
 // Returns the QR code for `text` as rows of booleans (true = dark), without quiet zone.
 function matrix(text) {
-  const bytes = [...Buffer.from(String(text), "utf8")];
+  const bytes = [...new TextEncoder().encode(String(text))];
   let ver = 1;
   while (ver <= 40 && 4 + (ver <= 9 ? 8 : 16) + bytes.length * 8 > dataCodewords(ver) * 8) ver++;
   if (ver > 40) throw new Error("Text too long for a QR code");
@@ -249,4 +251,6 @@ function toTerminal(text, { color = false, quiet = 2 } = {}) {
   return lines.join("\n");
 }
 
-module.exports = { matrix, toTerminal };
+if (typeof module !== "undefined" && module.exports) module.exports = { matrix, toTerminal };
+else window.DeckQR = { matrix };
+})();

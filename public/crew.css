@@ -1,0 +1,108 @@
+/* Crew: share sheet, ask sheet, requests inbox, guest bar, locked buttons.
+   The sheets are always dark, like Deck settings, so they use the house colours. */
+:root { --house-accent: #4fb3ff; --house-text: #e8eef5; --house-dim: #8aa0b8; --house-panel: #0b1726; --house-line: #2a3a4e; }
+
+.td-sheet {
+  position: fixed; inset: 0; z-index: 12; display: none; flex-direction: column;
+  background: #05090f; color: var(--house-text); font-family: "Exo 2", system-ui, sans-serif;
+}
+.td-sheet.open { display: flex; }
+.td-sheet .bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px;
+  font: 600 14px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase;
+}
+.td-sheet .bar button {
+  background: none; border: 1px solid var(--house-line); color: var(--house-text);
+  border-radius: 8px; padding: 9px 16px; letter-spacing: .1em; text-transform: uppercase; font-size: 13px;
+}
+.td-body { flex: 1; overflow-y: auto; padding: 0 20px 24px; display: flex; flex-direction: column; gap: 12px; max-width: 760px; width: 100%; margin: 0 auto; }
+.td-body label { margin-top: 6px; font: 600 12px/1 "Exo 2", system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--house-dim); }
+.td-body input {
+  min-height: 46px; padding: 10px 12px; border-radius: 8px; font: 600 16px "Exo 2", system-ui, sans-serif;
+  background: var(--house-panel); border: 1px solid var(--house-line); color: var(--house-text);
+}
+.td-body input:focus { outline: 2px solid var(--house-accent); outline-offset: 1px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  min-height: 44px; padding: 9px 16px; border-radius: 8px; font: 600 14px "Exo 2", system-ui, sans-serif; letter-spacing: .04em;
+  background: var(--house-panel); border: 1px solid var(--house-line); color: var(--house-text);
+}
+.chip[aria-pressed="true"] { background: var(--house-accent); border-color: var(--house-accent); color: #04121f; }
+.chip:disabled { opacity: .45; }
+.td-primary {
+  min-height: 48px; padding: 10px 22px; border-radius: 8px; border: 0; margin-top: 6px;
+  background: var(--house-accent); color: #04121f; font: 700 15px "Exo 2", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+}
+.td-primary:active, .chip:active { transform: translateY(1px); }
+
+/* Share sheet: the form, then the link and its QR code. */
+#shareSheet .share-done { display: none; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 24px; }
+#shareSheet.done .share-form { display: none; }
+#shareSheet.done .share-done { display: flex; }
+#shareQR { width: 260px; height: 260px; border-radius: 6px; image-rendering: pixelated; }
+.share-out { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 10px; }
+#shareLink { display: block; padding: 12px; border-radius: 8px; background: var(--house-panel); word-break: break-all; font: 14px/1.4 ui-monospace, Consolas, monospace; }
+#shareSheet .sheet-note, #crewList .sheet-note { margin: 0; color: var(--house-dim); font: 13px/1.4 "Exo 2", system-ui, sans-serif; }
+
+/* Ask sheet: quick phrases, or a message. */
+.td-sheet.ask { background: #05090f; }
+.ask-form { display: flex; gap: 10px; }
+.ask-form input { flex: 1; }
+.ask-form .td-primary { margin: 0; }
+
+/* Crew list in Deck settings. */
+#crewList { display: flex; flex-direction: column; gap: 10px; }
+.crew-row { padding: 10px 0; border-top: 1px solid var(--house-line); }
+.crew-head { display: flex; align-items: center; gap: 8px; }
+.crew-head b { font: 600 15px/1.2 "Exo 2", system-ui, sans-serif; }
+.crew-dot { width: 9px; height: 9px; border-radius: 50%; background: #56606c; }
+.crew-row.online .crew-dot { background: #3ddc84; }
+.crew-tag { padding: 2px 7px; border-radius: 4px; background: #f5a524; color: #1a1205; font: 700 11px/1.3 "Exo 2", system-ui, sans-serif; font-style: normal; letter-spacing: .08em; text-transform: uppercase; }
+.crew-ask { margin-left: auto; min-height: 36px; padding: 6px 14px; border-radius: 8px; background: var(--house-panel); border: 1px solid var(--house-line); color: var(--house-text); font: 600 13px "Exo 2", system-ui, sans-serif; }
+.crew-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.crew-btns button { min-height: 40px; padding: 6px 12px; border-radius: 8px; background: var(--house-panel); border: 1px solid var(--house-accent); color: var(--house-text); font: 600 13px "Exo 2", system-ui, sans-serif; }
+.crew-btns button:active { background: var(--house-accent); color: #04121f; }
+.crew-btns button:disabled { border-color: var(--house-line); opacity: .5; }
+html[data-afk] #afkBtn { border-color: #f5a524; }
+
+/* Requests inbox: cards at the top, over the deck. */
+#inbox {
+  position: fixed; z-index: 11; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  width: min(460px, calc(100vw - 24px)); display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.rq {
+  pointer-events: auto; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center;
+  padding: 12px 14px; border-radius: 10px; background: #0b1726; border-left: 4px solid #f5a524; color: var(--house-text);
+  box-shadow: 0 10px 30px rgba(0,0,0,.55); font-family: "Exo 2", system-ui, sans-serif; animation: rq-in .18s ease-out;
+}
+.rq-from { grid-column: 1; font: 700 12px/1 "Exo 2", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #f5a524; }
+.rq-text { grid-column: 1; font-size: 15px; line-height: 1.3; }
+.rq-text span { display: block; color: var(--house-dim); }
+.rq-text b { color: var(--house-text); }
+.rq-btns { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; }
+.rq-btns button { min-height: 44px; padding: 8px 14px; border-radius: 8px; font: 700 13px "Exo 2", system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.rq-do { background: #3ddc84; border: 0; color: #04140a; }
+.rq-no { background: none; border: 1px solid var(--house-line); color: var(--house-text); }
+@keyframes rq-in { from { transform: translateY(-8px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .rq { animation: none; } }
+
+/* Guest bar: whose deck this is and how long the link lasts. */
+#guestBar {
+  position: fixed; z-index: 9; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 10px;
+  background: #0b1726; border: 1px solid #3ddc84; color: var(--house-text); font: 14px/1.2 "Exo 2", system-ui, sans-serif;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+#guestBar[hidden] { display: none; }
+#guestBar.waiting { border-color: #f5a524; }
+#guestBar .gb-ask { min-height: 38px; padding: 6px 16px; border-radius: 8px; border: 0; background: #3ddc84; color: #04140a; font: 700 13px "Exo 2", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+body.guest #crewSec, body.guest #resetStatesBtn, body.guest #pcLinks, body.guest .js-talk, body.guest .js-voice, body.guest #talk, body.guest #voiceHelpBtn { display: none !important; }
+
+/* On a share link, buttons that aren't shared: dimmed, and a tap asks the owner. */
+.locked { opacity: .32; filter: grayscale(1); }
+.locked::after { content: "ASK"; position: absolute; top: 4px; right: 6px; font: 700 9px/1 "Exo 2", system-ui, sans-serif; letter-spacing: .12em; color: var(--text, #e8eef5); }
+
+/* A share link that ran out. */
+#pair.gone { text-align: center; }
+body.guest #layoutPick, body.guest #layoutPick + .sheet-note { display: none; }

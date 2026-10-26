@@ -88,7 +88,15 @@
   const $ = (id) => document.getElementById(id);
   const grid = $("grid");
   const tabs = $("tabs");
-  let token = (new URLSearchParams(location.search).get("t") || store.get("token") || "").trim().toLowerCase();
+  // A share link (/g/<token>) opens the deck as a guest of someone else's PC.
+  const GUEST = (location.pathname.match(/^\/g\/([a-f0-9]{20,64})/) || [])[1] || "";
+  // The pairing code in the address is swapped for a token of this device's own the first
+  // time it connects ("paired"), so changing the code on the PC doesn't unpair it. The
+  // address keeps the code (a home screen app opens that address), so remember which code
+  // the device token came from and use the token while the address still has that code.
+  const urlCode = (new URLSearchParams(location.search).get("t") || "").trim().toLowerCase();
+  let token = GUEST ? "" : (urlCode && urlCode !== store.get("pairCode") ? urlCode : store.get("token") || urlCode || "").trim().toLowerCase();
+  const auth = () => (GUEST ? `g=${GUEST}` : `t=${encodeURIComponent(token)}`);
   // Phones (short side under 500pt, e.g. iPhone 15 Pro at 393pt) get the phone layout;
   // ?device=tablet or ?device=phone in the address overrides the guess.
   const device = new URLSearchParams(location.search).get("device")
@@ -156,7 +164,7 @@
   // tablet only gets their names and asks by position, so it can't open anything else.
   function fillLinks() {
     const names = DEMO ? Promise.resolve(["UEX", "Erkul", "SPViewer", "SCMDB"])
-      : fetch(`/links.json?t=${encodeURIComponent(token)}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => d.links);
+      : fetch(`/links.json?${auth()}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => d.links);
     names.then((list) => {
       const box = $("pcLinkBtns");
       box.innerHTML = "";
@@ -195,7 +203,7 @@
       pick.value = DEMO_LAYOUTS.some(([f]) => f === chosenLayout) ? chosenLayout : DEMO_LAYOUTS[0][0];
       return;
     }
-    fetch(`/layouts.json?t=${encodeURIComponent(token)}&device=${device}`)
+    fetch(`/layouts.json?${auth()}&device=${device}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         const pick = $("layoutPick");
@@ -341,7 +349,10 @@
   function refreshStatus() {
     document.body.classList.toggle("offline", !online.on);
     for (const d of document.querySelectorAll("#dot, .js-dot")) d.classList.toggle("on", online.on);
-    for (const t of document.querySelectorAll("#statusText, .js-status")) t.textContent = tr(online.text);
+    let text = tr(online.text);
+    if (online.on && latency) text += ` · ${latency} ms`;
+    if (online.on && game && !GUEST && !game.running) text += ` · ${tr("game not running")}`;
+    for (const t of document.querySelectorAll("#statusText, .js-status")) t.textContent = text;
   }
 
   function send(obj) {
@@ -361,14 +372,41 @@
     toastTimer = setTimeout(() => el.classList.remove("show"), ms);
   }
 
+  // Why a press didn't go through, from the PC.
+  const BLOCKED = {
+    "not-running": "Star Citizen isn't running",
+    "not-focused": "Star Citizen isn't the window in front",
+    "focus-failed": "Couldn't bring Star Citizen to the front",
+    "denied": "Not shared with you. Tap again to ask",
+    "not-afk": "Only while they're AFK",
+    "rate-limited": "Slow down a little",
+    "expired": "This share link ran out",
+  };
+  const RELEASED = { "focus-lost": "Released: the game lost focus", "max-hold": "Released: held too long", "release-all": "All keys released" };
+  let backoff = 500, pingSent = 0, latency = 0, lastPong = 0;
+  const listeners = new Map(); // message type -> handlers added by crew.js
   function connect() {
-    ws = new WebSocket(`ws://${location.host}/ws?t=${encodeURIComponent(token)}&device=${device}&layout=${encodeURIComponent(chosenLayout)}`);
-    ws.onopen = () => setOnline(true, "Connected");
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const path = GUEST ? "gws" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}/${path}?${auth()}&device=${device}&layout=${encodeURIComponent(chosenLayout)}`);
+    ws.onopen = () => { backoff = 500; lastPong = Date.now(); setOnline(true, "Connected"); ping(); };
     ws.onmessage = (e) => {
       let msg;
       try { msg = JSON.parse(e.data); } catch { return; }
-      if (msg.t === "blocked") { toast("Star Citizen not focused"); buzz([30, 60, 30]); }
-      else if (msg.t === "hello") { applyVoiceStatus(msg.voiceStatus || { state: msg.voice ? "ready" : "off" }); states = msg.states || {}; showStates(); }
+      for (const fn of listeners.get(msg.t) || []) fn(msg);
+      if (msg.t === "pong") { lastPong = Date.now(); latency = Math.round(performance.now() - msg.n); refreshStatus(); }
+      else if (msg.t === "blocked") {
+        const allowedNow = !layout || !layout.allowed || layout.allowed.includes(msg.id);
+        toast(BLOCKED[msg.reason] || (allowedNow ? "Star Citizen not focused" : BLOCKED.denied));
+        buzz([30, 60, 30]);
+      }
+      else if (msg.t === "released") { for (const b of buttonEls.get(msg.id) || []) b.release(); toast(RELEASED[msg.reason] || "Released"); }
+      else if (msg.t === "paired") { token = msg.token; store.set("token", token); store.set("pairCode", urlCode); }
+      else if (msg.t === "unpaired") { store.set("token", ""); store.set("pairCode", ""); token = ""; ws.onclose = null; ws.close(); ws = null; showPairing(false); toast("This device was unpaired on the PC", 3000); }
+      else if (msg.t === "revoked") { ws.onclose = null; ws.close(); ws = null; showGone(msg.reason === "expired" ? "This share link ran out." : "This share link was turned off."); }
+      else if (msg.t === "toast") toast(msg.text, 2600);
+      else if (msg.t === "game") { game = msg; refreshStatus(); }
+      else if (msg.t === "hello") { game = msg.game || null; applyVoiceStatus(msg.voiceStatus || { state: msg.voice ? "ready" : "off" }); states = msg.states || {}; showStates(); }
       else if (msg.t === "state") { states[msg.group] = msg.on; showStates(msg.group); }
       else if (msg.t === "states") { states = msg.states || {}; showStates(); }
       else if (msg.t === "voice-status") applyVoiceStatus(msg);
@@ -380,10 +418,24 @@
       else if (msg.t === "reload") load().then(reconnect); // the layout was changed in the editor
       else if (msg.t === "opened") toast(tr(msg.dryRun ? "{0}: test mode, not opened" : "Opened {0} on the PC", msg.name));
     };
-    ws.onclose = () => { setOnline(false, "Reconnecting…"); setTimeout(connect, 1000); };
+    ws.onclose = () => {
+      setOnline(false, "Reconnecting…");
+      for (const els of buttonEls.values()) for (const b of els) b.release();
+      // Quick at first (a Wi-Fi blip), then backing off so a sleeping PC isn't hammered.
+      setTimeout(connect, backoff);
+      backoff = Math.min(backoff * 1.7, 8000);
+    };
     ws.onerror = () => ws.close();
   }
-  setInterval(() => send({ t: "hb" }), 1500);
+  // The ping keeps the connection alive (the PC lets go of a silent deck's keys) and
+  // measures the round trip, shown next to the status.
+  function ping() { pingSent = performance.now(); send({ t: "ping", n: pingSent }); }
+  setInterval(() => {
+    ping();
+    // No answer for a while: the Wi-Fi went away without closing the socket. Start over.
+    if (ws && ws.readyState === WebSocket.OPEN && Date.now() - lastPong > 6000) ws.close();
+  }, 1500);
+  let game = null;
 
   // ---------- buttons ----------
 
@@ -445,8 +497,22 @@
     toast("Button lights reset");
   }
 
+  const buttonEls = new Map(); // button id -> [{ release }] for "released" from the PC
   function bindButton(el, btn) {
     const fx = window.DeckFX.attach(el, btn);
+    if (!buttonEls.has(btn.id)) buttonEls.set(btn.id, []);
+    buttonEls.get(btn.id).push({ release() { el.classList.remove("pressed"); fx.up(); } });
+    // On a share link, buttons that aren't shared are dimmed; a tap asks the owner instead.
+    if (GUEST && layout && layout.allowed && !layout.allowed.includes(btn.id)) {
+      el.classList.add("locked");
+      el.addEventListener("click", () => {
+        buzz();
+        send({ t: "request", id: btn.id });
+        toast(tr("Asked them to press {0}", tr(btn.label)), 2200);
+      });
+      el.addEventListener("contextmenu", (e) => e.preventDefault());
+      return;
+    }
     if (btn.state && typeof btn.state.group === "string") {
       el.dataset.stateGroup = btn.state.group;
       el._showState = fx.show;
@@ -537,7 +603,7 @@
   }
   function loadVoiceList() {
     if (DEMO) { voiceData = { on: true, state: "ready", commands: phrasesInLayout() }; renderVoiceList(); return; }
-    fetch(`/voice.json?t=${encodeURIComponent(token)}`)
+    fetch(`/voice.json?${auth()}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => { voiceData = data; renderVoiceList(); })
       .catch(() => voiceNote("Couldn't load the list from the PC."));
@@ -657,6 +723,7 @@
   let deckCanvas = null;
   function showLayout(l) {
     layout = l;
+    buttonEls.clear();
     $("title").textContent = tr(layout.name);
     document.title = tr(layout.name);
     if (layout.canvas) {
@@ -680,15 +747,16 @@
   // Fetches the chosen layout (from the PC, or the layouts/ folder in demo mode) and shows it.
   function load() {
     const demoFile = (DEMO_LAYOUTS.find(([f]) => f === chosenLayout) || DEMO_LAYOUTS[0])[0];
-    return fetch(DEMO ? demoFile : `/layout.json?t=${encodeURIComponent(token)}&device=${device}&layout=${encodeURIComponent(chosenLayout)}`)
+    return fetch(DEMO ? demoFile : `/layout.json?${auth()}&device=${device}&layout=${encodeURIComponent(chosenLayout)}`)
       .then((r) => {
+        if (GUEST && (r.status === 403 || r.status === 410)) return Promise.reject("gone");
         if (r.status === 403) return Promise.reject("pair");
         if (r.status === 429) return Promise.reject("locked");
         return r.ok ? r.json() : Promise.reject(tr("Layout error ({0})", r.status));
       })
       .then((l) => {
         const first = !layout;
-        if (!DEMO) store.set("token", token);
+        if (!DEMO && !GUEST && token !== store.get("token")) { store.set("token", token); store.set("pairCode", ""); }
         document.body.classList.remove("pairing");
         showLayout(l);
         if (DEMO) {
@@ -697,6 +765,7 @@
         } else if (!ws) connect();
       })
       .catch((err) => {
+        if (err === "gone") { showGone("This share link ran out or was turned off. Ask for a new one."); return; }
         if (err === "pair") { showPairing(Boolean(token)); return; }
         if (err === "locked") { showPairing("locked"); return; }
         grid.innerHTML = `<div id="msg"></div>`;
@@ -721,6 +790,30 @@
     return load().then(() => { reconnect(); if (name) toast(name, 1600); });
   }
 
+  function showGone(text) {
+    setOnline(false, "Disconnected");
+    document.body.classList.add("pairing");
+    if (deckCanvas) { deckCanvas.dispose(); deckCanvas = null; }
+    $("stage").hidden = true;
+    tabs.innerHTML = "";
+    grid.innerHTML = `<div id="pair" class="gone"><div class="pair-emblem"></div><h2><b>//</b> ${tr("Link closed")}</h2><p class="pair-help"></p></div>`;
+    grid.querySelector(".pair-help").textContent = tr(text);
+  }
+
+  // What crew.js (share links, requests, crew) uses.
+  window.Deck = {
+    guest: GUEST, demo: DEMO, send, toast, buzz, tr,
+    on(type, fn) { if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(fn); },
+    layout: () => layout,
+    panelOf(id) {
+      if (!layout) return "";
+      if (layout.pages) { const p = layout.pages.find((pg) => pg.buttons.some((b) => b.id === id)); return p ? p.name : ""; }
+      for (const [pid, p] of Object.entries(layout.panels || {})) if (JSON.stringify(p).includes(`"id":"${id}"`)) return pid;
+      return "";
+    },
+    closeSettings: () => closePicker(),
+  };
+
   function toggleFullscreen() {
     const d = document.documentElement;
     if (document.fullscreenElement) document.exitFullscreen();
@@ -731,5 +824,5 @@
   window.DeckI18n.apply();
   buildPicker();
   applyTheme(store.get("theme") || "rsi");
-  if (DEMO || token) load(); else showPairing(false);
+  if (DEMO || GUEST || token) load(); else showPairing(false);
 })();
