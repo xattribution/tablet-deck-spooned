@@ -5,169 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#05090f">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Tablet Deck">
+<meta name="theme-color" content="#0A0E13">
 <title>Tablet Deck</title>
-<!-- No start_url in the manifest: the home screen app opens the address it was added from,
-     including the pairing code, so it doesn't ask for the code again. -->
+<!-- No start_url in the manifest: a home screen app opens the address it was added
+     from, pairing code included, so it never asks again. -->
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="apple-mobile-web-app-title" content="Tablet Deck">
-<!-- Theme fonts. Without internet access the tablet falls back to system fonts. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Chakra+Petch:wght@500;600;700&family=Cinzel:wght@500;700&family=Comfortaa:wght@500;700&family=Exo+2:wght@400;500;600;700&family=Marcellus&family=Montserrat:wght@500;600;700&family=Oxanium:wght@500;600;700&family=Rajdhani:wght@600;700&family=Saira+Condensed:wght@600;700&family=Saira+Stencil+One&display=swap">
-<link rel="stylesheet" href="themes.css">
-<link rel="stylesheet" href="deck.css">
-<link rel="stylesheet" href="hud.css">
-<link rel="stylesheet" href="fx.css">
-<link rel="stylesheet" href="intro.css">
-<link rel="stylesheet" href="crew.css">
+<!-- Without internet the deck falls back to system fonts. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@600;700&family=Saira+Stencil+One&family=Saira+Condensed:wght@600;700&family=Marcellus&family=Cinzel:wght@600;700&family=Exo+2:wght@600;700&family=Oxanium:wght@600;700&family=Chakra+Petch:wght@600;700&display=swap">
+<link rel="stylesheet" href="deck2.css">
 </head>
-<body class="offline">
-<header>
-  <div class="brand"><span id="brandMark"></span><h1 id="title">Tablet Deck</h1></div>
-  <div id="status"><span id="dot"></span><span id="statusText">Connecting…</span></div>
-  <button id="talk" class="hbtn js-talk" type="button">Hold to talk</button>
-  <button id="voiceHelpBtn" class="hbtn js-voice" type="button" aria-label="Voice commands list">?</button>
-  <button id="themeBtn" class="hbtn" type="button" aria-label="Deck settings"><span id="settingsIco"></span>Settings</button>
-  <button id="fs" class="hbtn" type="button">Fullscreen</button>
-</header>
-<nav id="tabs"></nav>
-<main id="grid"><div id="msg">Loading layout…</div></main>
-
-<div id="stage" hidden><div id="canvas"></div></div>
-
-<div id="intro" role="button" tabindex="0" aria-label="Tap to continue">
-  <canvas id="introStars"></canvas>
-  <div class="intro-corners"><i></i><i></i><i></i><i></i></div>
-  <div class="intro-core">
-    <div class="intro-rings"><i></i><i></i><i></i></div>
-    <div class="intro-emblem js-emblem"></div>
-  </div>
-  <h1 class="intro-title">Tablet<span>Deck</span></h1>
-  <div class="intro-sub">Star Citizen control deck</div>
-  <div class="intro-boot">
-    <div><span>› HUD systems</span><b>ONLINE</b></div>
-    <div><span>› PC uplink</span><span class="js-status">Connecting…</span></div>
-    <div><span>› Hull profile</span><span class="js-intro-maker"></span></div>
-  </div>
-  <div class="intro-tap">Tap to continue</div>
-  <div class="intro-flash"></div>
-</div>
-
-<div id="night" aria-hidden="true"></div>
-<div id="toast" role="status" aria-live="polite"></div>
-
-<div id="picker" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
-  <div class="bar"><span id="pickerTitle">Deck settings</span>
-    <div class="bar-btns"><button id="closePicker" type="button">Close</button></div></div>
-  <div class="sheet-body">
-    <div class="sheet-top">
-      <section id="crewSec" class="sheet-section">
-        <h3><b>//</b> Crew</h3>
-        <button id="afkBtn" class="sheet-switch" type="button" role="switch" aria-checked="false">
-          <span class="sw-text"><b>Away (AFK)</b><span>Opens your AFK-only share links.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
-        <button id="shareBtn" class="sheet-action" type="button">
-          <span class="sw-text"><b>Share controls…</b><span>A link a friend opens to press the buttons you pick.</span></span></button>
-        <div id="crewList"></div>
-        <button id="releaseAllBtn" class="sheet-action" type="button">
-          <span class="sw-text"><b>Release all keys</b><span>Lets go of anything stuck down on the PC.</span></span></button>
-      </section>
-      <section class="sheet-section">
-        <h3><b>//</b> Layout</h3>
-        <select id="layoutPick" aria-label="Layout"></select>
-        <p class="sheet-note">Each tablet and phone keeps its own choice.</p>
-        <h3 class="sheet-sub"><b>//</b> Language</h3>
-        <select id="langPick" aria-label="Language"></select>
-      </section>
-      <section class="sheet-section">
-        <h3><b>//</b> Display</h3>
-        <button id="nightBtn" class="sheet-switch" type="button" role="switch" aria-checked="false">
-          <span class="sw-text"><b>Night mode</b><span>Dims the deck for a dark room.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
-        <button id="largeBtn" class="sheet-switch" type="button" role="switch" aria-checked="false">
-          <span class="sw-text"><b>Large text</b><span>Bigger, bolder labels, easier to read at a glance.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
-        <button id="contrastBtn" class="sheet-switch" type="button" role="switch" aria-checked="false">
-          <span class="sw-text"><b>High contrast</b><span>Black and white with strong colours, over any theme.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
-        <button id="swipeBtn" class="sheet-switch" type="button" role="switch" aria-checked="false">
-          <span class="sw-text"><b>Two-finger swipe</b><span>Swipe sideways over a half to flip its panels. Presses then wait a moment.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
-        <button id="lightsBtn" class="sheet-switch" type="button" role="switch" aria-checked="true">
-          <span class="sw-text"><b>Button lights</b><span>Light buttons and show ON/OFF while something is on. They follow your taps, not the game.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
-        <button id="resetStatesBtn" class="sheet-action" type="button">
-          <span class="sw-text"><b>Reset button lights</b><span>Turns all lit buttons off, e.g. after a respawn or when they don't match the game.</span></span></button>
-      </section>
-      <section id="pcLinks" class="sheet-section pc-links" hidden>
-        <h3><b>//</b> Open on PC</h3>
-        <div id="pcLinkBtns"></div>
-        <p class="sheet-note">Opens the site in your PC's browser.</p>
-      </section>
-    </div>
-    <section class="sheet-section">
-      <h3><b>//</b> Theme</h3>
-      <div id="cards" class="cards"></div>
-    </section>
-    <p class="sheet-foot">Ideas or problems? <a href="https://github.com/xattribution/tablet-deck-spooned/issues/new/choose" target="_blank" rel="noopener">Feedback &amp; ideas on GitHub</a></p>
-  </div>
-</div>
-
-<div id="inbox" aria-live="polite"></div>
-
-<div id="guestBar" hidden><span class="gb-text"></span><button class="gb-ask" type="button">Ask</button></div>
-
-<div id="shareSheet" class="td-sheet" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
-  <div class="bar"><span id="shareTitle">Share controls</span>
-    <div class="bar-btns"><button id="shareClose" type="button">Close</button></div></div>
-  <form id="shareForm" class="td-body share-form" novalidate>
-    <label for="shareName">For</label>
-    <input id="shareName" maxlength="32" autocomplete="off" placeholder="e.g. Mike">
-    <label>What</label>
-    <div id="sharePanels" class="chips"></div>
-    <label>How long</label>
-    <div id="shareTime" class="chips"></div>
-    <button id="shareAfk" class="sheet-switch" type="button" role="switch" aria-checked="false">
-      <span class="sw-text"><b>Only while I'm AFK</b><span>The link waits until you turn on Away.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
-    <button class="td-primary" type="submit">Create link</button>
-  </form>
-  <div class="td-body share-done">
-    <canvas id="shareQR" width="260" height="260"></canvas>
-    <div class="share-out">
-      <code id="shareLink"></code>
-      <p id="shareWhere" class="sheet-note"></p>
-      <div class="chips"><button id="shareCopy" class="td-primary" type="button">Copy link</button><button id="shareSend" class="chip" type="button">Send…</button></div>
-    </div>
-  </div>
-</div>
-
-<div id="askSheet" class="td-sheet ask" role="dialog" aria-modal="true" aria-labelledby="askTitle">
-  <div class="bar"><span id="askTitle">Ask</span>
-    <div class="bar-btns"><button id="askClose" type="button">Close</button></div></div>
-  <div class="td-body">
-    <div id="askQuick" class="chips"></div>
-    <form id="askForm" class="ask-form"><input id="askText" maxlength="140" autocomplete="off" placeholder="Or type a message"><button class="td-primary" type="submit">Send</button></form>
-  </div>
-</div>
-
-<div id="voiceHelp" role="dialog" aria-label="Voice commands">
-  <div class="bar"><span>Voice commands</span>
-    <div class="bar-btns"><button id="closeVoiceHelp" type="button">Close</button></div></div>
-  <p class="vh-intro">Hold the mic button and say one of these. Most Star Citizen controls are toggles, so "engines on" and "engines off" press the same key.</p>
-  <input id="voiceSearch" type="search" placeholder="Search, e.g. shields" autocomplete="off" autocapitalize="off" spellcheck="false">
-  <div id="voiceList"></div>
-</div>
-
-<script src="icons.js"></script>
-<script src="i18n.js"></script>
-<script src="fx.js"></script>
-<script src="canvas.js"></script>
+<body>
+<div id="app"></div>
+<div id="sheet"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="qr.js"></script>
-<script src="app.js"></script>
-<script src="crew.js"></script>
-<script src="intro.js"></script>
+<script src="deck2.js"></script>
 <script src="awake.js"></script>
 <script>
-  // Offline shell and quicker starts where browsers allow a service worker (https, e.g.
-  // a share link through a tunnel, or localhost).
+  // Quicker starts and an offline shell where browsers allow a service worker
+  // (https: a share link through a tunnel, or localhost).
   if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
 </script>
 </body>

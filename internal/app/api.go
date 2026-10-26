@@ -141,11 +141,7 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 
 	case route == "grants" && method == http.MethodGet:
-		out := []map[string]any{}
-		for _, g := range a.Store.State().Grants {
-			out = append(out, a.grantView(g))
-		}
-		writeJSON(w, 200, out)
+		writeJSON(w, 200, a.grantList())
 	case route == "grants" && method == http.MethodPost:
 		var spec GrantSpec
 		if !decode(&spec) {
@@ -403,6 +399,16 @@ func (a *App) unpair(id string) {
 		}
 	})
 	a.Bus.Publish("devices", nil)
+}
+
+func (a *App) grantList() []map[string]any {
+	out := []map[string]any{}
+	for _, g := range a.Store.State().Grants {
+		if g.Live(time.Now()) {
+			out = append(out, a.grantView(g))
+		}
+	}
+	return out
 }
 
 func (a *App) grantView(g config.Grant) map[string]any {

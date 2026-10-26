@@ -122,6 +122,7 @@ type catalog struct {
 	stamp    string
 	controls []*Control
 	byID     map[string]*Control
+	ofButton map[string]*Control // "layout file|button id" -> its control
 }
 
 // Catalog returns every control, built from all layouts with the current keybinds.
@@ -219,6 +220,7 @@ func (a *App) Catalog() ([]*Control, map[string]*Control) {
 
 	var out []*Control
 	byID := map[string]*Control{}
+	ofButton := map[string]*Control{}
 	for _, key := range order {
 		cs := merged[key]
 		// The clearest label: no "(cinematic)" asides, and the longest ("Shields Back"
@@ -289,6 +291,9 @@ func (a *App) Catalog() ([]*Control, map[string]*Control) {
 		}
 		c.Button = &b
 		byID[id] = c
+		for _, x := range cs {
+			ofButton[x.layout+"|"+x.b.ID] = c
+		}
 		out = append(out, c)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -296,8 +301,85 @@ func (a *App) Catalog() ([]*Control, map[string]*Control) {
 		gj, _ := groupByID(out[j].Group)
 		return gi.Order < gj.Order
 	})
-	a.cat.controls, a.cat.byID, a.cat.stamp = out, byID, stamp
+	a.cat.controls, a.cat.byID, a.cat.ofButton, a.cat.stamp = out, byID, ofButton, stamp
 	return out, byID
+}
+
+// ControlOf returns the catalog control a layout's button belongs to.
+func (a *App) ControlOf(l *layout.Layout, buttonID string) *Control {
+	a.Catalog()
+	a.cat.mu.Lock()
+	defer a.cat.mu.Unlock()
+	return a.cat.ofButton[l.File+"|"+buttonID]
+}
+
+// ButtonsFor maps catalog groups and controls onto a layout's button ids, for share
+// links (which work on a layout's buttons).
+func (a *App) ButtonsFor(l *layout.Layout, groupIDs, controlRefs []string) []string {
+	wantG := map[string]bool{}
+	for _, g := range groupIDs {
+		wantG[g] = true
+	}
+	wantC := map[string]bool{}
+	for _, ref := range controlRefs {
+		if c := a.FindControl(ref); c != nil {
+			wantC[c.ID] = true
+		}
+	}
+	var out []string
+	for _, id := range l.Order {
+		if c := a.ControlOf(l, id); c != nil && (wantG[c.Group] || wantC[c.ID]) {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// GuestGroups lays a share link's layout out by group, marking what the guest may press.
+func (a *App) GuestGroups(l *layout.Layout, g *config.Grant, states map[string]bool) []map[string]any {
+	type entry struct {
+		group    Group
+		controls []map[string]any
+	}
+	by := map[string]*entry{}
+	seen := map[string]bool{}
+	for _, id := range l.Order {
+		b := l.Buttons[id]
+		c := a.ControlOf(l, id)
+		if c == nil || seen[c.ID] {
+			continue
+		}
+		seen[c.ID] = true
+		e := by[c.Group]
+		if e == nil {
+			gr, _ := groupByID(c.Group)
+			e = &entry{group: gr}
+			by[c.Group] = e
+		}
+		m := map[string]any{"id": b.ID, "label": c.Label, "keys": c.Keys, "mode": c.Mode, "locked": !grantCovers(g, b), "danger": c.Danger}
+		if c.State != nil {
+			m["state"] = c.State
+		}
+		e.controls = append(e.controls, m)
+	}
+	var out []map[string]any
+	for _, gr := range groups {
+		if e := by[gr.ID]; e != nil {
+			out = append(out, map[string]any{"id": gr.ID, "code": gr.Code, "name": gr.Name, "controls": e.controls})
+		}
+	}
+	// Groups with something shared come first.
+	sort.SliceStable(out, func(i, j int) bool { return sharedIn(out[i]) && !sharedIn(out[j]) })
+	return out
+}
+
+func sharedIn(g map[string]any) bool {
+	for _, c := range g["controls"].([]map[string]any) {
+		if c["locked"] == false {
+			return true
+		}
+	}
+	return false
 }
 
 // FindControl finds a control by id, label, Star Citizen action or voice phrase.

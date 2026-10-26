@@ -2,9 +2,7 @@
 // still opens when the PC is briefly away. Layouts, pairing and presses always go to
 // the PC. __VERSION__ is filled in by the server, so a new version replaces the cache.
 const CACHE = "tabletdeck-__VERSION__";
-const SHELL = ["/", "/index.html", "/themes.css", "/deck.css", "/hud.css", "/fx.css", "/intro.css", "/crew.css",
-  "/icons.js", "/i18n.js", "/fx.js", "/canvas.js", "/qr.js", "/app.js", "/crew.js", "/intro.js", "/awake.js",
-  "/icon.svg", "/icon-192.png", "/manifest.webmanifest"];
+const SHELL = ["/", "/index.html", "/deck2.css", "/deck2.js", "/qr.js", "/awake.js", "/icon.svg", "/icon-192.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

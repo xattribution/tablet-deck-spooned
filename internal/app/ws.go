@@ -51,7 +51,10 @@ type msg struct {
 	Panels []string `json:"panels,omitempty"`
 	Btns   []string `json:"buttons,omitempty"`
 	Ms     int      `json:"ms,omitempty"`
-	Result string   `json:"result,omitempty"`
+	Result   string   `json:"result,omitempty"`
+	Groups   []string `json:"groups,omitempty"`
+	Controls []string `json:"controls,omitempty"`
+	NoHold   bool     `json:"tapsOnly,omitempty"`
 }
 
 func (c *client) send(v any) {
@@ -141,6 +144,9 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request, guestListener boo
 	a.clientsMu.Unlock()
 	a.Log.Printf("%s connected (%s).", c.describe(), remoteIP(r))
 	a.Bus.Publish("clients", a.clientSummary())
+	if c.p.grant != nil && a.crew != nil {
+		a.crew.changed() // owners' crew lists show who's on their links
+	}
 	c.send(a.helloFor(c))
 
 	go func() { // writer
@@ -187,6 +193,9 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request, guestListener boo
 	a.clientsMu.Unlock()
 	a.Log.Printf("%s disconnected.", c.describe())
 	a.Bus.Publish("clients", a.clientSummary())
+	if c.p.grant != nil && a.crew != nil {
+		a.crew.changed()
+	}
 }
 
 func (c *client) describe() string {
@@ -412,7 +421,7 @@ func (a *App) helloFor(c *client) map[string]any {
 			}
 		}
 		h["guest"] = map[string]any{"label": g.Label, "expires": g.Expires, "afkOnly": g.AfkOnly, "noHold": g.NoHold,
-			"allowed": allowed, "buttons": a.buttonList(c.layout, allowed)}
+			"allowed": allowed, "buttons": a.buttonList(c.layout, allowed), "groups": a.GuestGroups(c.layout, g, nil)}
 		h["voice"] = false
 		h["voiceStatus"] = map[string]any{"state": "off"}
 		return h
@@ -420,6 +429,7 @@ func (a *App) helloFor(c *client) map[string]any {
 	h["voice"] = cfg.Voice
 	h["voiceStatus"] = a.voice.status()
 	h["views"] = a.Views()
+	h["grants"] = a.grantList()
 	h["groups"] = groups
 	h["requests"] = a.reqs.open()
 	h["crew"] = a.crew.summary()
@@ -488,6 +498,17 @@ func (a *App) forwardEvents(ctx context.Context) {
 				a.broadcast(map[string]any{"t": "state", "group": d["group"], "on": d["on"]})
 			case "states":
 				a.broadcast(map[string]any{"t": "states", "states": map[string]bool{}})
+			case "grants":
+				a.broadcastOwners(map[string]any{"t": "grants", "grants": a.grantList()})
+			case "agent":
+				d := ev.Data.(map[string]any)
+				a.broadcastOwners(map[string]any{"t": "agent", "tool": d["tool"], "ok": d["ok"]})
+			case "press":
+				d := ev.Data.(map[string]any)
+				if ok, _ := d["ok"].(bool); ok {
+					src, _ := d["src"].(deck.Source)
+					a.broadcastOwners(map[string]any{"t": "pressed", "label": d["label"], "keys": d["keys"], "who": src.Who, "kind": src.Kind})
+				}
 			}
 		}
 	}

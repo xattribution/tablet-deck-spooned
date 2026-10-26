@@ -140,8 +140,13 @@ func (a *App) GrantLinks(g config.Grant) map[string]string {
 
 // shareFromDeck makes a share link from a tablet's Share sheet.
 func (a *App) shareFromDeck(c *client, m msg) {
-	g, err := a.CreateGrant(GrantSpec{Label: m.Label, Layout: c.layout.File, Minutes: m.Mins, All: m.All,
-		Panels: m.Panels, Buttons: m.Btns, AfkOnly: m.AFK})
+	spec := GrantSpec{Label: m.Label, Layout: c.layout.File, Minutes: m.Mins, All: m.All,
+		Panels: m.Panels, Buttons: m.Btns, AfkOnly: m.AFK, NoHold: m.NoHold}
+	// The deck shares by group and catalog control; map them onto its layout's buttons.
+	if len(m.Groups) > 0 || len(m.Controls) > 0 {
+		spec.Buttons = append(spec.Buttons, a.ButtonsFor(c.layout, m.Groups, m.Controls)...)
+	}
+	g, err := a.CreateGrant(spec)
 	if err != nil {
 		c.send(map[string]any{"t": "toast", "text": err.Error()})
 		return

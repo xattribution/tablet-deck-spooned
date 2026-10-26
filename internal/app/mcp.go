@@ -304,29 +304,7 @@ var mcpTools = []tool{
 			spec := GrantSpec{Label: argStr(args, "for"), Minutes: argNum(args, "minutes"), All: argBool(args, "all"),
 				AfkOnly: argBool(args, "afk_only"), NoHold: argBool(args, "taps_only")}
 			// Share links work on the tablet layout's buttons: map groups and controls onto them.
-			want := map[string]bool{}
-			for _, g := range argStrs(args, "groups") {
-				all, _ := a.Catalog()
-				for _, c := range all {
-					if c.Group == g {
-						want[c.Keys+"|"+strings.ToLower(c.Label)] = true
-					}
-				}
-			}
-			for _, ref := range argStrs(args, "controls") {
-				if c := a.FindControl(ref); c != nil {
-					want[c.Keys+"|"+strings.ToLower(c.Label)] = true
-				}
-			}
-			for _, id := range l.Order {
-				b := l.Buttons[id]
-				for k := range want {
-					if strings.HasPrefix(k, b.Keys+"|") {
-						spec.Buttons = append(spec.Buttons, id)
-						break
-					}
-				}
-			}
+			spec.Buttons = a.ButtonsFor(l, argStrs(args, "groups"), argStrs(args, "controls"))
 			if !spec.All && len(spec.Buttons) == 0 {
 				return nil, fmt.Errorf("none of those are on the tablet layout; share groups, controls or all")
 			}
