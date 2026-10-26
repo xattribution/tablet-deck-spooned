@@ -107,11 +107,11 @@ func run(args []string, tray bool) {
 	logger := newLogger(dir, !tray)
 	a, err := app.New(app.Options{DryRun: *dry, DataDir: dir, Port: *port, Log: logger})
 	if err != nil {
-		fail(dir, err)
+		fail(dir, err, tray)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := a.Start(ctx); err != nil {
-		fail(dir, err)
+		fail(dir, err, tray)
 	}
 	_ = winapp.RegisterLinks()
 	cfg := a.Store.Config()
@@ -182,11 +182,13 @@ func newLogger(dir string, console bool) *log.Logger {
 	return log.New(w, "", log.LstdFlags)
 }
 
-func fail(dir string, err error) {
+func fail(dir string, err error, tray bool) {
 	msg := err.Error()
 	_ = os.WriteFile(filepath.Join(dir, "crash.log"), []byte(time.Now().Format(time.RFC3339)+" "+msg+"\n"), 0o644)
 	fmt.Fprintln(os.Stderr, msg)
-	winapp.Message("Tablet Deck", "Tablet Deck couldn't start:\n\n"+msg)
+	if tray { // a console run ("serve") reports on the console and in crash.log only
+		winapp.Message("Tablet Deck", "Tablet Deck couldn't start:\n\n"+msg)
+	}
 	os.Exit(1)
 }
 

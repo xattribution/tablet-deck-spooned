@@ -3,6 +3,7 @@
 package config
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -163,6 +164,7 @@ func Open(dir string) (*Store, error) {
 	cfg := defaults()
 	raw, err := os.ReadFile(s.configPath())
 	if err == nil {
+		raw = bytes.TrimPrefix(raw, []byte("\xef\xbb\xbf")) // Notepad and PowerShell add a byte-order mark
 		if err := json.Unmarshal(raw, &cfg); err != nil {
 			return nil, fmt.Errorf("config.json: %w", err)
 		}
@@ -188,7 +190,7 @@ func Open(dir string) (*Store, error) {
 	}
 	s.cfg = cfg
 	if raw, err := os.ReadFile(s.statePath()); err == nil {
-		_ = json.Unmarshal(raw, &s.state)
+		_ = json.Unmarshal(bytes.TrimPrefix(raw, []byte("\xef\xbb\xbf")), &s.state)
 	}
 	if s.state.InstanceID == "" {
 		s.state.InstanceID = RandomHex(8)
