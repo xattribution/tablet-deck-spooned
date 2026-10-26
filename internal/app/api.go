@@ -15,6 +15,7 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 
 	tabletdeck "github.com/xattribution/tablet-deck-spooned"
+	"github.com/xattribution/tablet-deck-spooned/internal/audio"
 	"github.com/xattribution/tablet-deck-spooned/internal/config"
 	"github.com/xattribution/tablet-deck-spooned/internal/deck"
 	"github.com/xattribution/tablet-deck-spooned/internal/keys"
@@ -257,6 +258,40 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 			return
 		}
 		writeJSON(w, 200, map[string]any{"ok": true, "written": written})
+
+	case route == "voice" && method == http.MethodGet:
+		if !localOnly() {
+			return
+		}
+		m := a.FindSpeechModels()
+		out := map[string]any{"status": a.voice.status(), "models": m, "voices": m.VoiceNames(),
+			"mics": audio.Inputs(), "speakers": audio.Outputs(), "commands": len(a.voice.Commands())}
+		if n := a.voice.Native(); n != nil {
+			out["engine"] = "native"
+			out["recognizer"] = n.rec.Name()
+			out["level"] = n.lis.Level()
+		} else {
+			out["engine"] = map[bool]string{true: "windows", false: ""}[a.voice.status()["state"] == "ready"]
+		}
+		writeJSON(w, 200, out)
+	case route == "voice/say" && method == http.MethodPost:
+		if !localOnly() {
+			return
+		}
+		var body struct{ Text, Voice string }
+		if !decode(&body) {
+			return
+		}
+		n := a.voice.Native()
+		if n == nil || n.sp == nil {
+			jsonErr(w, 409, "Spoken replies need the native voice engine and a Pocket TTS model.")
+			return
+		}
+		if body.Voice != "" {
+			_ = n.sp.SetVoice(body.Voice)
+		}
+		n.announce(body.Text)
+		writeJSON(w, 200, map[string]any{"ok": true})
 
 	case route == "tunnel" && method == http.MethodPost:
 		if !localOnly() {

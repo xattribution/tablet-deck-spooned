@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en" data-theme="rsi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tablet Deck</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="deck2.css">
+<style>
+  html, body { height: auto; min-height: 100%; }
+  body { overflow: auto; user-select: text; -webkit-user-select: text; }
+  .wrap { display: flex; flex-wrap: wrap; align-items: stretch; min-height: calc(100vh - 52px); }
+  nav.side { flex: 1 1 200px; max-width: 240px; border-right: 1px solid var(--line); padding: 12px 0; position: sticky; top: 0; align-self: flex-start; }
+  nav.side a { display: flex; justify-content: space-between; align-items: center; height: 44px; padding: 0 20px; color: var(--text); text-decoration: none;
+    font-family: var(--label); font-size: 16px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  nav.side a[aria-current="true"] { background: var(--accent); color: var(--on-accent); }
+  main { flex: 999 1 640px; min-width: 0; padding: 20px 24px 40px; display: flex; flex-direction: column; gap: 28px; }
+  section { display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 12px; }
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); border: 1px solid var(--line); }
+  .readouts > div { padding: 14px 16px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+  .readouts > div:last-child { border-right: 0; }
+  .readouts .lbl { font-family: var(--label); font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+  .readouts .val { font-family: var(--label); font-size: 26px; font-weight: 700; text-transform: uppercase; }
+  .readouts .sub { font-family: var(--mono); font-size: 11px; color: var(--dim); text-transform: uppercase; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 28px; }
+  .kv { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 10px 14px; align-items: center; }
+  .kv > .k1 { font-family: var(--mono); font-size: 11px; color: var(--dim); text-transform: uppercase; }
+  .kv .field, .kv select { height: 40px; font-size: 15px; }
+  select.field { padding: 0 8px; }
+  .inline { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font: 400 11px var(--mono); color: var(--dim); padding: 8px 10px; border-bottom: 1px solid var(--line); text-transform: uppercase; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); }
+  td.mono { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+  .tbl { overflow-x: auto; }
+  .meter { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 2px; height: 14px; }
+  .meter i { background: var(--line-soft); }
+  .meter i.on { background: var(--good); } .meter i.hot { background: var(--caution); }
+  .log { font-family: var(--mono); font-size: 12px; max-height: 360px; overflow-y: auto; }
+  .log div { display: grid; grid-template-columns: 70px 76px minmax(0, 1fr); gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line-soft); }
+  .log .t { color: var(--dim); }
+  pre.snippet { margin: 0; padding: 12px; border: 1px solid var(--line); background: var(--panel); font: 12px/1.5 var(--mono); overflow-x: auto; }
+  .info { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; border: 1px solid var(--line); color: var(--dim);
+    font: 600 10px var(--mono); cursor: help; margin-left: 6px; vertical-align: 1px; }
+  .seg.small button { height: 38px; font-size: 13px; }
+  .qr { width: 160px; height: 160px; }
+  .err { color: var(--danger-text); font-family: var(--mono); font-size: 12px; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><i></i><b>Tablet Deck</b></div>
+  <span class="readout" id="ver"></span>
+  <span class="spacer"></span>
+  <button type="button" class="tbtn" id="touch">Touch deck on this PC</button>
+  <button type="button" class="tbtn" id="editor">Layout editor</button>
+  <button type="button" class="tbtn" id="release" style="background:var(--danger);color:#fff">Release all keys</button>
+</header>
+<div class="wrap">
+  <nav class="side" aria-label="Sections">
+    <a href="#overview" aria-current="true">Overview</a><a href="#pair">Pair a device</a><a href="#devices">Devices and crew</a>
+    <a href="#voice">Voice</a><a href="#keybinds">Keybinds</a><a href="#agents">Agents and integrations</a><a href="#settings">Settings</a><a href="#activity">Activity</a>
+  </nav>
+  <main>
+    <section id="overview" aria-label="Overview"><div class="readouts" id="readouts"></div></section>
+
+    <div class="two">
+      <section id="pair" aria-label="Pair a device">
+        <div class="gh"><span class="name">Pair a device</span><span class="rule"></span></div>
+        <div class="inline" style="align-items:flex-start;gap:18px">
+          <canvas class="qr" id="qr"></canvas>
+          <div style="display:flex;flex-direction:column;gap:10px;min-width:220px;flex:1">
+            <span class="mono" id="code" style="font-size:30px;letter-spacing:.24em"></span>
+            <label class="vh" for="addr">Address</label><select class="field" id="addr"></select>
+            <div class="inline"><button type="button" class="sbtn" id="newcode">New code</button><button type="button" class="sbtn" id="copylink">Copy link</button></div>
+            <span class="note">Paired devices stay paired when the code changes.</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="voice" aria-label="Voice">
+        <div class="gh"><span class="name">Voice</span><span class="rule"></span><span class="cat" id="vstate"></span></div>
+        <div class="kv">
+          <span class="k1">Hearing</span><span id="vrec"></span>
+          <label class="k1" for="wake">Wake word</label><input class="field" id="wake" maxlength="24">
+          <label class="k1" for="tts">Replies</label>
+          <span class="inline"><select class="field" id="tts"></select><button type="button" class="sbtn" id="ttstest">Test</button></span>
+          <span class="k1">Reply mode</span><span class="seg small" id="replies"></span>
+          <label class="k1" for="mic">Microphone</label><select class="field" id="mic"></select>
+          <span class="k1">Level</span><span class="meter" id="meter"></span>
+          <label class="k1" for="models">Models folder</label>
+          <span class="inline"><input class="field" id="models" style="flex:1" placeholder="Folder with .gguf / ggml .bin files"><button type="button" class="sbtn" id="modelssave">Use</button></span>
+          <span class="k1">Found</span><span class="note" id="vfound"></span>
+        </div>
+      </section>
+    </div>
+
+    <section id="devices" aria-label="Devices and crew">
+      <div class="gh"><span class="name">Devices and crew</span><span class="rule"></span></div>
+      <div class="tbl"><table><thead><tr><th>Name</th><th>Kind</th><th>View</th><th>Seen</th><th></th></tr></thead><tbody id="devrows"></tbody></table></div>
+      <div class="gh"><span class="name">Share links</span><span class="rule"></span></div>
+      <div id="grants"></div>
+      <div class="gh"><span class="name">Link to a crewmate's deck</span><span class="rule"></span></div>
+      <form class="inline" id="crewform"><label class="vh" for="cname">Name</label><input class="field" id="cname" placeholder="Name" style="width:160px">
+        <label class="vh" for="clink">Their share link</label><input class="field" id="clink" placeholder="Their share link (…/g/…)" style="flex:1;min-width:240px"><button class="sbtn primary" style="height:46px">Link</button></form>
+      <div id="crewlinks"></div>
+      <div class="gh"><span class="name">Decks on this network</span><span class="rule"></span></div>
+      <div id="nearby" class="note"></div>
+    </section>
+
+    <section id="keybinds" aria-label="Keybinds">
+      <div class="gh"><span class="name">Keybinds</span><span class="rule"></span></div>
+      <div class="kv" id="kb"></div>
+      <div class="inline"><button type="button" class="sbtn" id="installprofile">Install Tablet Deck keybind profile</button><span class="note" id="kbmsg"></span></div>
+    </section>
+
+    <section id="agents" aria-label="Agents and integrations">
+      <div class="gh"><span class="name">Agents and integrations</span><span class="rule"></span></div>
+      <div class="kv">
+        <span class="k1">MCP (HTTP)</span><code class="mono" id="mcpurl"></code>
+        <span class="k1">MCP (stdio)</span><code class="mono">tabletdeck mcp</code>
+        <span class="k1">API key</span><span class="inline"><code class="mono" id="apikey">••••••••••••••••</code><button type="button" class="sbtn" id="showkey">Show</button></span>
+        <span class="k1">Command line</span><code class="mono">tabletdeck press landing-gear · tabletdeck://press/landing-gear</code>
+      </div>
+      <span class="k1 note">Claude Desktop, Grok and other MCP clients</span>
+      <pre class="snippet" id="mcpjson"></pre>
+    </section>
+
+    <section id="settings" aria-label="Settings">
+      <div class="gh"><span class="name">Settings</span><span class="rule"></span></div>
+      <div class="kv">
+        <label class="k1" for="sname">Deck name</label><input class="field" id="sname" maxlength="40">
+        <span class="k1">Presses reach<span class="info" title="Strict: only while Star Citizen is in front. This PC: presses from this PC's touchscreen, Stream Deck and voice bring the game to front first; tablets stay strict. Always: every press brings the game to front. Off: keys go to whatever is in front.">i</span></span>
+        <span class="seg small" id="focus"></span>
+        <label class="k1" for="tapms">Tap length (ms)</label><input class="field" id="tapms" type="number" min="20" max="1000">
+        <label class="k1" for="gapms">Combo gap (ms)</label><input class="field" id="gapms" type="number" min="0" max="200">
+        <span class="k1">Let go on focus loss</span><button type="button" class="sw" role="switch" id="relfocus"><span>Release held keys</span><span class="mono"></span></button>
+        <span class="k1">Internet share links<span class="info" title="Runs a Cloudflare quick tunnel (no account) to the guest port only: share links work anywhere; pairing, the editor and the API stay on your network.">i</span></span>
+        <span class="inline"><button type="button" class="sw" role="switch" id="tunnel"><span>Tunnel</span><span class="mono"></span></button><button type="button" class="sbtn" id="cfinstall" hidden>Download cloudflared</button><span class="note" id="tunnelmsg"></span></span>
+        <span class="k1">Find other decks</span><button type="button" class="sw" role="switch" id="discovery"><span>Network discovery</span><span class="mono"></span></button>
+        <label class="k1" for="port">Port</label><input class="field" id="port" type="number" min="1024" max="65535">
+      </div>
+      <div class="inline"><button type="button" class="big" id="savesettings" style="padding:0 28px">Save settings</button><span class="err" id="saveerr"></span></div>
+    </section>
+
+    <section id="activity" aria-label="Activity">
+      <div class="gh"><span class="name">Activity</span><span class="rule"></span></div>
+      <div class="log" id="log"></div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="qr.js"></script>
+<script src="control.js"></script>
+</body>
+</html>
