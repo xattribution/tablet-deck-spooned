@@ -1,0 +1,627 @@
+/* Tablet Deck 3: a cockpit console, not a web page. The whole screen is one panel:
+   glass MFD panes in bezels, physical keys, lamps and engraved plates in the frame.
+   Nothing ever scrolls: the deck pages sideways, systems rise from below, comms drop
+   from above. Each manufacturer is its own panel: materials, type, wear and trim. */
+
+:root, [data-theme="rsi"] {
+  /* Textures, drawn inline so nothing loads from the network. */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --grain-dark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --wear: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='420'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='4' seed='7'/><feColorMatrix values='0 0 0 0 .8 0 0 0 0 .78 0 0 0 0 .72 0 0 0 -7 3.1'/></filter><rect width='100%' height='100%' filter='url(%23w)' opacity='.22'/></svg>");
+  --scratch: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.004 .45' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 -9 4.6'/></filter><rect width='100%' height='100%' filter='url(%23s)' opacity='.07'/></svg>");
+  --brushed: repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, rgba(0,0,0,.02) 1px 2px);
+  --scan: repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px);
+
+  /* The panel (RSI unless a theme says otherwise). */
+  --surface: #0A111C;
+  --surface-art: radial-gradient(120% 90% at 50% -10%, #17263B 0%, transparent 60%), var(--brushed), var(--grain);
+  --bezel: linear-gradient(180deg, #1E2836, #141B26);
+  --bezel-art: var(--grain);
+  --bezel-hi: rgba(255,255,255,.08);
+  --bezel-lo: rgba(0,0,0,.6);
+  --trim: #C9A54C;          /* hairline trim and plate text */
+  --pane-r: 4px;
+  --pane-clip: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  --screw: #6E7A8A;
+  --screws: 1;
+  --glass: linear-gradient(180deg, #08111D, #0B1626);
+  --glass-art: linear-gradient(rgba(76,143,214,.05) 1px, transparent 1px) 0 0 / 100% 24px;
+  --screen-r: 2px;
+  --screen-edge: rgba(201,165,76,.18);
+  --plate-font: "Exo 2", sans-serif;
+  --plate-weight: 700;
+  --plate-track: .22em;
+  --plate-color: #C9A54C;
+  --plate-shadow: 0 1px 0 rgba(0,0,0,.8);
+  --cap: linear-gradient(180deg, #243142, #1A2432);
+  --cap-hi: rgba(255,255,255,.1);
+  --cap-lo: #070B11;
+  --cap-r: 3px;
+  --cap-text: #C7D2DF;
+  --cap-font: "Barlow Condensed", sans-serif;
+  --frame-text: #8D9AAC;
+  --lamp-off: #1B2532;
+  --accent: #C9A54C;
+  --on-cat: #08101A;
+  --c-flight: #4C9BE8; --c-eng: #E8A93A; --c-combat: #E5534B; --c-def: #3CC4D6; --c-nav: #A783FF;
+  --c-ind: #7CC44E; --c-crew: #E479B9; --c-ui: #A7B2C0; --c-emerg: #FF4A3D;
+  --good: #49C27E; --caution: #F0A63A; --bad: #E5534B;
+  color-scheme: dark;
+}
+
+/* ---------- Drake: worn, bolted gunmetal, chipped hazard paint, CRT glass ---------- */
+[data-theme="drake"] {
+  --surface: #1B1C1A;
+  --surface-art: var(--wear), var(--brushed), radial-gradient(90% 70% at 30% 0%, #2B2C27 0%, transparent 70%), var(--grain);
+  --bezel: linear-gradient(180deg, #34352F, #26271F);
+  --bezel-art: var(--brushed), var(--grain);
+  --bezel-hi: rgba(255,255,240,.1);
+  --trim: #E3B21F;
+  --pane-r: 2px; --pane-clip: none;
+  --screw: #8B8A7E; --screws: 1;
+  --glass: linear-gradient(180deg, #0B140D, #0E1A11);
+  --glass-art: var(--scan);
+  --screen-edge: rgba(0,0,0,.8);
+  --plate-font: "Saira Stencil One", sans-serif; --plate-weight: 400; --plate-track: .14em;
+  --plate-color: #E3B21F; --plate-shadow: 0 1px 0 rgba(0,0,0,.9);
+  --cap: linear-gradient(180deg, #2C2D27, #1C1D18);
+  --cap-hi: rgba(255,255,230,.08); --cap-lo: #050504; --cap-r: 2px;
+  --cap-text: #E6DFC8; --cap-font: "Saira Condensed", sans-serif;
+  --frame-text: #A39E86; --accent: #E3B21F; --lamp-off: #23241E;
+  --c-flight: #6FA6CE; --c-eng: #E8B21F; --c-combat: #D3462E; --c-def: #55B3A3; --c-nav: #A58DD6;
+  --c-ind: #93B23E; --c-crew: #D486A6; --c-ui: #B5AD94; --c-emerg: #FF3D1F; --on-cat: #120F06;
+}
+/* ---------- Origin: white ceramic, smoked glass, champagne trim, thin wide type ---------- */
+[data-theme="origin"] {
+  --surface: #E9E7E1;
+  --surface-art: radial-gradient(70% 60% at 50% 0%, #FFFFFF 0%, transparent 70%), radial-gradient(60% 50% at 50% 110%, #D5D1C7 0%, transparent 70%);
+  --bezel: linear-gradient(180deg, #F7F6F2, #E4E1D9);
+  --bezel-art: none;
+  --bezel-hi: rgba(255,255,255,.9); --bezel-lo: rgba(120,110,90,.25);
+  --trim: #B9975B;
+  --pane-r: 22px; --pane-clip: none; --screws: 0;
+  --glass: linear-gradient(180deg, #17181A, #0E0F10);
+  --glass-art: linear-gradient(160deg, rgba(255,255,255,.07), transparent 38%);
+  --screen-r: 14px; --screen-edge: rgba(185,151,91,.45);
+  --plate-font: "Montserrat", sans-serif; --plate-weight: 300; --plate-track: .42em;
+  --plate-color: #6E5A36; --plate-shadow: none;
+  --cap: linear-gradient(180deg, #24262A, #1A1B1E);
+  --cap-hi: rgba(255,255,255,.12); --cap-lo: #000; --cap-r: 12px;
+  --cap-text: #E9E4D8; --cap-font: "Montserrat", sans-serif;
+  --frame-text: #7B7466; --accent: #B9975B; --lamp-off: #CFCBC1;
+  --c-flight: #7AA7DA; --c-eng: #D8B57A; --c-combat: #D0675C; --c-def: #6FB6BD; --c-nav: #A396D8;
+  --c-ind: #8DB27A; --c-crew: #CF91AF; --c-ui: #B9B4A8; --c-emerg: #E0473A; --on-cat: #121212;
+  color-scheme: light;
+}
+/* ---------- Crusader: Orison sky, frosted white glass, airy aerospace ---------- */
+[data-theme="crusader"] {
+  --surface: #BFD9F0;
+  --surface-art: radial-gradient(40% 18% at 18% 78%, rgba(255,255,255,.85), transparent 70%), radial-gradient(30% 14% at 72% 84%, rgba(255,255,255,.8), transparent 70%),
+    radial-gradient(50% 20% at 50% 100%, rgba(255,240,226,.95), transparent 70%), radial-gradient(28% 10% at 88% 22%, rgba(255,255,255,.6), transparent 70%),
+    linear-gradient(180deg, #8DBFEA 0%, #C9E1F5 55%, #F4E6D6 100%);
+  --bezel: linear-gradient(180deg, rgba(255,255,255,.72), rgba(236,244,252,.6));
+  --bezel-art: none;
+  --bezel-hi: rgba(255,255,255,1); --bezel-lo: rgba(70,110,150,.25);
+  --trim: #3E7FC1;
+  --pane-r: 16px; --pane-clip: none; --screws: 0;
+  --glass: linear-gradient(180deg, rgba(14,36,66,.86), rgba(20,48,84,.86));
+  --glass-art: linear-gradient(170deg, rgba(255,255,255,.12), transparent 45%);
+  --screen-r: 10px; --screen-edge: rgba(255,255,255,.5);
+  --plate-font: "Exo 2", sans-serif; --plate-weight: 700; --plate-track: .26em;
+  --plate-color: #1D4E86; --plate-shadow: 0 1px 0 rgba(255,255,255,.8);
+  --cap: linear-gradient(180deg, #F4F8FC, #DCE7F2);
+  --cap-hi: #fff; --cap-lo: rgba(40,70,110,.45); --cap-r: 10px;
+  --cap-text: #1D3A5C; --cap-font: "Exo 2", sans-serif;
+  --frame-text: #24507F; --accent: #2F78C4; --lamp-off: rgba(255,255,255,.55);
+  --c-flight: #2F78C4; --c-eng: #D08A1C; --c-combat: #C8443A; --c-def: #1B98A8; --c-nav: #6C55C9;
+  --c-ind: #4E8F2F; --c-crew: #B34E87; --c-ui: #5E7389; --c-emerg: #D7261B; --on-cat: #FFFFFF;
+  color-scheme: light;
+}
+/* ---------- Aegis: military graphite, chamfered plates, red flash ---------- */
+[data-theme="aegis"] {
+  --surface: #121417;
+  --surface-art: repeating-linear-gradient(135deg, transparent 0 180px, rgba(255,255,255,.025) 180px 181px), radial-gradient(80% 60% at 70% 0%, #1E2228 0%, transparent 70%), var(--grain);
+  --bezel: linear-gradient(180deg, #23272D, #191C21);
+  --trim: #C8353E;
+  --pane-r: 0; --pane-clip: polygon(22px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%, 0 22px);
+  --screw: #59606A;
+  --glass: linear-gradient(180deg, #0B0D10, #101317); --glass-art: none; --screen-edge: rgba(200,53,62,.25);
+  --plate-font: "Rajdhani", sans-serif; --plate-weight: 700; --plate-track: .2em; --plate-color: #E5E8EC;
+  --cap: linear-gradient(180deg, #2A2F36, #1E2228); --cap-r: 0;
+  --cap-text: #DDE1E6; --cap-font: "Rajdhani", sans-serif; --accent: #C8353E; --frame-text: #8E959F;
+}
+/* ---------- Anvil: olive drab paint over rivets, amber MFD glass ---------- */
+[data-theme="anvil"] {
+  --surface: #2E3326;
+  --surface-art: var(--wear), radial-gradient(circle at 10px 10px, rgba(0,0,0,.35) 2px, transparent 3px) 0 0 / 60px 60px, var(--grain);
+  --bezel: linear-gradient(180deg, #3D4432, #2E3426);
+  --bezel-art: var(--brushed), var(--grain);
+  --trim: #D9A24A; --pane-r: 3px; --pane-clip: none; --screw: #7D8468;
+  --glass: linear-gradient(180deg, #120E06, #18120A); --glass-art: var(--scan); --screen-edge: rgba(0,0,0,.7);
+  --plate-font: "Saira Condensed", sans-serif; --plate-weight: 700; --plate-track: .2em; --plate-color: #E7D9A8;
+  --cap: linear-gradient(180deg, #353B2C, #262B20); --cap-r: 3px; --cap-text: #E6E4D3;
+  --cap-font: "Saira Condensed", sans-serif; --accent: #D9A24A; --frame-text: #B4B49A; --lamp-off: #2A2F22;
+  --c-flight: #79A7C9; --c-eng: #E0A43C; --c-combat: #D24F38; --c-ind: #A3B84A;
+}
+/* ---------- MISC: Musashi industrial, teal panels on warm grey, orange trim ---------- */
+[data-theme="misc"] {
+  --surface: #B9BCB6;
+  --surface-art: linear-gradient(180deg, rgba(255,255,255,.25), transparent 40%), repeating-linear-gradient(90deg, transparent 0 240px, rgba(0,0,0,.06) 240px 242px), var(--grain-dark);
+  --bezel: linear-gradient(180deg, #1F5C61, #184B4F);
+  --bezel-hi: rgba(255,255,255,.18); --trim: #E9772E;
+  --pane-r: 12px; --pane-clip: none; --screw: #A9C3C0;
+  --glass: linear-gradient(180deg, #0B1E20, #0E2628); --glass-art: none; --screen-r: 8px; --screen-edge: rgba(233,119,46,.35);
+  --plate-font: "Chakra Petch", sans-serif; --plate-weight: 700; --plate-track: .16em; --plate-color: #F2E6D8;
+  --cap: linear-gradient(180deg, #2B4A4D, #1E3638); --cap-r: 8px; --cap-text: #E3EEEC; --cap-font: "Chakra Petch", sans-serif;
+  --accent: #E9772E; --frame-text: #3C4442; --lamp-off: #9DA19A; color-scheme: light;
+}
+/* ---------- Argo: utility yellow chassis, blocky numbered modules ---------- */
+[data-theme="argo"] {
+  --surface: #161616;
+  --surface-art: repeating-linear-gradient(-45deg, rgba(242,193,78,.06) 0 22px, transparent 22px 44px), var(--grain);
+  --bezel: linear-gradient(180deg, #F2C14E, #D9A931); --bezel-hi: rgba(255,255,255,.4); --bezel-lo: rgba(0,0,0,.5);
+  --trim: #111; --pane-r: 4px; --pane-clip: none; --screw: #5B4A1A;
+  --glass: linear-gradient(180deg, #121212, #191919); --glass-art: none; --screen-edge: rgba(0,0,0,.9);
+  --plate-font: "Chakra Petch", sans-serif; --plate-weight: 700; --plate-track: .14em; --plate-color: #141414; --plate-shadow: 0 1px 0 rgba(255,255,255,.35);
+  --cap: linear-gradient(180deg, #2A2A2A, #1D1D1D); --cap-r: 4px; --cap-text: #EDEDED; --cap-font: "Chakra Petch", sans-serif;
+  --accent: #F2C14E; --frame-text: #BDBDBD;
+}
+/* ---------- Consolidated Outland: frontier cream, retro triple stripe ---------- */
+[data-theme="cnou"] {
+  --surface: #E7DFD0;
+  --surface-art: radial-gradient(80% 60% at 50% 0%, #F6F0E4, transparent 70%), var(--grain-dark);
+  --bezel: linear-gradient(180deg, #3A302A, #2A221E); --bezel-hi: rgba(255,240,220,.12);
+  --trim: #E2662F; --pane-r: 8px; --pane-clip: none; --screw: #8C7A6C;
+  --glass: linear-gradient(180deg, #171210, #1D1714); --glass-art: none; --screen-r: 4px; --screen-edge: rgba(226,102,47,.3);
+  --plate-font: "Saira Condensed", sans-serif; --plate-weight: 700; --plate-track: .22em; --plate-color: #F3E7D6;
+  --cap: linear-gradient(180deg, #3B322C, #2B2420); --cap-r: 6px; --cap-text: #F3E7D6; --cap-font: "Saira Condensed", sans-serif;
+  --accent: #E2662F; --frame-text: #6E5E4E; --lamp-off: #CDBFA9; color-scheme: light;
+}
+/* ---------- Banu: living bronze, organic shells, glitching merchant glyphs ---------- */
+[data-theme="banu"] {
+  --surface: #23170E;
+  --surface-art: radial-gradient(45% 35% at 15% 20%, rgba(214,129,43,.28), transparent 70%), radial-gradient(40% 40% at 85% 80%, rgba(170,54,140,.25), transparent 70%),
+    radial-gradient(30% 30% at 60% 30%, rgba(40,190,170,.14), transparent 70%), var(--wear), var(--grain);
+  --bezel: linear-gradient(160deg, #6B4A27, #3F2A16 60%, #5A3A1E); --bezel-hi: rgba(255,214,150,.25);
+  --trim: #E8A04A; --pane-r: 34px 8px 28px 12px; --pane-clip: none; --screws: 0;
+  --glass: radial-gradient(120% 120% at 20% 0%, #2A1438, #12081B 70%); --glass-art: none; --screen-r: 26px 6px 22px 10px; --screen-edge: rgba(232,160,74,.35);
+  --plate-font: "Cinzel", serif; --plate-weight: 700; --plate-track: .18em; --plate-color: #F6D9A8;
+  --cap: radial-gradient(120% 100% at 30% 10%, #4A2E52, #281531); --cap-r: 16px 6px 14px 8px; --cap-text: #F3E4CF; --cap-font: "Cinzel", serif;
+  --accent: #E8A04A; --frame-text: #C9A47C; --lamp-off: #3A2716;
+  --c-flight: #33D1C4; --c-eng: #F2B33D; --c-combat: #FF4F7B; --c-def: #7AE0FF; --c-nav: #C77DFF;
+  --c-ind: #A6E22E; --c-crew: #FF8ED4; --c-ui: #D8C6A0; --c-emerg: #FF2E4D; --on-cat: #1A0D14;
+}
+/* ---------- Aopoa (Xi'an): pearl and jade, flowing asymmetric shells ---------- */
+[data-theme="aopoa"] {
+  --surface: #DDE9E3;
+  --surface-art: radial-gradient(120% 60% at 0% 100%, rgba(122,211,176,.35), transparent 60%), radial-gradient(90% 50% at 100% 0%, rgba(255,255,255,.9), transparent 60%),
+    repeating-radial-gradient(ellipse at 50% 140%, transparent 0 60px, rgba(31,110,90,.06) 60px 61px);
+  --bezel: linear-gradient(160deg, #F6FBF8, #CFE3DA); --bezel-hi: #fff; --bezel-lo: rgba(30,90,70,.25);
+  --trim: #1F7A62; --pane-r: 40px 4px 40px 4px; --pane-clip: none; --screws: 0;
+  --glass: linear-gradient(170deg, #0D2A24, #08201B); --glass-art: none; --screen-r: 30px 3px 30px 3px; --screen-edge: rgba(122,211,176,.5);
+  --plate-font: "Oxanium", sans-serif; --plate-weight: 700; --plate-track: .34em; --plate-color: #135443; --plate-shadow: none;
+  --cap: linear-gradient(170deg, #17413A, #0F2E28); --cap-r: 18px 3px 18px 3px; --cap-text: #D9F2EA; --cap-font: "Oxanium", sans-serif;
+  --accent: #1F7A62; --frame-text: #2B6656; --lamp-off: #BFD6CC;
+  --c-flight: #5FC8F0; --c-eng: #F0C35F; --c-combat: #FF6B6B; --c-def: #7AF0D0; --c-nav: #B79CFF; --c-ind: #B6E86A; --c-crew: #FF9FD2; --c-ui: #BFD6CC; --on-cat: #062019;
+  color-scheme: light;
+}
+/* ---------- Esperia (Tevarin): night plum, crescents, coral ---------- */
+[data-theme="esperia"] {
+  --surface: #120B1C;
+  --surface-art: radial-gradient(70% 70% at 110% 50%, transparent 58%, rgba(255,122,92,.18) 59%, transparent 61%), radial-gradient(60% 60% at -10% 40%, transparent 57%, rgba(168,139,255,.16) 58%, transparent 60%),
+    radial-gradient(70% 50% at 50% 0%, #2A1A40, transparent 70%), var(--grain);
+  --bezel: linear-gradient(180deg, #2A1E3D, #1B1329); --bezel-hi: rgba(200,170,255,.15);
+  --trim: #FF7A5C; --pane-r: 26px 2px 26px 2px; --pane-clip: none; --screws: 0;
+  --glass: linear-gradient(180deg, #0C0714, #120A1E); --glass-art: none; --screen-r: 20px 2px 20px 2px; --screen-edge: rgba(255,122,92,.3);
+  --plate-font: "Oxanium", sans-serif; --plate-weight: 700; --plate-track: .3em; --plate-color: #FFB4A0;
+  --cap: linear-gradient(180deg, #2A1F3E, #1D152C); --cap-r: 14px 2px 14px 2px; --cap-text: #EDE6FF; --cap-font: "Oxanium", sans-serif;
+  --accent: #FF7A5C; --frame-text: #A893C9; --lamp-off: #2A1F3B;
+  --c-flight: #79B8FF; --c-eng: #FFC56B; --c-combat: #FF5C7A; --c-def: #6FF0E0; --c-nav: #C9A2FF; --c-ind: #A8E66B; --c-crew: #FF8FD8; --on-cat: #140A1E;
+}
+
+[data-cat="flight"] { --cat: var(--c-flight); } [data-cat="eng"] { --cat: var(--c-eng); } [data-cat="combat"] { --cat: var(--c-combat); }
+[data-cat="def"] { --cat: var(--c-def); } [data-cat="nav"] { --cat: var(--c-nav); } [data-cat="ind"] { --cat: var(--c-ind); }
+[data-cat="crew"] { --cat: var(--c-crew); } [data-cat="ui"] { --cat: var(--c-ui); } [data-cat="emerg"] { --cat: var(--c-emerg); }
+
+/* ---------- the console ---------- */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--surface); }
+body { font-family: "Barlow", system-ui, sans-serif; color: var(--cap-text); user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+svg.i { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+
+#console { position: fixed; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) 34px; gap: 6px;
+  padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  background: var(--surface-art), var(--surface); touch-action: none; }
+.viewport { position: relative; overflow: hidden; min-height: 0; }
+.pages { display: flex; height: 100%; will-change: transform; transition: transform .38s cubic-bezier(.2,.8,.2,1); }
+.pages.dragging { transition: none; }
+.page { flex: 0 0 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+.prow { display: flex; justify-content: center; }
+
+/* A pane: a bezel with a plate and a glass screen of keys. */
+.pane { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; padding: 10px 12px 12px;
+  background: var(--bezel-art, none), var(--bezel); border-radius: var(--pane-r); clip-path: var(--pane-clip);
+  box-shadow: inset 0 1px 0 var(--bezel-hi), inset 0 -2px 0 var(--bezel-lo), 0 10px 24px rgba(0,0,0,.35); }
+.pane::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: var(--screws);
+  background:
+    radial-gradient(circle at 9px 9px, var(--screw) 0 2.6px, rgba(0,0,0,.6) 3px, transparent 3.6px),
+    radial-gradient(circle at calc(100% - 9px) 9px, var(--screw) 0 2.6px, rgba(0,0,0,.6) 3px, transparent 3.6px),
+    radial-gradient(circle at 9px calc(100% - 9px), var(--screw) 0 2.6px, rgba(0,0,0,.6) 3px, transparent 3.6px),
+    radial-gradient(circle at calc(100% - 9px) calc(100% - 9px), var(--screw) 0 2.6px, rgba(0,0,0,.6) 3px, transparent 3.6px); }
+.plate { display: flex; align-items: center; gap: 10px; min-height: 22px; padding: 0 14px; }
+.plate .lamp { flex: none; width: 10px; height: 10px; background: var(--cat); box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), inset 0 2px 2px rgba(255,255,255,.35); }
+.plate .nm { font-family: var(--plate-font); font-weight: var(--plate-weight); font-size: 13px; letter-spacing: var(--plate-track); text-transform: uppercase;
+  color: var(--plate-color); text-shadow: var(--plate-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plate .no { margin-left: auto; font: 500 10px "IBM Plex Mono", monospace; color: var(--frame-text); letter-spacing: .1em; }
+.screen { position: relative; flex: 1; min-height: 0; border-radius: var(--screen-r); padding: var(--sp, 10px);
+  background: var(--glass-art), var(--glass); box-shadow: inset 0 2px 10px rgba(0,0,0,.65), inset 0 0 0 1px var(--screen-edge);
+  display: grid; align-content: center; justify-content: center; grid-template-columns: repeat(var(--kc), var(--ks)); grid-auto-rows: var(--ks); gap: var(--kg, 10px); }
+.screen::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(158deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 30%, transparent 46%); }
+
+/* A key: a physical cap with its icon centred, the label engraved under it. */
+.k { position: relative; width: var(--ks); height: var(--ks); border-radius: var(--cap-r); overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--ks) * .05);
+  background: var(--cap); color: var(--cap-text);
+  box-shadow: inset 0 1px 0 var(--cap-hi), inset 0 -3px 0 rgba(0,0,0,.35), 0 3px 0 var(--cap-lo), 0 5px 10px rgba(0,0,0,.4);
+  transition: transform .06s, box-shadow .06s; }
+.k .ic { width: calc(var(--ks) * .4); height: calc(var(--ks) * .4); color: var(--cat); }
+.k .ic svg { width: 100%; height: 100%; stroke-width: 3; }
+.k .l { max-width: 92%; font-family: var(--cap-font); font-weight: 700; font-size: clamp(9px, calc(var(--ks) * .105), 15px); line-height: 1.05;
+  letter-spacing: .05em; text-transform: uppercase; text-align: center; opacity: .92;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.k .led { position: absolute; top: 6px; left: 50%; width: 30%; height: 3px; transform: translateX(-50%); background: rgba(0,0,0,.45); }
+.k .bd { position: absolute; top: 5px; right: 6px; font: 600 10px "IBM Plex Mono", monospace; color: var(--cap-text); opacity: .8; }
+.k .hd { position: absolute; bottom: 4px; right: 6px; font: 600 9px "IBM Plex Mono", monospace; letter-spacing: .08em; color: var(--cat); opacity: .9; }
+.k .kb { position: absolute; bottom: 4px; left: 6px; font: 500 9px "IBM Plex Mono", monospace; opacity: .55; text-transform: uppercase; }
+.k.state .led { background: rgba(0,0,0,.55); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+/* Lit: the whole cap is backlit in its system's colour, like an illuminated pushbutton. */
+.k.on { background: var(--cat); color: var(--on-cat); box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -3px 0 rgba(0,0,0,.25), 0 3px 0 var(--cap-lo), 0 5px 10px rgba(0,0,0,.4); }
+.k.on .ic, .k.on .hd { color: var(--on-cat); }
+.k.on .led { background: var(--on-cat); opacity: .5; }
+.k.pressed { transform: translateY(3px); box-shadow: inset 0 1px 0 var(--cap-hi), inset 0 2px 6px rgba(0,0,0,.45), 0 0 0 var(--cap-lo); }
+.k.blocked { animation: k-blocked .12s steps(2) 4; }
+@keyframes k-blocked { 50% { transform: translateX(3px); } }
+/* Guarded: a striped guard frame; hold for a second to fire. */
+.k.danger { box-shadow: inset 0 0 0 4px transparent, 0 3px 0 var(--cap-lo); }
+.k.danger::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; padding: 4px;
+  background: repeating-linear-gradient(45deg, var(--c-emerg) 0 6px, #111 6px 12px);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.k.danger .ic { color: var(--c-emerg); }
+.k .arm { position: absolute; left: 0; bottom: 0; height: 100%; width: 0; background: var(--c-emerg); opacity: .35; pointer-events: none; }
+.k.arming .arm { width: 100%; transition: width 1s linear; }
+.k.locked { opacity: .38; filter: grayscale(.8); box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+.k.hl { animation: k-hl .5s steps(1) 6; }
+@keyframes k-hl { 50% { box-shadow: 0 0 0 4px var(--caution), 0 3px 0 var(--cap-lo); } }
+@media (prefers-reduced-motion: reduce) { .k.hl, .k.blocked { animation: none; } .pages { transition: none; } }
+
+/* ---------- the console frame: maker plate, page notches, annunciator lamps ---------- */
+.frame { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 0 6px; color: var(--frame-text); }
+.maker { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.maker .em { width: 24px; height: 24px; color: var(--accent); flex: none; }
+.maker .em svg { width: 100%; height: 100%; }
+.maker b { font-family: var(--plate-font); font-weight: var(--plate-weight); font-size: 12px; letter-spacing: var(--plate-track); text-transform: uppercase; color: var(--frame-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.maker .vw { font: 500 10px "IBM Plex Mono", monospace; letter-spacing: .12em; text-transform: uppercase; opacity: .85; white-space: nowrap; }
+.lamps { display: flex; justify-content: flex-end; gap: 6px; }
+.lampb { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; font: 600 10px "IBM Plex Mono", monospace; letter-spacing: .1em; color: var(--frame-text);
+  background: rgba(0,0,0,.18); box-shadow: inset 0 1px 2px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.06); }
+.lampb i { width: 8px; height: 8px; background: var(--lamp-off); box-shadow: inset 0 1px 1px rgba(0,0,0,.4); }
+.lampb.good i { background: var(--good); } .lampb.caution i { background: var(--caution); } .lampb.bad i { background: var(--bad); }
+.lampb.blink i { animation: lamp-blink 1s steps(1) infinite; }
+@keyframes lamp-blink { 50% { background: var(--lamp-off); } }
+
+/* ---------- glass sheets: systems (from below) and comms (from above) ---------- */
+.sheet { position: fixed; inset: 0; z-index: 20; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 14px;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--surface) 55%, transparent); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  touch-action: none; animation: sheet-up .28s cubic-bezier(.2,.8,.2,1); }
+.sheet.down { animation-name: sheet-down; }
+@keyframes sheet-up { from { transform: translateY(30%); opacity: 0; } }
+@keyframes sheet-down { from { transform: translateY(-30%); opacity: 0; } }
+.sheet-head { display: flex; align-items: center; gap: 12px; }
+.sheet-head h1 { margin: 0; font-family: var(--plate-font); font-weight: var(--plate-weight); font-size: 20px; letter-spacing: var(--plate-track); text-transform: uppercase; color: var(--plate-color); text-shadow: var(--plate-shadow); }
+.sheet-head .x { margin-left: auto; }
+.sheet-body { min-height: 0; display: grid; gap: 14px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px; border-radius: var(--cap-r);
+  background: var(--cap); color: var(--cap-text); box-shadow: inset 0 1px 0 var(--cap-hi), 0 3px 0 var(--cap-lo);
+  font-family: var(--cap-font); font-weight: 700; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; }
+.btn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 var(--cap-hi), 0 1px 0 var(--cap-lo); }
+.btn.primary { background: var(--accent); color: var(--on-cat); }
+.btn.on, .btn[aria-pressed="true"] { background: var(--accent); color: var(--on-cat); }
+.btn.danger { color: var(--c-emerg); }
+.tiles { display: grid; gap: 12px; min-height: 0; }
+.tile { position: relative; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 14px; text-align: left; min-height: 0;
+  background: var(--bezel-art, none), var(--bezel); border-radius: var(--pane-r); clip-path: var(--pane-clip);
+  box-shadow: inset 0 1px 0 var(--bezel-hi), inset 0 -2px 0 var(--bezel-lo), 0 8px 18px rgba(0,0,0,.3); }
+.tile .tn { font-family: var(--plate-font); font-weight: var(--plate-weight); font-size: 18px; letter-spacing: var(--plate-track); text-transform: uppercase; color: var(--plate-color); }
+.tile .ts { font: 500 10px "IBM Plex Mono", monospace; letter-spacing: .1em; color: var(--frame-text); text-transform: uppercase; }
+.tile .sw { display: flex; gap: 4px; }
+.tile .sw i { width: 14px; height: 14px; background: var(--cat); }
+.tile[aria-current="true"], .tile[aria-pressed="true"] { box-shadow: inset 0 0 0 3px var(--accent), 0 8px 18px rgba(0,0,0,.3); }
+.glass { position: relative; border-radius: var(--screen-r); background: var(--glass-art), var(--glass); box-shadow: inset 0 2px 10px rgba(0,0,0,.6), inset 0 0 0 1px var(--screen-edge);
+  color: #E9EEF4; padding: 14px; min-height: 0; overflow: hidden; }
+.field { width: 100%; height: 50px; padding: 0 14px; border-radius: var(--cap-r); border: 0; background: rgba(0,0,0,.35); color: #F2F4F7;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.6), inset 0 0 0 1px var(--screen-edge); font: 600 18px "Barlow", sans-serif; user-select: text; -webkit-user-select: text; }
+.field:focus { outline: 2px solid var(--accent); }
+.lbl { font: 600 10px "IBM Plex Mono", monospace; letter-spacing: .14em; color: var(--frame-text); text-transform: uppercase; }
+.glass .lbl { color: rgba(233,238,244,.6); }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.mono { font-family: "IBM Plex Mono", monospace; }
+.pager { display: flex; align-items: center; gap: 10px; justify-content: center; }
+
+/* request card dropping in from the top */
+.incoming { position: fixed; z-index: 15; top: max(14px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: min(620px, calc(100vw - 28px));
+  display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; align-items: center; padding: 14px 16px; border-radius: var(--pane-r);
+  background: var(--caution); color: #1A1206; box-shadow: 0 16px 40px rgba(0,0,0,.45); animation: sheet-down .25s ease-out; }
+.incoming .who { font: 700 11px "IBM Plex Mono", monospace; letter-spacing: .14em; }
+.incoming b { display: block; font-family: var(--cap-font); font-size: 22px; letter-spacing: .04em; text-transform: uppercase; }
+.incoming q { font-size: 15px; }
+.incoming .acts { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 8px; }
+.incoming .acts button { min-width: 96px; height: 56px; border-radius: var(--cap-r); font: 800 16px var(--cap-font), sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+.incoming .do { background: #1A1206; color: var(--caution); }
+.incoming .no { box-shadow: inset 0 0 0 2px #1A1206; }
+
+.toast { position: fixed; z-index: 30; left: 50%; bottom: 52px; transform: translateX(-50%); padding: 10px 18px; border-radius: var(--cap-r);
+  background: rgba(10,12,16,.92); color: #F2F4F7; font: 700 15px var(--cap-font), sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  pointer-events: none; opacity: 0; transition: opacity .15s; max-width: calc(100vw - 32px); }
+.toast.show { opacity: 1; }
+
+/* ---------- aliens: their panels shimmer and glitch now and then ---------- */
+[data-theme="banu"] .plate .nm, [data-theme="aopoa"] .plate .nm, [data-theme="esperia"] .plate .nm,
+[data-theme="banu"] .sheet-head h1, [data-theme="esperia"] .sheet-head h1 {
+  text-shadow: 1.5px 0 rgba(255,46,140,.55), -1.5px 0 rgba(40,230,210,.55); animation: glitch 7s steps(1) infinite; }
+[data-theme="aopoa"] .plate .nm { text-shadow: 1px 0 rgba(95,200,240,.6), -1px 0 rgba(240,195,95,.5); }
+@keyframes glitch {
+  0%, 93%, 100% { transform: none; clip-path: none; }
+  94% { transform: translateX(2px) skewX(-8deg); clip-path: inset(0 0 55% 0); }
+  95% { transform: translateX(-3px); clip-path: inset(40% 0 0 0); }
+  96% { transform: translateX(1px) skewX(6deg); }
+}
+[data-theme="banu"] .pane:nth-child(3n+2) { border-radius: 10px 30px 12px 26px; }
+[data-theme="banu"] .pane:nth-child(3n+3) { border-radius: 24px 14px 34px 6px; }
+[data-theme="banu"] .k:nth-child(2n) { border-radius: 6px 16px 8px 14px; }
+@media (prefers-reduced-motion: reduce) { .plate .nm, .sheet-head h1 { animation: none !important; } }
+
+/* Drake: a hazard band on every plate, hex bolts, stencilled paint. */
+[data-theme="drake"] .plate { padding-left: 0; }
+[data-theme="drake"] .plate::before { content: ""; width: 46px; height: 14px; flex: none;
+  background: repeating-linear-gradient(-45deg, #E3B21F 0 6px, #141410 6px 12px); opacity: .85; }
+[data-theme="drake"] .pane::before {
+  background:
+    conic-gradient(from 30deg at 10px 10px, #8B8A7E 0 60deg, #6C6B60 0 120deg, #8B8A7E 0 180deg, #6C6B60 0 240deg, #8B8A7E 0 300deg, #6C6B60 0) 4px 4px / 12px 12px no-repeat,
+    conic-gradient(from 30deg at 10px 10px, #8B8A7E 0 60deg, #6C6B60 0 120deg, #8B8A7E 0 180deg, #6C6B60 0 240deg, #8B8A7E 0 300deg, #6C6B60 0) calc(100% - 4px) 4px / 12px 12px no-repeat,
+    conic-gradient(from 30deg at 10px 10px, #8B8A7E 0 60deg, #6C6B60 0 120deg, #8B8A7E 0 180deg, #6C6B60 0 240deg, #8B8A7E 0 300deg, #6C6B60 0) 4px calc(100% - 4px) / 12px 12px no-repeat,
+    conic-gradient(from 30deg at 10px 10px, #8B8A7E 0 60deg, #6C6B60 0 120deg, #8B8A7E 0 180deg, #6C6B60 0 240deg, #8B8A7E 0 300deg, #6C6B60 0) calc(100% - 4px) calc(100% - 4px) / 12px 12px no-repeat; }
+[data-theme="drake"] .k .l { color: #E3B21F; }
+
+/* RSI: a gold hairline inside every bezel. */
+[data-theme="rsi"] .pane::after { content: ""; position: absolute; inset: 4px; pointer-events: none; clip-path: var(--pane-clip);
+  box-shadow: inset 0 0 0 1px rgba(201,165,76,.35); }
+/* Origin: champagne pinstripe and a soft lift. */
+[data-theme="origin"] .pane { box-shadow: inset 0 1px 0 #fff, 0 18px 40px rgba(90,80,60,.18), 0 2px 6px rgba(90,80,60,.12); }
+[data-theme="origin"] .pane::after { content: ""; position: absolute; left: 22px; right: 22px; top: 6px; height: 1px; background: linear-gradient(90deg, transparent, var(--trim), transparent); }
+/* Crusader: frosted glass panes over the sky. */
+[data-theme="crusader"] .pane, [data-theme="crusader"] .tile { backdrop-filter: blur(16px) saturate(1.3); -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(255,255,255,.65), 0 14px 30px rgba(40,80,130,.18); }
+/* Aegis: a red flash bar on each plate. */
+[data-theme="aegis"] .plate::after { content: ""; order: 3; width: 28px; height: 4px; margin-left: 8px; background: var(--trim); }
+/* MISC: orange corner tabs. */
+[data-theme="misc"] .pane::after { content: ""; position: absolute; top: 0; right: 24px; width: 46px; height: 5px; background: var(--trim); border-radius: 0 0 3px 3px; }
+/* Argo: big module numbers. */
+[data-theme="argo"] .plate .no { font: 700 16px "Chakra Petch", sans-serif; color: #141414; }
+/* Consolidated Outland: the retro triple stripe. */
+[data-theme="cnou"] .pane::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 9px; border-radius: var(--pane-r) var(--pane-r) 0 0;
+  background: linear-gradient(180deg, #E2662F 0 3px, #F2A541 3px 6px, #F5D06B 6px 9px); }
+[data-theme="cnou"] .pane { padding-top: 16px; }
+
+/* phones: tighter */
+@media (max-width: 640px) {
+  #console { grid-template-rows: minmax(0, 1fr) 30px; padding-left: 10px; padding-right: 10px; }
+  .page { gap: 10px; }
+  .pane { padding: 8px 8px 10px; }
+  .maker b, .lampb span { display: none; }
+}
+
+/* ---------- orientation: notches, edges, grips ---------- */
+/* Each notch is a tiny strip of the colours on its page; the current one stands proud. */
+.notches { display: flex; align-items: center; gap: 8px; padding: 4px 10px; min-height: 26px; }
+.notch { display: flex; gap: 2px; padding: 8px 4px; opacity: .42; transition: opacity .2s, transform .2s; }
+.notch i { width: 7px; height: 4px; box-shadow: inset 0 1px 1px rgba(0,0,0,.35); }
+.notch[aria-selected="true"] { opacity: 1; transform: scaleY(1.6); }
+.notch[aria-selected="true"] i { width: 12px; }
+/* Edge slivers: the next page's colours peek in from the side. */
+.edge { position: absolute; top: 36%; bottom: 36%; width: 18px; display: flex; flex-direction: column; gap: 3px; justify-content: center; z-index: 2; opacity: .75; }
+.edge.l { left: max(2px, env(safe-area-inset-left)); align-items: flex-start; }
+.edge.r { right: max(2px, env(safe-area-inset-right)); align-items: flex-end; }
+.edge i { width: 4px; flex: 1; max-height: 40px; }
+.edge:active { opacity: 1; }
+/* Grips: a short engraved slot on the top and bottom edge; pull them. */
+.grip { position: fixed; left: 50%; transform: translateX(-50%); z-index: 3; width: 120px; height: 22px; display: flex; align-items: center; justify-content: center; }
+.grip i { width: 56px; height: 4px; border-radius: 2px; background: var(--frame-text); opacity: .4; box-shadow: inset 0 1px 1px rgba(0,0,0,.4); transition: opacity .2s, width .2s; }
+.grip:active i { opacity: .9; width: 80px; }
+#console > .grip.top { top: max(0px, env(safe-area-inset-top)); }
+#console > .grip.bottom { bottom: max(0px, env(safe-area-inset-bottom)); height: 14px; }
+.sheet > .grip.top { position: absolute; top: 4px; }
+.sheet > .grip.bottom { position: absolute; bottom: max(4px, env(safe-area-inset-bottom)); }
+/* Shown once, the first time: the pages lean towards the next, the grips lift. */
+.pages.peek { animation: peek 1.4s cubic-bezier(.3,.7,.3,1) 1; }
+@keyframes peek { 0%, 100% { translate: 0; } 30%, 45% { translate: -64px; } }
+.grip.peek i { animation: grip 1.4s ease-in-out 2; }
+.grip.bottom.peek i { animation-name: grip-up; }
+@keyframes grip { 50% { transform: translateY(5px); opacity: .9; width: 80px; } }
+@keyframes grip-up { 50% { transform: translateY(-5px); opacity: .9; width: 80px; } }
+
+/* Panes power on in a quick stagger when they arrive. */
+.pane.boot .screen { animation: power .32s steps(6, end) var(--d, 0ms) both; }
+.pane.boot .plate .lamp { animation: lamp-on .3s var(--d, 0ms) both; }
+@keyframes power { 0% { filter: brightness(.15); } 30% { filter: brightness(1.25); } 45% { filter: brightness(.6); } 100% { filter: none; } }
+@keyframes lamp-on { 0% { opacity: .15; } 100% { opacity: 1; } }
+.plate .lamp.blink { animation: lamp-blink 1s steps(1) infinite; }
+
+/* The maker plate names the view; a new view lights it, and things done elsewhere tick by. */
+.maker .vw { padding: 3px 8px; transition: background .4s, color .4s; }
+.maker .vw.new { animation: vw-new 1.6s ease-out 1; }
+@keyframes vw-new { 0%, 40% { background: var(--accent); color: var(--on-cat); } }
+.maker .tick { font: 600 10px "IBM Plex Mono", monospace; letter-spacing: .1em; color: var(--frame-text); opacity: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .3s; }
+.maker .tick b { color: var(--accent); }
+.maker .tick.show { opacity: 1; }
+.lampb { cursor: pointer; }
+.lampb.alarm i { animation: alarm .18s steps(1) 8; }
+@keyframes alarm { 50% { background: var(--bad); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 40%, transparent); } }
+.lampb.clock { font-variant-numeric: tabular-nums; cursor: default; }
+.lampb[data-lamp="talk"] { touch-action: none; }
+
+.pane.solo { width: min(560px, 92vw); height: auto; margin: auto; }
+.solo-wrap { display: grid; place-items: center; }
+.pane.solo .glass { padding: 22px; }
+
+/* ---------- sheets ---------- */
+.sheet { height: var(--vvh, 100vh); bottom: auto; grid-template-rows: auto minmax(0, 1fr); }
+.sheet.still { animation: none; }
+.sheet-head { padding: 6px 4px 0; }
+.sheet-head .x { width: 48px; height: 48px; display: grid; place-items: center; color: var(--frame-text); }
+.sheet-head .x svg { width: 22px; height: 22px; stroke-width: 2; }
+.sheet-body { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.sheet svg.i { width: 20px; height: 20px; stroke-width: 2; flex: none; }
+.fill { flex: 1; min-height: 0; position: relative; }
+.fillcol { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.grow { flex: 1; }
+.quiet { margin: 0; color: var(--frame-text); opacity: .5; font: 500 14px "IBM Plex Mono", monospace; }
+.glass .quiet { color: #E9EEF4; }
+
+/* pager */
+.pgr { display: flex; flex-direction: column; gap: 8px; }
+.pg-grid { display: grid; flex: 1; min-height: 0; align-content: start; }
+.pg-dots { display: flex; justify-content: center; gap: 6px; height: 10px; }
+.pg-dots button { width: 16px; height: 4px; padding: 0; background: currentColor; opacity: .3; }
+.pg-dots button[aria-selected="true"] { opacity: 1; width: 28px; background: var(--accent); }
+
+/* systems */
+.views { height: 92px; flex: none; }
+.tile.view { justify-content: space-between; padding: 10px 12px; }
+.tile.view .tn { font-size: 15px; }
+.tile.view[aria-current="true"] { background: var(--accent); }
+.tile.view[aria-current="true"] .tn { color: var(--on-cat); text-shadow: none; }
+.map { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 16px; }
+.mini { display: flex; flex-direction: column; gap: 3px; padding: 4px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--bezel-lo), 0 6px 14px rgba(0,0,0,.25); transition: transform .15s; }
+.mini[aria-current="true"] { box-shadow: inset 0 0 0 3px var(--accent), 0 6px 14px rgba(0,0,0,.25); }
+.mini:active { transform: scale(.97); }
+.mrow { flex: 1; display: flex; gap: 3px; }
+.mp { display: flex; align-items: flex-start; padding: 3px 4px; background: var(--cat); opacity: .9; min-width: 0; }
+.mp b { font: 700 9px "IBM Plex Mono", monospace; color: var(--on-cat); letter-spacing: .06em; }
+.acts { display: flex; justify-content: center; gap: 12px; flex: none; }
+.act { width: 92px; height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-radius: var(--cap-r);
+  background: var(--cap); color: var(--cap-text); box-shadow: inset 0 1px 0 var(--cap-hi), 0 3px 0 var(--cap-lo); font: 700 11px var(--cap-font), sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+.act svg.i { width: 26px; height: 26px; color: var(--accent); }
+.act:active { transform: translateY(2px); box-shadow: inset 0 1px 0 var(--cap-hi), 0 1px 0 var(--cap-lo); }
+
+/* spreads: columns side by side; on a phone they become steps you swipe through */
+.spread { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 14px; }
+.col { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.col.status { justify-content: flex-start; }
+.readouts { display: grid; gap: 8px; }
+.ro { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(0,0,0,.2); box-shadow: inset 0 1px 2px rgba(0,0,0,.4); }
+.ro b { display: flex; align-items: center; gap: 8px; font: 600 13px "IBM Plex Mono", monospace; letter-spacing: .08em; }
+.ro b i { width: 9px; height: 9px; background: var(--lamp-off); }
+.ro.good b i { background: var(--good); } .ro.caution b i { background: var(--caution); } .ro.bad b i { background: var(--bad); }
+.btn.big { min-height: 60px; font-size: 16px; }
+.btn.sm { min-height: 36px; padding: 0 10px; }
+.btn svg.i { color: currentColor; }
+.btn.danger { color: var(--c-emerg); }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--on-cat); }
+.seg { display: flex; gap: 6px; }
+.seg.col { flex-direction: column; }
+.seg .btn { flex: 1; }
+.req, .mate, .live { display: flex; flex-direction: column; gap: 6px; padding: 10px; background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); min-width: 0; }
+.req b { font: 700 18px var(--cap-font), sans-serif; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.req .row .btn { flex: 1; min-height: 44px; }
+.mate .row { flex-wrap: nowrap; }
+.mate b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
+.dot { width: 9px; height: 9px; background: var(--lamp-off); flex: none; }
+.dot.good { background: var(--good); } .dot.caution { background: var(--caution); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; max-height: 40px; overflow: hidden; }
+.chip { height: 36px; padding: 0 12px; background: rgba(255,255,255,.08); color: inherit; font: 700 12px var(--cap-font), sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.chip:disabled { opacity: .35; }
+.sheet > .sheet-body > .row .chip, .col > .row .chip { background: var(--cap); color: var(--cap-text); }
+.live { flex-direction: row; align-items: center; padding: 6px 6px 6px 10px; }
+.live b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live .mono { font-size: 11px; opacity: .7; }
+.quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; align-content: start; flex: 1; min-height: 0; overflow: hidden; }
+#askf .field, .search .field { flex: 1; }
+
+/* find */
+.search { position: relative; flex-wrap: nowrap; }
+.search .sic { position: absolute; left: 14px; top: 50%; translate: 0 -50%; color: var(--frame-text); display: flex; }
+.search .field { padding-left: 46px; }
+.count { font-size: 12px; color: var(--frame-text); letter-spacing: .1em; min-width: 64px; text-align: right; }
+.cats { display: flex; gap: 6px; flex-wrap: wrap; flex: none; max-height: 92px; overflow: hidden; }
+.cat { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 12px; background: rgba(0,0,0,.18); color: var(--frame-text);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.3); font: 600 11px "IBM Plex Mono", monospace; letter-spacing: .12em; }
+.cat i { width: 10px; height: 10px; background: var(--cat, var(--frame-text)); }
+.cat.sel { background: var(--cat, var(--accent)); color: var(--on-cat); }
+.cat.sel i { background: var(--on-cat); }
+.cat.whole { box-shadow: inset 0 0 0 2px var(--cat); }
+.k.pick { --ks: 108px; }
+.k.pick .l { font-size: 11px; }
+.build { flex: none; flex-wrap: nowrap; }
+.build .field { flex: 1; }
+.want { animation: want .12s steps(2) 4; box-shadow: inset 0 0 0 2px var(--caution) !important; }
+@keyframes want { 50% { translate: 4px 0; } }
+
+/* share */
+.qrcol { align-items: center; justify-content: center; }
+.qr { width: min(220px, 60%); height: auto; image-rendering: pixelated; background: #fff; padding: 8px; }
+.qrcol .who { font: 700 26px var(--cap-font), sans-serif; text-transform: uppercase; letter-spacing: .06em; }
+.link { display: block; padding: 14px; background: rgba(0,0,0,.35); color: #F2F4F7; font: 500 14px "IBM Plex Mono", monospace; word-break: break-all; max-height: 92px; overflow: hidden; user-select: all; -webkit-user-select: all; }
+.opt { display: flex; align-items: center; gap: 8px; padding: 0 10px; background: rgba(255,255,255,.06); color: #E9EEF4; font: 700 12px var(--cap-font), sans-serif; letter-spacing: .06em; text-transform: uppercase; text-align: left; min-width: 0; }
+.opt i { width: 10px; height: 10px; flex: none; background: var(--cat, #E9EEF4); }
+.opt span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt[aria-pressed="true"] { background: var(--cat, var(--accent)); color: var(--on-cat); }
+.opt[aria-pressed="true"] i { background: var(--on-cat); }
+.glass .lbl, .glass .btn:not(.primary):not([aria-pressed="true"]) { color: #E9EEF4; }
+.glass .btn:not(.primary):not([aria-pressed="true"]) { background: rgba(255,255,255,.07); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+
+/* panel: each tile is a live corner of that maker's console */
+.tile.theme { padding: 0; overflow: hidden; background: var(--surface-art), var(--surface); justify-content: flex-end; align-items: stretch; }
+.tile.theme .mini-pane { position: relative; display: flex; flex-direction: column; gap: 6px; margin: 12px; padding: 8px 10px 10px; background: var(--bezel-art, none), var(--bezel);
+  border-radius: var(--pane-r); clip-path: var(--pane-clip); box-shadow: inset 0 1px 0 var(--bezel-hi), inset 0 -2px 0 var(--bezel-lo), 0 6px 14px rgba(0,0,0,.3); }
+.tile.theme .plate { padding: 0 6px; min-height: 18px; }
+.tile.theme .plate .nm { font-size: 12px; }
+.tile.theme .screen { flex: none; }
+.tile.theme .k { pointer-events: none; }
+.tile.theme .em { position: absolute; top: 10px; right: 12px; width: 34px; height: 34px; color: var(--accent); opacity: .9; }
+.tile.theme .em svg { width: 100%; height: 100%; }
+.tile.theme[aria-current="true"] { box-shadow: inset 0 0 0 3px var(--accent), 0 8px 18px rgba(0,0,0,.3); }
+.opts { flex: none; }
+a.btn { text-decoration: none; }
+
+/* pairing */
+.pairf { display: grid; gap: 14px; }
+.field.code { height: 64px; font: 600 28px "IBM Plex Mono", monospace; letter-spacing: .2em; text-align: center; }
+.err { margin: 0; color: var(--caution); font: 600 14px "IBM Plex Mono", monospace; }
+
+.incoming { grid-template-columns: auto 1fr auto; }
+.incoming .acts { grid-column: 3; grid-row: 1; }
+.incoming > div { min-width: 0; }
+
+@media (max-width: 760px) {
+  .spread { grid-auto-flow: row; grid-auto-rows: minmax(0, 1fr); }
+  .spread.steps { grid-auto-flow: row; grid-auto-rows: 1fr; }
+  .spread.steps > .col:not(.cur) { display: none; }
+  .acts { flex-wrap: wrap; }
+  .act { width: 76px; height: 68px; }
+  .incoming { grid-template-columns: 1fr; }
+  .incoming .acts { grid-column: 1; grid-row: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .pane.boot .screen, .pages.peek, .grip.peek i, .maker .vw.new { animation: none; } }
+
+.invite { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #E9EEF4; opacity: .75;
+  font: 700 14px var(--cap-font), sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+.invite svg.i { width: 44px; height: 44px; stroke-width: 1.5; color: var(--accent); }
+.invite:active { opacity: 1; }
+.k.pick { width: 108px; height: 108px; }
+@media (max-width: 640px) { .maker b, .maker .vw, .maker .tick { display: none; } .lampb span { display: none; } .lampb { padding: 0 7px; } }

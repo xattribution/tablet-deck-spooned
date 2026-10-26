@@ -360,7 +360,7 @@ func (a *App) GuestGroups(l *layout.Layout, g *config.Grant, states map[string]b
 			e = &entry{group: gr}
 			by[c.Group] = e
 		}
-		m := map[string]any{"id": b.ID, "label": c.Label, "keys": c.Keys, "mode": c.Mode, "locked": !grantCovers(g, b), "danger": c.Danger}
+		m := map[string]any{"id": b.ID, "cid": c.ID, "icon": c.Icon, "label": c.Label, "keys": c.Keys, "mode": c.Mode, "locked": !grantCovers(g, b), "danger": c.Danger}
 		if c.State != nil {
 			m["state"] = c.State
 		}
