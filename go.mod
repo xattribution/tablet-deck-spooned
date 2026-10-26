@@ -11,5 +11,6 @@ require (
 
 require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/xattribution/gorelaxor v0.0.0-20261024063434-e767f9dce239 // indirect
 )

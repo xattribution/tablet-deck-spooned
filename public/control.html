@@ -60,7 +60,7 @@
 <div class="wrap">
   <nav class="side" aria-label="Sections">
     <a href="#overview" aria-current="true">Overview</a><a href="#pair">Pair a device</a><a href="#devices">Devices and crew</a>
-    <a href="#voice">Voice</a><a href="#keybinds">Keybinds</a><a href="#agents">Agents and integrations</a><a href="#settings">Settings</a><a href="#activity">Activity</a>
+    <a href="#voice">Voice</a><a href="#comms">Comms</a><a href="#keybinds">Keybinds</a><a href="#agents">Agents and integrations</a><a href="#settings">Settings</a><a href="#activity">Activity</a>
   </nav>
   <main>
     <section id="overview" aria-label="Overview"><div class="readouts" id="readouts"></div></section>
@@ -109,10 +109,30 @@
       <div id="nearby" class="note"></div>
     </section>
 
+    <section id="comms" aria-label="Comms">
+      <div class="gh"><span class="name">Comms</span><span class="rule"></span><span class="cat" id="agstate"></span></div>
+      <div class="kv">
+        <span class="k1">Voice goes to<span class="info" title="Commands: only deck commands. Auto: deck commands, and anything that isn't one goes to the agent. Agent: everything goes to the agent.">i</span></span>
+        <span class="seg small" id="vroute"></span>
+        <label class="k1" for="agurl">Agent API<span class="info" title="Any OpenAI-compatible API: https://api.x.ai/v1, https://api.openai.com/v1, https://openrouter.ai/api/v1, or a local Ollama at http://127.0.0.1:11434/v1">i</span></label>
+        <input class="field" id="agurl" placeholder="https://api.x.ai/v1">
+        <label class="k1" for="agkey">API key</label><input class="field" id="agkey" type="password" autocomplete="off" placeholder="Kept only on this PC">
+        <label class="k1" for="agmodel">Model</label><input class="field" id="agmodel" placeholder="grok-4-fast">
+        <span class="k1">Style<span class="info" title="Fast: short spoken answers and quick presses, one step. Crew: uses every deck tool over several steps (set up views, message crew, chain presses).">i</span></span>
+        <span class="seg small" id="agstyle"></span>
+        <label class="k1" for="agname">Name</label><input class="field" id="agname" maxlength="24" placeholder="Crew">
+        <label class="k1" for="agprompt">Instructions</label><textarea class="field" id="agprompt" rows="3" maxlength="4000" placeholder="Call me Captain. Keep it short."></textarea>
+        <span class="k1">Discord<span class="info" title="In Discord: Settings › Keybinds › Add a keybind for Toggle Mute, Toggle Deafen and Push to Talk. Click Record, then tap that key on the deck's Comms panel. These keys reach Discord even while the game is in front.">i</span></span>
+        <span class="inline"><label class="vh" for="dmute">Mute</label><input class="field" id="dmute" style="width:96px" placeholder="f13"><label class="vh" for="ddeaf">Deafen</label><input class="field" id="ddeaf" style="width:96px" placeholder="f14"><label class="vh" for="dptt">Push to talk</label><input class="field" id="dptt" style="width:96px" placeholder="f15"><span class="note">mute · deafen · PTT</span></span>
+      </div>
+      <div class="inline"><button type="button" class="big" id="saveagent" style="padding:0 28px">Save comms</button><button type="button" class="sbtn" id="agtest">Test the agent</button><span class="err" id="agerr"></span></div>
+    </section>
+
     <section id="keybinds" aria-label="Keybinds">
       <div class="gh"><span class="name">Keybinds</span><span class="rule"></span></div>
       <div class="kv" id="kb"></div>
-      <div class="inline"><button type="button" class="sbtn" id="installprofile">Install Tablet Deck keybind profile</button><span class="note" id="kbmsg"></span></div>
+      <div class="inline"><button type="button" class="sbtn" id="installprofile">Install Tablet Deck keybind profile</button>
+        <button type="button" class="sbtn" id="bindall">Bind every action<span class="info" title="Writes a profile that keeps your keyboard binds and gives every unbound game action a free key, so every action works from the deck.">i</span></button><span class="note" id="kbmsg"></span></div>
     </section>
 
     <section id="agents" aria-label="Agents and integrations">

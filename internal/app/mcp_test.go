@@ -37,7 +37,7 @@ func callTool(t *testing.T, a *App, name string, args map[string]any) (string, b
 }
 
 func TestMCP(t *testing.T) {
-	a, f := startApp(t, "Jared")
+	a, f := startApp(t, "Pilot")
 	cfg := a.Store.Config()
 	init := mcpDo(t, a, "initialize", map[string]any{"protocolVersion": mcpProtocol, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "test"}})
 	if init["protocolVersion"] != mcpProtocol {
@@ -99,7 +99,7 @@ func TestMCP(t *testing.T) {
 }
 
 func TestCatalog(t *testing.T) {
-	a, _ := startApp(t, "Jared")
+	a, _ := startApp(t, "Pilot")
 	all, byID := a.Catalog()
 	count := map[string]int{}
 	for _, c := range all {

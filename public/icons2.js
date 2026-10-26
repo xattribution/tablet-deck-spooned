@@ -17,6 +17,11 @@
     gforce: `<path d="M8 36c8-16 24-16 32 0"/><text x="24" y="31" text-anchor="middle" font-size="15" font-weight="700" fill="currentColor" stroke="none" font-family="sans-serif">G</text>`,
     warning: `<path d="M24 6 43 40H5Z"/><path d="M24 18v11"/><circle cx="24" cy="34" r="1.8" fill="currentColor" stroke="none"/>`,
     autoland: `<ellipse cx="24" cy="38" rx="17" ry="5"/><path d="M24 6v20m-7-7 7 7 7-7"/><path d="M14 10h4M30 10h4"/>`,
+    mic: `<rect x="18" y="5" width="12" height="22" rx="6"/><path d="M11 22a13 13 0 0 0 26 0M24 35v7M17 42h14"/>`,
+    "mic-off": `<rect x="18" y="5" width="12" height="22" rx="6"/><path d="M11 22a13 13 0 0 0 26 0M24 35v7M17 42h14"/><path d="M7 7l34 34" stroke-width="3.5"/>`,
+    headset: `<path d="M9 28v-4a15 15 0 0 1 30 0v4"/><rect x="7" y="27" width="8" height="12" rx="3"/><rect x="33" y="27" width="8" height="12" rx="3"/><path d="M37 39c0 3-4 5-9 5h-3"/>`,
+    "headset-off": `<path d="M9 28v-4a15 15 0 0 1 30 0v4"/><rect x="7" y="27" width="8" height="12" rx="3"/><rect x="33" y="27" width="8" height="12" rx="3"/><path d="M7 7l34 34" stroke-width="3.5"/>`,
+    radio: `<rect x="8" y="16" width="32" height="26" rx="4"/><path d="M14 16 34 6"/><circle cx="30" cy="29" r="6"/><path d="M13 24h8M13 30h8M13 36h8"/>`,
     docking: `<rect x="14" y="14" width="20" height="20"/><path d="M24 4v8M24 36v8M4 24h8M36 24h8"/>`,
     beam: `<path d="M6 40 22 24M18 40 30 28M30 40 38 32"/><circle cx="34" cy="12" r="6"/>`,
     modes: `<rect x="7" y="9" width="34" height="30"/><path d="M7 19h34M18 9v10" /><path d="M14 29h20" opacity=".6"/>`,
@@ -54,10 +59,13 @@
 
   window.DeckCat = {
     of: (group) => CAT[group] || "ui",
+    // Panels say their own category; the deck registers it when groups arrive.
+    set(groups) { for (const g of groups || []) if (g && g.id && g.category && !CAT[g.id]) CAT[g.id] = g.category; },
     name: (cat) => CAT_NAMES[cat] || cat,
     icon(c, group) {
       const id = c.id || "";
       if (group === "emotes") return "emote";
+      if (c.icon && I[c.icon] && !GROUP_ICON[group]) return c.icon; // a player's or agent's panel picks its own
       // Our rules first (they keep a system's controls on one icon, told apart by a
       // badge), then the layout's own icon, then the group's.
       for (const [re, name] of RULES) if (re.test(id)) return name;

@@ -16,7 +16,7 @@ func TestNativeVoiceCommand(t *testing.T) {
 	if dir == "" {
 		t.Skip("TD_MODELS not set")
 	}
-	a, f := startApp(t, "Jared")
+	a, f := startApp(t, "Pilot")
 	_ = a.Store.Update(func(c *config.Config) { c.ModelsDir = dir; c.Voice = true; c.Replies = "off" })
 	a.voice.restart()
 	deadline := time.Now().Add(60 * time.Second)

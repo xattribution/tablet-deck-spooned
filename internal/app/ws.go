@@ -35,22 +35,22 @@ type client struct {
 
 // msg is anything a deck sends. Fields are shared between message types.
 type msg struct {
-	T      string   `json:"t"`
-	ID     string   `json:"id,omitempty"`
-	N      float64  `json:"n,omitempty"`
-	On     bool     `json:"on,omitempty"`
-	Index  int      `json:"index,omitempty"`
-	Text   string   `json:"text,omitempty"`
-	Peer   string   `json:"peer,omitempty"`
-	Mode   string   `json:"mode,omitempty"`
-	Do     bool     `json:"do,omitempty"`
-	Label  string   `json:"label,omitempty"`
-	Mins   int      `json:"minutes,omitempty"`
-	All    bool     `json:"all,omitempty"`
-	AFK    bool     `json:"afkOnly,omitempty"`
-	Panels []string `json:"panels,omitempty"`
-	Btns   []string `json:"buttons,omitempty"`
-	Ms     int      `json:"ms,omitempty"`
+	T        string   `json:"t"`
+	ID       string   `json:"id,omitempty"`
+	N        float64  `json:"n,omitempty"`
+	On       bool     `json:"on,omitempty"`
+	Index    int      `json:"index,omitempty"`
+	Text     string   `json:"text,omitempty"`
+	Peer     string   `json:"peer,omitempty"`
+	Mode     string   `json:"mode,omitempty"`
+	Do       bool     `json:"do,omitempty"`
+	Label    string   `json:"label,omitempty"`
+	Mins     int      `json:"minutes,omitempty"`
+	All      bool     `json:"all,omitempty"`
+	AFK      bool     `json:"afkOnly,omitempty"`
+	Panels   []string `json:"panels,omitempty"`
+	Btns     []string `json:"buttons,omitempty"`
+	Ms       int      `json:"ms,omitempty"`
 	Result   string   `json:"result,omitempty"`
 	Groups   []string `json:"groups,omitempty"`
 	Controls []string `json:"controls,omitempty"`
@@ -304,7 +304,23 @@ func (c *client) handle(m msg) {
 	}
 	switch m.T {
 	case "voice":
-		a.voice.listen(c, m.On)
+		if m.Mode == "tap" && m.On {
+			a.voice.tap(c)
+		} else {
+			a.voice.listen(c, m.On)
+		}
+	case "voice-live":
+		_ = a.Store.Update(func(cfg *config.Config) { cfg.AlwaysListen = m.On })
+		a.broadcastOwners(map[string]any{"t": "voice-live", "on": m.On})
+	case "voice-route":
+		if m.Mode == "command" || m.Mode == "auto" || m.Mode == "agent" {
+			_ = a.Store.Update(func(cfg *config.Config) { cfg.VoiceRoute = m.Mode })
+			a.broadcastOwners(map[string]any{"t": "agent-info", "agent": a.agentInfo()})
+		}
+	case "chat":
+		a.AskAgent(m.Text, "deck")
+	case "chat-clear":
+		a.ClearChat()
 	case "open":
 		a.openLink(m.Index, c)
 	case "reset-states":
@@ -430,7 +446,10 @@ func (a *App) helloFor(c *client) map[string]any {
 	h["voiceStatus"] = a.voice.status()
 	h["views"] = a.Views()
 	h["grants"] = a.grantList()
-	h["groups"] = groups
+	h["groups"] = a.Groups()
+	h["chat"] = a.chatLog()
+	h["live"] = cfg.AlwaysListen
+	h["agent"] = a.agentInfo()
 	h["requests"] = a.reqs.open()
 	h["crew"] = a.crew.summary()
 	return h

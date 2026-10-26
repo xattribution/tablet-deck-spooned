@@ -1,0 +1,22 @@
+{
+ "id": "modes",
+ "name": "Master modes",
+ "code": "MOD",
+ "category": "ui",
+ "size": {
+  "weight": 6,
+  "min": 270
+ },
+ "layout": {
+  "dial": [
+   "flight-mode",
+   "guns-mode",
+   "missiles",
+   "scanning",
+   "quantum-mode",
+   "mining-mode",
+   "salvage-mode"
+  ],
+  "center": "scm-nav"
+ }
+}

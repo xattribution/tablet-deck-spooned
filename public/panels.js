@@ -1,10 +1,10 @@
-// Panels: each ship system laid out like a cockpit panel, not a grid of squares.
-// Widgets are real controls (faders, toggle switches, the gear lever, guarded covers,
-// a slide-to-eject track, a rotary mode selector, a shield pad, hold-to-engage bars),
-// sized by importance. Layout is nested flex: a "flip" box is a column in a tall pane
-// and a row in a wide one, so one design fits a column on a tablet or a phone.
-// Every control in a group always appears: anything a design doesn't place lands in a
-// small grid at the end.
+// Panels: each group drawn from its panel definition (docs/PANELS.md), sent by the PC
+// with the group. Widgets are real controls (faders, toggle switches, the gear lever,
+// guarded covers, a slide-to-eject track, a rotary selector, a shield pad, hold to
+// engage keys, and the comms widgets), sized by importance. Layout is nested flex: a
+// "flip" box is a column in a tall pane and a row in a wide one, so one design fits a
+// column on a tablet or a phone. Every control in a group always appears: anything the
+// layout doesn't place lands in a grid at the end (or where the layout says "rest").
 (() => {
   "use strict";
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -13,16 +13,9 @@
 
   // Panel sizes: weight shares a column's height; min is the smallest height (px) the
   // design still works at on a tablet.
-  const SIZE = {
-    power: [10, 470], landing: [6, 250], flight: [7, 300], quantum: [3, 130], modes: [6, 270], shields: [6, 270],
-    targeting: [4, 210], combat: [6, 260], emergency: [4, 200], crew: [6, 260], systems: [2.6, 110], mining: [7, 300],
-    salvage: [5, 240], "on-foot": [3, 140], emotes: [8, 300], interface: [2.6, 100],
-  };
   function size(g) {
-    const s = SIZE[g.id];
-    if (s) return { weight: s[0], min: s[1] };
-    const n = g.controls.length;
-    return { weight: Math.max(2, n * 0.7), min: 60 + 70 * Math.ceil(n / 4) };
+    const n = g.controls.length, s = g.size || {};
+    return { weight: s.weight || Math.max(2, n * 0.7), min: s.min || Math.min(620, 60 + 70 * Math.ceil(n / 4)) };
   }
 
   // ---------- context for one panel ----------
@@ -30,8 +23,8 @@
     const by = {};
     for (const c of g.controls) by[c.cid || c.id] = c;
     const used = new Set();
-    const take = (id) => { const c = by[id]; if (c) used.add(c); return c; };
-    return { g, by, used, take, cat: CAT(g.id), locked: (c) => opts.guest && c && c.locked, lit: opts.lit || {}, opts };
+    const take = (id) => { const c = by[g.id + "." + id] || by[id]; if (c) used.add(c); return c; };
+    return { g, by, used, take, cat: g.category || CAT(g.id), locked: (c) => opts.guest && c && c.locked, lit: opts.lit || {}, opts };
   }
 
   // ---------- layout helpers ----------
@@ -54,10 +47,10 @@
     const c = typeof id === "string" ? x.take(id) : id;
     if (!c) return "";
     x.used.add(c);
-    const cls = ["k", o.cls || "", c.state ? "state" : "", c.mode === "hold" ? "holdk" : "", x.locked(c) ? "locked" : "", c.state && x.lit[c.state.group] && !x.locked(c) ? "on" : ""].filter(Boolean).join(" ");
+    const cls = ["k", o.cls || "", c.state ? "state" : "", c.mode === "hold" ? "holdk" : "", x.locked(c) ? "locked" : "", c.unbound ? "unbound" : "", c.state && x.lit[c.state.group] && !x.locked(c) ? "on" : ""].filter(Boolean).join(" ");
     const badge = window.DeckCat.badge(c.label);
     return `<button type="button" class="${cls}" ${attrs(x, c, o.fx ? `data-fx="${o.fx}"` : "")}${o.f ? ` style="flex:${o.f}"` : ""}>
-      ${c.state ? '<i class="led"></i>' : ""}${badge && !o.noBadge ? `<i class="bd">${badge}</i>` : ""}
+      ${c.state ? '<i class="led"></i>' : ""}${c.unbound ? '<i class="bd ub">BIND</i>' : badge && !o.noBadge ? `<i class="bd">${badge}</i>` : ""}
       <span class="kin"><span class="ic">${icon(o.icon || iconOf(x, c))}</span><span class="l">${esc(o.label || short(c.label))}</span></span>
       ${c.mode === "hold" ? '<i class="ring"></i>' : ""}<i class="arm"></i></button>`;
   }
@@ -128,11 +121,11 @@
   }
 
   // Shield pad: the ship from above with a face on each side; top and bottom beside it.
-  function shieldpad(x, f) {
-    const k = (id, cls, side) => { const c = x.take(id); return c ? key(x, c, { cls: `${side ? "tbk" : "face"} ${cls}`, label: cls.toUpperCase(), noBadge: true, fx: "shield" }) : ""; };
-    const front = k("shields-front", "front"), back = k("shields-back", "back"), left = k("shields-left", "left"), right = k("shields-right", "right");
-    const top = k("shields-top", "top", 1), bot = k("shields-bottom", "bottom", 1);
-    const reset = x.take("shields-reset");
+  function shieldpad(x, ids, f) {
+    const k = (id, cls, side) => { const c = id && x.take(id); return c ? key(x, c, { cls: `${side ? "tbk" : "face"} ${cls}`, label: cls.toUpperCase(), noBadge: true, fx: "shield" }) : ""; };
+    const front = k(ids.front, "front"), back = k(ids.back, "back"), left = k(ids.left, "left"), right = k(ids.right, "right");
+    const top = k(ids.top, "top", 1), bot = k(ids.bottom, "bottom", 1);
+    const reset = ids.reset && x.take(ids.reset);
     return `<div class="spad" style="flex:${f || 1}"><div class="ring">${front}${left}${right}${back}
       <span class="ship">${icon("ship")}</span>${reset ? key(x, reset, { cls: "hub", label: "Reset" }) : ""}</div>
       <div class="tb">${top}${bot}</div></div>`;
@@ -144,83 +137,89 @@
     return ks.length ? `<div class="agrid ${cls}" style="flex:${f || 1}" data-n="${ks.length}">${ks.join("")}</div>` : "";
   };
 
-  // ---------- designs ----------
-  const T = {
-    power(x) {
-      const sys = row([toggle(x, "power-on-off", { icon: "power", label: "PWR" }), toggle(x, "wep", { icon: "power-weapons", label: "WEP" }),
-        toggle(x, "thr", { icon: "power-engines", label: "THR" }), toggle(x, "shld", { icon: "power-shields", label: "SHLD" })], 1);
-      const fr = hero(x, "toggle-flight-ready", { label: "Flight Ready", fx: "power" });
-      const faders = row([
-        fader(x, { up: "weapons-up", down: "weapons-down", max: "max-weapons", min: "min-weapons", label: "Weapons", icon: "power-weapons", cat: "combat" }),
-        fader(x, { up: "thrusters-up", down: "thrusters-down", max: "max-thrusters", min: "min-thrusters", label: "Thrusters", icon: "power-engines", cat: "flight" }),
-        fader(x, { up: "shields-up", down: "shields-down", max: "max-shields", min: "min-shields", label: "Shields", icon: "power-shields", cat: "def" }),
-      ], 3.4);
-      return flip([col([sys, flex(fr, 0.9)], 1.1), col([faders, key(x, "reset-all", { cls: "wide" })].map((h, i) => (i ? flex(h, 0.45) : h)), 2.3)]);
-    },
-    landing(x) {
-      const mode = x.opts.landingMode || "landing";
-      const sw = `<div class="seg2 local" style="flex:.42"><button type="button" class="k segk${mode === "landing" ? " on" : ""}" data-local="landing-mode" data-v="landing"><span class="kin"><span class="l">Landing</span></span></button><button type="button" class="k segk${mode === "docking" ? " on" : ""}" data-local="landing-mode" data-v="docking"><span class="kin"><span class="l">Docking</span></span></button></div>`;
-      const vtol = toggle(x, "vtol", { fx: "streak" });
-      const land = row([lever(x, "landing-gear", 0.8), col([vtol, key(x, "engage-auto-land", { cls: "wide", fx: "dial" }),
-        row([key(x, "request-landing"), toggle(x, "landing-speed-limiter")])], 1.9)], 3);
-      const dock = flip([hero(x, "request-docking"), col([key(x, "docking-camera"), vtol], 1)], 3);
-      return col([sw, `<div class="bx mode" data-show="${mode}" style="flex:3">${mode === "landing" ? land : dock}</div>`,
-        `<div hidden>${mode === "landing" ? hidden(x, ["request-docking", "docking-camera"]) : hidden(x, ["landing-gear", "engage-auto-land", "request-landing", "landing-speed-limiter"])}</div>`]);
-    },
-    flight(x) {
-      return col([
-        seg(x, ["master-scm", "master-nav"], ["SCM", "NAV"], 1),
-        row([toggle(x, "speed-limiter"), fader(x, { up: "speed-range-up", down: "speed-range-down", label: "Speed range", icon: "speed", h: true, f: 2.2 }), key(x, "reset-limit", { f: 0.8 })], 1.1),
-        row([key(x, "match-speed"), toggle(x, "toggle-esp", { label: "ESP" }), toggle(x, "g-safety")], 1),
-        key(x, "look-behind", { cls: "wide", f: 0.7 }),
-      ]);
-    },
-    quantum(x) { return col([hero(x, "engage-quantum", { cls: "spool", fx: "quantum", label: "Engage Quantum" })]); },
-    modes(x) {
-      return col([knob(x, ["flight-mode", "guns-mode", "missiles", "scanning", "quantum-mode", "mining-mode", "salvage-mode"], x.take("scm-nav"))]);
-    },
-    shields(x) { return col([shieldpad(x)]); },
-    targeting(x) {
-      return col([row([hero(x, "prev-hostile", { fx: "lock", f: 1.6 }), key(x, "prev-attacker", { fx: "lock" })], 1.4),
-        row([key(x, "prev-friendly", { fx: "lock" }), key(x, "prev-any-target", { fx: "lock" })], 1),
-        row([key(x, "prev-in-view", { fx: "lock" }), key(x, "prev-subtarget", { fx: "lock" }), toggle(x, "lead-lag-pips")], 0.9)]);
-    },
-    combat(x) {
-      return flip([col([row([hero(x, "decoy", { fx: "flares" }), hero(x, "noise", { fx: "noise" })], 1.4), key(x, "panic-decoys", { cls: "wide", fx: "flares", f: 0.8 })], 1),
-        col([hero(x, "launch-missile", { fx: "missile", f: 1.4 }), row([key(x, "fewer-missiles"), toggle(x, "lead-lag-pips")], 0.8)], 1)]);
-    },
-    emergency(x) {
-      return col([`<div class="bx brow hazard" style="flex:1.3">${slide(x, "slide-to-eject", 1.7)}${guard(x, "self-d", 1)}</div>`,
-        row([key(x, "emergency-decoy", { fx: "flares" }), key(x, "emergency-noise", { fx: "noise" }), key(x, "emergency-panic-decoys", { fx: "flares" })], 1)]);
-    },
-    crew(x) {
-      return col([row([key(x, "remote-turret-1", { label: "Turret 1" }), key(x, "remote-turret-2", { label: "Turret 2" }), key(x, "remote-turret-3", { label: "Turret 3" })], 1),
-        flip([hero(x, "toggle-doors", { fx: "doors" }), col([row([key(x, "open-doors", { fx: "doors" }), key(x, "close-doors", { fx: "doors" })]), row([key(x, "lock-doors"), key(x, "unlock-doors")])], 1.2)], 1.8)]);
-    },
-    systems(x) { return flip([toggle(x, "lights", { cls: "hero", fx: "lights" }), key(x, "exit-seat")]); },
-    mining(x) {
-      return col([toggle(x, "mining-mode", { cls: "wide", f: 0.55 }),
-        flip([hero(x, "fire-laser", { fx: "laser", f: 1.3 }), col([key(x, "fracture-extract"),
-          fader(x, { up: "laser-power-up", down: "laser-power-down", label: "Laser power", icon: "laser", h: true })], 1.3)], 2),
-        row([key(x, "module-1", { label: "Module 1" }), key(x, "module-2", { label: "Module 2" }), key(x, "module-3", { label: "Module 3" })], 0.8)]);
-    },
-    salvage(x) {
-      return col([fader(x, { up: "modifier-right", down: "modifier-left", label: "Modifier", icon: "swap", h: true, f: 1 }),
-        flip([fader(x, { up: "beam-spacing-up", down: "beam-spacing-down", label: "Beam spacing", icon: "beam", h: true }),
-          col([key(x, "salvage-open-doors", { fx: "doors" }), key(x, "salvage-close-doors", { fx: "doors" })])], 2)]);
-    },
-    emotes(x) { return col([grid(x, x.g.controls, 1, "small")]); },
-  };
-  // Controls a mode hides still need to be "used" so they don't land in the extras.
-  function hidden(x, ids) { ids.forEach((id) => x.take(id)); return ""; }
+  // ---------- comms ----------
+  const mic = '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><rect x="17" y="6" width="14" height="24" rx="7"/><path d="M10 22a14 14 0 0 0 28 0M24 36v7M17 43h14"/></svg>';
+  const SEG = (name, opts, cur, attr) => `<div class="seg2 local" style="flex:.42">${opts.map(([v, l]) => `<button type="button" class="k segk${v === cur ? " on" : ""}" data-${attr}="${v}"><span class="kin"><span class="l">${esc(l)}</span></span></button>`).join("")}</div>`;
+  // The voice key: tap and talk until you pause, hold to talk, or leave it live.
+  function talk(x, n) {
+    const c = x.opts.comms || {};
+    const mode = c.talkMode || "tap";
+    const label = mode === "live" ? (c.live ? "Live" : "Off air") : mode === "hold" ? "Hold to talk" : "Tap to talk";
+    return `<div class="bx bcol talk" style="flex:${n.flex || 1}">
+      <button type="button" class="k hero talkk${c.listening || (mode === "live" && c.live) ? " on" : ""}" data-talk="${mode}" data-cat="${x.cat}" aria-label="${esc(label)}"><span class="kin"><span class="ic">${mic}</span><span class="l">${esc(label)}</span></span><i class="vu"></i></button>
+      ${SEG("talk", [["tap", "Tap"], ["hold", "Hold"], ["live", "Live"]], mode, "talkmode")}</div>`;
+  }
+  // Where voice goes: commands only, commands then the agent, or always the agent.
+  function route(x, n) {
+    const c = x.opts.comms || {}, ag = c.agent || {};
+    const name = ag.name || "Agent";
+    return `<div class="bx brow route" style="flex:${n.flex || 1}">${SEG("route", [["command", "Commands"], ["auto", "Auto"], ["agent", name]], ag.route || "command", "route").replace('style="flex:.42"', "")}${ag.ready ? "" : '<span class="nolink" title="No agent set up on the PC">i</span>'}</div>`;
+  }
+  // The last lines said to and by the agent; tap to type to it.
+  function transcript(x, n) {
+    const lines = ((x.opts.comms || {}).chat || []).slice(-3);
+    return `<button type="button" class="transcript" data-sheet="agent" style="flex:${n.flex || 1}" aria-label="Talk to the agent">${lines.length ? lines.map((l) => `<span class="ln ${esc(l.who)}"><b>${l.who === "you" ? "›" : l.who === "agent" ? "‹" : "·"}</b>${esc(l.text)}</span>`).join("") : '<span class="ln system"><b>·</b>—</span>'}${(x.opts.comms || {}).busy ? '<i class="dots"><i></i><i></i><i></i></i>' : ""}</button>`;
+  }
+  // Push to talk, radio style: pick Discord, the game or both; hold to transmit.
+  function radio(x, n) {
+    const o = n.radio || {}, c = x.opts.comms || {};
+    const d = o.discord && x.take(o.discord), g = o.game && x.take(o.game);
+    if (!d && !g) return "";
+    const ch = c.radioCh || (d ? "discord" : "game");
+    const ids = { discord: d ? [d.id] : [], game: g ? [g.id] : [], both: [d, g].filter(Boolean).map((z) => z.id) }[ch] || [];
+    return `<div class="bx bcol radio" style="flex:${n.flex || 1}">
+      <button type="button" class="k hero radiok" data-radio="${esc(ids.join(","))}" data-cat="${x.cat}" aria-label="Push to talk"><span class="kin"><span class="ic">${icon("radio")}</span><span class="l">${ch === "both" ? "Discord + game" : ch === "game" ? "Game PTT" : "Discord PTT"}</span></span><i class="tx">TX</i></button>
+      ${SEG("radio", [d && ["discord", "Discord"], g && ["game", "Game"], d && g && ["both", "Both"]].filter(Boolean), ch, "radioch")}</div>`;
+  }
+
+  // ---------- panels from their definition ----------
+  const ids = (n) => { const out = []; const walk = (v) => { if (typeof v === "string") out.push(v); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.values(v).forEach(walk); }; walk(n); return out; };
+  const kopts = (n) => ({ label: n.label, icon: n.icon, fx: n.fx, f: n.flex, cls: [n.size === "hero" ? "hero" : n.size === "wide" ? "wide" : "", n.spool ? "spool" : ""].filter(Boolean).join(" ") });
+  function node(x, n) {
+    if (!n || typeof n !== "object") return "";
+    if (n.row || n.col || n.flip) {
+      const kind = n.row ? "brow" : n.col ? "bcol" : "flip";
+      const kids = (n.row || n.col || n.flip).map((k) => node(x, k)).filter(Boolean);
+      return kids.length ? `<div class="bx ${kind}${n.style === "hazard" ? " hazard" : ""}"${n.flex ? ` style="flex:${n.flex}"` : ""}>${kids.join("")}</div>` : "";
+    }
+    if (n.key) return key(x, n.key, kopts(n));
+    if (n.toggle) return toggle(x, n.toggle, kopts(n));
+    if (n.lever) return lever(x, n.lever, n.flex);
+    if (n.fader) return fader(x, { ...n.fader, h: n.fader.horizontal, f: n.flex });
+    if (n.pair) return seg(x, n.pair, n.names || [], n.flex);
+    if (n.dial) return knob(x, n.dial, n.center && x.take(n.center), n.flex);
+    if (n.shieldpad) return shieldpad(x, n.shieldpad, n.flex);
+    if (n.guard) return guard(x, n.guard, n.flex);
+    if (n.slide) return slide(x, n.slide, n.flex);
+    if (n.grid) return n.grid === "rest" ? `<!--rest:${n.flex || 1}:${n.small ? "small" : ""}-->` : grid(x, n.grid.map((id) => x.take(id)), n.flex, n.small ? "small" : "");
+    if (n.modes) {
+      const opts = n.options || [];
+      const cur = (x.opts.local && x.opts.local(n.modes)) || (opts[0] && opts[0].value);
+      const pick = opts.find((o) => o.value === cur) || opts[0];
+      opts.forEach((o) => { if (o !== pick) ids(o.layout).forEach((id) => x.take(id)); });
+      const sw = `<div class="seg2 local" style="flex:.42">${opts.map((o) => `<button type="button" class="k segk${o === pick ? " on" : ""}" data-local="${esc(n.modes)}" data-v="${esc(o.value)}"><span class="kin"><span class="l">${esc(o.name)}</span></span></button>`).join("")}</div>`;
+      return `<div class="bx bcol"${n.flex ? ` style="flex:${n.flex}"` : ""}>${sw}<div class="bx bcol" style="flex:3">${node(x, pick.layout)}</div></div>`;
+    }
+    if (n.talk) return talk(x, n);
+    if (n.route) return route(x, n);
+    if (n.transcript) return transcript(x, n);
+    if (n.radio) return radio(x, n);
+    return "";
+  }
 
   // ---------- build ----------
   function render(g, opts = {}) {
     const x = ctx(g, opts);
-    const t = T[g.id];
-    let body = t ? t(x) : "";
-    const rest = g.controls.filter((c) => !x.used.has(c));
-    if (rest.length) body = t ? col([body ? `<div class="bx bcol" style="flex:4">${body}</div>` : "", grid(x, rest, rest.length > 4 ? 2 : 1)]) : grid(x, rest, 1);
+    let body = g.layout ? node(x, g.layout) : "";
+    const rest = () => g.controls.filter((c) => !x.used.has(c));
+    const m = body.match(/<!--rest:([\d.]+):(\w*)-->/);
+    if (m) {
+      const r = rest();
+      body = body.replace(m[0], r.length ? grid(x, r, Number(m[1]), m[2]) : "");
+    } else {
+      const r = rest();
+      if (r.length) body = body ? col([`<div class="bx bcol" style="flex:4">${body}</div>`, grid(x, r, r.length > 4 ? 2 : 1)]) : grid(x, r, 1);
+    }
     return body;
   }
 

@@ -51,6 +51,9 @@ func dial(t *testing.T, url string) *wsClient {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	conn, resp, err := websocket.Dial(ctx, url, nil)
+	if conn != nil {
+		conn.SetReadLimit(8 << 20)
+	}
 	if err != nil {
 		code := 0
 		if resp != nil {
@@ -109,7 +112,7 @@ func (c *wsClient) wait(typ string, ok func(map[string]any) bool) map[string]any
 }
 
 func TestOwnerDeckPairsAndPresses(t *testing.T) {
-	a, f := startApp(t, "Jared")
+	a, f := startApp(t, "Pilot")
 	cfg := a.Store.Config()
 	// A device that used the pairing code gets its own token...
 	c := dial(t, fmt.Sprintf("ws://%s:%d/ws?t=%s&device=tablet", a.LanAddress(), cfg.Port, cfg.Token))
@@ -136,7 +139,7 @@ func TestOwnerDeckPairsAndPresses(t *testing.T) {
 }
 
 func TestGuestLinkScope(t *testing.T) {
-	a, f := startApp(t, "Jared")
+	a, f := startApp(t, "Pilot")
 	cfg := a.Store.Config()
 	g, err := a.CreateGrant(GrantSpec{Label: "Mike", Panels: []string{"power-landing"}, Minutes: 30})
 	if err != nil {
@@ -190,7 +193,7 @@ func TestGuestLinkScope(t *testing.T) {
 }
 
 func TestAfkOnlyLink(t *testing.T) {
-	a, _ := startApp(t, "Jared")
+	a, _ := startApp(t, "Pilot")
 	cfg := a.Store.Config()
 	g, _ := a.CreateGrant(GrantSpec{Label: "Wingman", All: true, AfkOnly: true})
 	guest := dial(t, fmt.Sprintf("ws://127.0.0.1:%d/gws?g=%s", cfg.Port, g.Token))
@@ -205,18 +208,18 @@ func TestAfkOnlyLink(t *testing.T) {
 	guest.wait("state", func(m map[string]any) bool { return m["group"] == "gear" })
 }
 
-// Two PCs: Mike links to Jared's share link, then presses Jared's gear from his own
-// deck and sends him a request; Jared answers.
+// Two PCs: Mike links to Ana's share link, then presses Ana's gear from his own
+// deck and sends him a request; Ana answers.
 func TestCrewLink(t *testing.T) {
-	jared, jf := startApp(t, "Jared")
+	ana, jf := startApp(t, "Pilot")
 	mike, _ := startApp(t, "Mike")
-	g, _ := jared.CreateGrant(GrantSpec{Label: "Mike", Panels: []string{"power-landing"}})
-	link := jared.GrantLinks(g)["lan"]
-	link = strings.Replace(link, jared.LanAddress(), "127.0.0.1", 1)
-	if _, err := mike.crew.Add("Jared", link); err != nil {
+	g, _ := ana.CreateGrant(GrantSpec{Label: "Mike", Panels: []string{"power-landing"}})
+	link := ana.GrantLinks(g)["lan"]
+	link = strings.Replace(link, ana.LanAddress(), "127.0.0.1", 1)
+	if _, err := mike.crew.Add("Pilot", link); err != nil {
 		t.Fatal(err)
 	}
-	mcfg, jcfg := mike.Store.Config(), jared.Store.Config()
+	mcfg, jcfg := mike.Store.Config(), ana.Store.Config()
 	mikeDeck := dial(t, fmt.Sprintf("ws://127.0.0.1:%d/ws?t=%s", mcfg.Port, mcfg.Token))
 	mikeDeck.wait("hello", nil)
 	crew := mikeDeck.wait("crew", func(m map[string]any) bool {
@@ -226,40 +229,43 @@ func TestCrewLink(t *testing.T) {
 	if btns, _ := crew["buttons"].([]any); len(btns) == 0 {
 		t.Fatal("crew link shows no buttons")
 	}
-	jaredDeck := dial(t, fmt.Sprintf("ws://127.0.0.1:%d/ws?t=%s", jcfg.Port, jcfg.Token))
-	jaredDeck.wait("hello", nil)
+	anaDeck := dial(t, fmt.Sprintf("ws://127.0.0.1:%d/ws?t=%s", jcfg.Port, jcfg.Token))
+	anaDeck.wait("hello", nil)
 	jf.Events()
 
 	mikeDeck.send(map[string]any{"t": "crew-press", "peer": crew["id"], "id": "pl-gear"})
-	jaredDeck.wait("state", func(m map[string]any) bool { return m["group"] == "gear" })
+	anaDeck.wait("state", func(m map[string]any) bool { return m["group"] == "gear" })
 	if len(jf.Events()) != 2 {
-		t.Fatal("crew press didn't reach Jared's keyboard")
+		t.Fatal("crew press didn't reach Ana's keyboard")
 	}
 
 	mikeDeck.send(map[string]any{"t": "crew-request", "peer": crew["id"], "text": "brb, keep us out of the asteroid"})
-	req := jaredDeck.wait("request", nil)["request"].(map[string]any)
+	req := anaDeck.wait("request", nil)["request"].(map[string]any)
 	if !strings.Contains(req["from"].(string), "Mike") {
 		t.Fatalf("request from %v", req["from"])
 	}
 
-	// And back: Jared sends Mike a request down the link Mike opened.
-	jcrew := jared.crew.summary()
+	// And back: Ana sends Mike a request down the link Mike opened.
+	jcrew := ana.crew.summary()
 	if len(jcrew) == 0 {
-		t.Fatal("Jared doesn't see Mike connected")
+		t.Fatal("Ana doesn't see Mike connected")
 	}
-	jaredDeck.send(map[string]any{"t": "crew-request", "peer": jcrew[0]["id"], "text": "on it"})
+	anaDeck.send(map[string]any{"t": "crew-request", "peer": jcrew[0]["id"], "text": "on it"})
 	back := mikeDeck.wait("request", nil)["request"].(map[string]any)
-	if back["from"] != "Jared" || back["text"] != "on it" {
+	if back["from"] != "Pilot" || back["text"] != "on it" {
 		t.Fatalf("request back: %v", back)
 	}
 }
 
 func TestStaleDeckReleasesKeys(t *testing.T) {
-	a, f := startApp(t, "Jared")
+	a, f := startApp(t, "Pilot")
 	cfg := a.Store.Config()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	conn, _, err := websocket.Dial(ctx, fmt.Sprintf("ws://127.0.0.1:%d/ws?t=%s", cfg.Port, cfg.Token), nil)
+	if conn != nil {
+		conn.SetReadLimit(8 << 20)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

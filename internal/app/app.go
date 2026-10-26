@@ -62,6 +62,12 @@ type App struct {
 	started time.Time
 
 	srv, guestSrv *http.Server
+
+	game         atomic.Pointer[gameSet] // every game action
+	gameOnce     sync.Once
+	panelGen     atomic.Int64 // bumps when panels change
+	folderStamps stampCache
+	agent        agentState
 }
 
 // bindSet is the keybinds in use and where they came from.

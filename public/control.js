@@ -115,6 +115,15 @@
     for (const [id, on] of [["#relfocus", c.releaseOnFocusLoss], ["#tunnel", c.tunnel === "cloudflare"], ["#discovery", c.discovery]]) {
       $(id).setAttribute("aria-checked", String(!!on)); $(id).querySelector(".mono").textContent = on ? "ON" : "OFF";
     }
+    $("#vroute").innerHTML = [["command", "Commands"], ["auto", "Auto"], ["agent", "Agent"]].map(([v, l]) => `<button type="button" data-vroute="${v}" aria-pressed="${(c.voiceRoute || "command") === v}">${l}</button>`).join("");
+    $("#agstyle").innerHTML = [["fast", "Fast"], ["crew", "Crew"]].map(([v, l]) => `<button type="button" data-agstyle="${v}" aria-pressed="${(c.agentStyle || "fast") === v}">${l}</button>`).join("");
+    if (document.activeElement && document.activeElement.closest && !document.activeElement.closest("#comms")) {
+      $("#agurl").value = c.agentUrl || ""; $("#agkey").value = c.agentKey || ""; $("#agmodel").value = c.agentModel || "";
+      $("#agname").value = c.agentName || ""; $("#agprompt").value = c.agentPrompt || "";
+      const rb = c.rebinds || {};
+      $("#dmute").value = rb["discord-mute"] || ""; $("#ddeaf").value = rb["discord-deafen"] || ""; $("#dptt").value = rb["discord-ptt"] || "";
+    }
+    $("#agstate").textContent = c.agentUrl && c.agentModel ? "READY" : "NOT SET UP";
     const t = status && status.tunnel;
     if (t) {
       $("#tunnelmsg").textContent = t.state === "up" ? t.url : t.error || (t.state !== "off" ? t.state : "");
@@ -148,6 +157,8 @@
     if (!t) return;
     if (t.dataset.focus) saveCfg({ focusMode: t.dataset.focus });
     else if (t.dataset.replies) saveCfg({ replies: t.dataset.replies });
+    else if (t.dataset.vroute) saveCfg({ voiceRoute: t.dataset.vroute });
+    else if (t.dataset.agstyle) saveCfg({ agentStyle: t.dataset.agstyle });
     else if (t.dataset.unpair) { await api(`devices/${t.dataset.unpair}`, { method: "DELETE" }); refresh(); }
     else if (t.dataset.revoke) { await api(`grants/${t.dataset.revoke}`, { method: "DELETE" }); refresh(); }
     else if (t.dataset.unlink) { await api(`crew/${t.dataset.unlink}`, { method: "DELETE" }); refresh(); }
@@ -171,6 +182,23 @@
   $("#touch").onclick = () => window.open(status.pairing.local + "&name=This%20PC", "touchdeck", "width=1024,height=768");
   $("#installprofile").onclick = async () => {
     try { const r = await post("keybinds/install"); $("#kbmsg").textContent = `Installed to ${r.written.length} folder(s). In game: Options › Keybindings › Control Profiles.`; }
+    catch (e) { $("#kbmsg").textContent = e.message; }
+  };
+  $("#saveagent").onclick = () => {
+    const rb = Object.assign({}, cfg.rebinds || {});
+    for (const [id, el] of [["discord-mute", "#dmute"], ["discord-deafen", "#ddeaf"], ["discord-ptt", "#dptt"]]) {
+      const v = $(el).value.trim().toLowerCase();
+      if (v) rb[id] = v; else delete rb[id];
+    }
+    saveCfg({ agentUrl: $("#agurl").value.trim(), agentKey: $("#agkey").value.trim(), agentModel: $("#agmodel").value.trim(),
+      agentName: $("#agname").value.trim(), agentPrompt: $("#agprompt").value.trim(), rebinds: rb });
+  };
+  $("#agtest").onclick = async () => {
+    try { await post("agent/ask", { text: "Radio check. Answer in five words." }); toast("Asked. The answer shows on the deck's Comms panel and in Activity."); }
+    catch (e) { $("#agerr").textContent = e.message; }
+  };
+  $("#bindall").onclick = async () => {
+    try { const r = await post("keybinds/bind-all"); $("#kbmsg").textContent = `Bound ${r.added} more actions. ${r.next}`; }
     catch (e) { $("#kbmsg").textContent = e.message; }
   };
   $("#crewform").onsubmit = async (e) => {
@@ -197,6 +225,7 @@
       case "agent": src = "AGENT"; text = `${d.tool}${d.ok ? "" : " · failed"}`; break;
       case "request": src = "CREW"; text = `${d.from}: ${d.label || ""} ${d.text || ""}`; break;
       case "keybinds": src = "PC"; text = `Keybinds changed: ${d.actions} actions`; break;
+      case "chat": src = d.who === "agent" ? (cfg && cfg.agentName) || "AGENT" : d.who === "you" ? "YOU" : "COMMS"; text = d.text; break;
       case "afk": src = "PC"; text = d.on ? "Away mode on" : "Away mode off"; break;
       case "view": src = "VIEW"; text = `${d.view} → ${d.device || "all decks"} (${d.decks})`; break;
       default: return;

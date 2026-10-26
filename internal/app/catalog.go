@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -10,6 +11,7 @@ import (
 	"github.com/xattribution/tablet-deck-spooned/internal/config"
 	"github.com/xattribution/tablet-deck-spooned/internal/keys"
 	"github.com/xattribution/tablet-deck-spooned/internal/layout"
+	"github.com/xattribution/tablet-deck-spooned/internal/panels"
 )
 
 // The catalog is every control the deck knows, each once, with a stable id, a group
@@ -19,19 +21,25 @@ import (
 
 // Group is a ship system: the unit views are built from.
 type Group struct {
-	ID    string `json:"id"`
-	Code  string `json:"code"`
-	Name  string `json:"name"`
-	Order int    `json:"-"`
+	ID       string        `json:"id"`
+	Code     string        `json:"code"`
+	Name     string        `json:"name"`
+	Category string        `json:"category,omitempty"`
+	Game     bool          `json:"game,omitempty"` // one of the game's own menus
+	Order    int           `json:"-"`
+	Panel    *panels.Panel `json:"-"`
 }
 
 var groups = []Group{
-	{"power", "PWR", "Power", 0}, {"landing", "LND", "Landing", 1}, {"flight", "FLT", "Flight", 2},
-	{"quantum", "QT", "Quantum", 3}, {"modes", "MOD", "Master modes", 4}, {"shields", "SHD", "Shields", 5},
-	{"targeting", "TGT", "Targeting", 6}, {"combat", "CMB", "Weapons and countermeasures", 7},
-	{"emergency", "EMR", "Emergency", 8}, {"crew", "CRW", "Crew and doors", 9}, {"systems", "SYS", "Systems", 10},
-	{"mining", "MIN", "Mining", 11}, {"salvage", "SAL", "Salvage", 12}, {"on-foot", "FOOT", "On foot", 13},
-	{"emotes", "EMO", "Emotes", 14}, {"interface", "UI", "Interface", 15},
+	{ID: "power", Code: "PWR", Name: "Power", Order: 0}, {ID: "landing", Code: "LND", Name: "Landing", Order: 1},
+	{ID: "flight", Code: "FLT", Name: "Flight", Order: 2}, {ID: "quantum", Code: "QT", Name: "Quantum", Order: 3},
+	{ID: "modes", Code: "MOD", Name: "Master modes", Order: 4}, {ID: "shields", Code: "SHD", Name: "Shields", Order: 5},
+	{ID: "targeting", Code: "TGT", Name: "Targeting", Order: 6}, {ID: "combat", Code: "CMB", Name: "Weapons and countermeasures", Order: 7},
+	{ID: "emergency", Code: "EMR", Name: "Emergency", Order: 8}, {ID: "crew", Code: "CRW", Name: "Crew and doors", Order: 9},
+	{ID: "systems", Code: "SYS", Name: "Systems", Order: 10}, {ID: "mining", Code: "MIN", Name: "Mining", Order: 11},
+	{ID: "salvage", Code: "SAL", Name: "Salvage", Order: 12}, {ID: "on-foot", Code: "FOOT", Name: "On foot", Order: 13},
+	{ID: "emotes", Code: "EMO", Name: "Emotes", Order: 14}, {ID: "interface", Code: "UI", Name: "Interface", Order: 15},
+	{ID: "comms", Code: "COM", Name: "Comms", Order: 16},
 }
 
 func groupByID(id string) (Group, bool) {
@@ -56,6 +64,9 @@ type Control struct {
 	ScAction string         `json:"scAction,omitempty"`
 	Icon     string         `json:"icon,omitempty"`
 	Voice    []string       `json:"voice,omitempty"`
+	Desc     string         `json:"desc,omitempty"`
+	Unbound  bool           `json:"unbound,omitempty"` // a game action without a key yet
+	Global   bool           `json:"global,omitempty"`  // a hotkey for another app
 	Button   *layout.Button `json:"-"`
 }
 
@@ -130,7 +141,8 @@ type catalog struct {
 func (a *App) Catalog() ([]*Control, map[string]*Control) {
 	a.cat.mu.Lock()
 	defer a.cat.mu.Unlock()
-	stamp := a.Binds().stamp + strings.Join(a.LayoutFiles(), ",")
+	stamp := fmt.Sprintf("%s%s|%d|%s|%s|%d", a.Binds().stamp, strings.Join(a.LayoutFiles(), ","), a.panelGen.Load(),
+		a.folderStamp(), a.GameActions().Version, len(a.Store.Config().Rebinds))
 	if a.cat.byID != nil && a.cat.stamp == stamp {
 		return a.cat.controls, a.cat.byID
 	}
@@ -300,11 +312,19 @@ func (a *App) Catalog() ([]*Control, map[string]*Control) {
 		}
 		out = append(out, c)
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		gi, _ := groupByID(out[i].Group)
-		gj, _ := groupByID(out[j].Group)
-		return gi.Order < gj.Order
-	})
+	// Rebinds made here apply to the ship systems' controls too.
+	for id, k := range a.Store.Config().Rebinds {
+		if c := byID[id]; c != nil {
+			c.Keys = k
+			c.Button = buttonFor(c, c.Button.Mode, c.Button.Ms, c.Button.Global)
+		}
+	}
+	out = a.extendCatalog(out, byID)
+	rank := map[string]int{}
+	for _, g := range a.Groups() {
+		rank[g.ID] = g.Order
+	}
+	sort.SliceStable(out, func(i, j int) bool { return rank[out[i].Group] < rank[out[j].Group] })
 	a.cat.controls, a.cat.byID, a.cat.ofButton, a.cat.stamp = out, byID, ofButton, stamp
 	return out, byID
 }
@@ -356,7 +376,7 @@ func (a *App) GuestGroups(l *layout.Layout, g *config.Grant, states map[string]b
 		seen[c.ID] = true
 		e := by[c.Group]
 		if e == nil {
-			gr, _ := groupByID(c.Group)
+			gr, _ := a.GroupByID(c.Group)
 			e = &entry{group: gr}
 			by[c.Group] = e
 		}
@@ -367,9 +387,13 @@ func (a *App) GuestGroups(l *layout.Layout, g *config.Grant, states map[string]b
 		e.controls = append(e.controls, m)
 	}
 	var out []map[string]any
-	for _, gr := range groups {
+	for _, gr := range a.Groups() {
 		if e := by[gr.ID]; e != nil {
-			out = append(out, map[string]any{"id": gr.ID, "code": gr.Code, "name": gr.Name, "controls": e.controls})
+			m := map[string]any{"id": gr.ID, "code": gr.Code, "name": gr.Name, "category": gr.Category, "controls": e.controls}
+			if gr.Panel != nil && len(gr.Panel.Layout) > 0 {
+				m["layout"], m["size"] = gr.Panel.Layout, gr.Panel.Size
+			}
+			out = append(out, m)
 		}
 	}
 	// Groups with something shared come first.
@@ -447,8 +471,8 @@ var presets = []config.View{
 	{ID: "combat", Name: "Combat", Groups: []string{"targeting", "combat", "shields", "power", "modes", "emergency"}},
 	{ID: "mining", Name: "Mining", Groups: []string{"mining", "modes", "power", "landing", "quantum"}},
 	{ID: "salvage", Name: "Salvage", Groups: []string{"salvage", "modes", "power", "landing"}},
-	{ID: "crew", Name: "Crew", Groups: []string{"crew", "systems", "landing", "interface"}},
-	{ID: "on-foot", Name: "On foot", Groups: []string{"on-foot", "interface", "emotes"}},
+	{ID: "crew", Name: "Crew", Groups: []string{"comms", "crew", "systems", "landing", "interface"}},
+	{ID: "on-foot", Name: "On foot", Groups: []string{"on-foot", "comms", "interface", "emotes"}},
 }
 
 // Views lists the presets and the player's own views.
@@ -472,10 +496,13 @@ func (a *App) ViewByID(ref string) (config.View, bool) {
 
 // ResolvedGroup is a view's group with its controls, ready to draw.
 type ResolvedGroup struct {
-	ID       string     `json:"id"`
-	Code     string     `json:"code"`
-	Name     string     `json:"name"`
-	Controls []*Control `json:"controls"`
+	ID       string          `json:"id"`
+	Code     string          `json:"code"`
+	Name     string          `json:"name"`
+	Category string          `json:"category,omitempty"`
+	Layout   json.RawMessage `json:"layout,omitempty"` // the panel's widget tree
+	Size     *panels.Size    `json:"size,omitempty"`
+	Controls []*Control      `json:"controls"`
 }
 
 // Resolve turns a view into groups of controls.
@@ -483,15 +510,13 @@ func (a *App) Resolve(v config.View) []ResolvedGroup {
 	all, byID := a.Catalog()
 	var out []ResolvedGroup
 	for _, gid := range v.Groups {
-		g, ok := groupByID(gid)
+		g, ok := a.GroupByID(gid)
 		if !ok {
 			continue
 		}
-		rg := ResolvedGroup{ID: g.ID, Code: g.Code, Name: g.Name}
-		for _, c := range all {
-			if c.Group == g.ID {
-				rg.Controls = append(rg.Controls, c)
-			}
+		rg := ResolvedGroup{ID: g.ID, Code: g.Code, Name: g.Name, Category: g.Category, Controls: a.controlsOf(g, all, byID)}
+		if g.Panel != nil {
+			rg.Layout, rg.Size = g.Panel.Layout, g.Panel.Size
 		}
 		if len(rg.Controls) > 0 {
 			out = append(out, rg)
@@ -536,8 +561,8 @@ func (a *App) SaveView(v config.View) (config.View, error) {
 		}
 	}
 	for _, g := range v.Groups {
-		if _, ok := groupByID(g); !ok {
-			return v, fmt.Errorf("no group %q (groups: %s)", g, groupIDs())
+		if _, ok := a.GroupByID(g); !ok {
+			return v, fmt.Errorf("no group or panel %q (list_groups shows them)", g)
 		}
 	}
 	v.Preset = false
@@ -570,14 +595,6 @@ func (a *App) DeleteView(id string) bool {
 	})
 	a.broadcastOwners(map[string]any{"t": "views", "views": a.Views()})
 	return found
-}
-
-func groupIDs() string {
-	ids := make([]string, len(groups))
-	for i, g := range groups {
-		ids[i] = g.ID
-	}
-	return strings.Join(ids, ", ")
 }
 
 // ShowView puts a view on decks: one device (by id or name), or every owner deck

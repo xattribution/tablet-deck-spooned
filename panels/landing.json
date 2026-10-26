@@ -1,0 +1,73 @@
+{
+ "id": "landing",
+ "name": "Landing",
+ "code": "LND",
+ "category": "flight",
+ "size": {
+  "weight": 6,
+  "min": 250
+ },
+ "layout": {
+  "modes": "landing-mode",
+  "options": [
+   {
+    "name": "Landing",
+    "value": "landing",
+    "layout": {
+     "row": [
+      {
+       "lever": "landing-gear",
+       "flex": 0.8
+      },
+      {
+       "col": [
+        {
+         "toggle": "vtol",
+         "fx": "streak"
+        },
+        {
+         "key": "engage-auto-land",
+         "size": "wide",
+         "fx": "dial"
+        },
+        {
+         "row": [
+          {
+           "key": "request-landing"
+          },
+          {
+           "toggle": "landing-speed-limiter"
+          }
+         ]
+        }
+       ],
+       "flex": 1.9
+      }
+     ]
+    }
+   },
+   {
+    "name": "Docking",
+    "value": "docking",
+    "layout": {
+     "flip": [
+      {
+       "key": "request-docking",
+       "size": "hero"
+      },
+      {
+       "col": [
+        {
+         "key": "docking-camera"
+        },
+        {
+         "toggle": "vtol"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

@@ -318,6 +318,20 @@ func (v *voice) listen(c *client, on bool) {
 	}
 }
 
+// tap starts tap to talk (the native voice; the Windows voice treats it as a short hold).
+func (v *voice) tap(c *client) {
+	v.mu.Lock()
+	n := v.nat
+	v.mu.Unlock()
+	if n != nil {
+		n.tap(c)
+		c.send(map[string]any{"t": "listening", "on": true})
+		return
+	}
+	v.listen(c, true)
+	time.AfterFunc(5*time.Second, func() { v.listen(c, false); c.send(map[string]any{"t": "listening", "on": false}) })
+}
+
 // stopFor stops listening when the deck holding the talk button goes away.
 func (v *voice) stopFor(c *client) {
 	if v == nil {

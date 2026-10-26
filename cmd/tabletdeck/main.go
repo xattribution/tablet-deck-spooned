@@ -31,6 +31,7 @@ import (
 	"github.com/xattribution/tablet-deck-spooned/internal/app"
 	"github.com/xattribution/tablet-deck-spooned/internal/config"
 	"github.com/xattribution/tablet-deck-spooned/internal/deck"
+	"github.com/xattribution/tablet-deck-spooned/internal/sc"
 	"github.com/xattribution/tablet-deck-spooned/internal/winapp"
 )
 
@@ -54,6 +55,8 @@ func main() {
 		os.Exit(call("POST", "/api/v1/release-all", nil, nil))
 	case "mcp":
 		os.Exit(mcpStdio())
+	case "game-actions":
+		os.Exit(gameActions(args))
 	case "version":
 		fmt.Println(tabletdeck.Version)
 	case "help", "-h", "--help":
@@ -333,5 +336,22 @@ func mcpStdio() int {
 		out.Write(append(bytes.TrimSpace(body), '\n'))
 		out.Flush()
 	}
+	return 0
+}
+
+// gameActions prints every action of a Star Citizen install (a channel folder such as
+// "C:\\Program Files\\Roberts Space Industries\\StarCitizen\\LIVE") as JSON.
+func gameActions(args []string) int {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "usage: tabletdeck game-actions <channel folder>")
+		return 2
+	}
+	acts, version, err := sc.LoadActions(args[0], "")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Fprintf(os.Stderr, "%d actions, game %s\n", len(acts), version)
+	_ = json.NewEncoder(os.Stdout).Encode(acts)
 	return 0
 }

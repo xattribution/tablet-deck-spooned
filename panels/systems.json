@@ -1,0 +1,22 @@
+{
+ "id": "systems",
+ "name": "Systems",
+ "code": "SYS",
+ "category": "eng",
+ "size": {
+  "weight": 2.6,
+  "min": 110
+ },
+ "layout": {
+  "flip": [
+   {
+    "toggle": "lights",
+    "size": "hero",
+    "fx": "lights"
+   },
+   {
+    "key": "exit-seat"
+   }
+  ]
+ }
+}

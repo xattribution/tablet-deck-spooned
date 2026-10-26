@@ -1,0 +1,17 @@
+{
+ "id": "quantum",
+ "name": "Quantum",
+ "code": "QT",
+ "category": "nav",
+ "size": {
+  "weight": 3,
+  "min": 130
+ },
+ "layout": {
+  "key": "engage-quantum",
+  "size": "hero",
+  "spool": true,
+  "fx": "quantum",
+  "label": "Engage Quantum"
+ }
+}

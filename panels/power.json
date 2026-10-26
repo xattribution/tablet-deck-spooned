@@ -1,0 +1,99 @@
+{
+ "id": "power",
+ "name": "Power",
+ "code": "PWR",
+ "category": "eng",
+ "size": {
+  "weight": 10,
+  "min": 470
+ },
+ "layout": {
+  "flip": [
+   {
+    "col": [
+     {
+      "row": [
+       {
+        "toggle": "power-on-off",
+        "icon": "power",
+        "label": "PWR"
+       },
+       {
+        "toggle": "wep",
+        "icon": "power-weapons",
+        "label": "WEP"
+       },
+       {
+        "toggle": "thr",
+        "icon": "power-engines",
+        "label": "THR"
+       },
+       {
+        "toggle": "shld",
+        "icon": "power-shields",
+        "label": "SHLD"
+       }
+      ],
+      "flex": 1
+     },
+     {
+      "key": "toggle-flight-ready",
+      "label": "Flight Ready",
+      "fx": "power",
+      "size": "hero",
+      "flex": 0.9
+     }
+    ],
+    "flex": 1.1
+   },
+   {
+    "col": [
+     {
+      "row": [
+       {
+        "fader": {
+         "up": "weapons-up",
+         "down": "weapons-down",
+         "max": "max-weapons",
+         "min": "min-weapons",
+         "label": "Weapons",
+         "icon": "power-weapons",
+         "cat": "combat"
+        }
+       },
+       {
+        "fader": {
+         "up": "thrusters-up",
+         "down": "thrusters-down",
+         "max": "max-thrusters",
+         "min": "min-thrusters",
+         "label": "Thrusters",
+         "icon": "power-engines",
+         "cat": "flight"
+        }
+       },
+       {
+        "fader": {
+         "up": "shields-up",
+         "down": "shields-down",
+         "max": "max-shields",
+         "min": "min-shields",
+         "label": "Shields",
+         "icon": "power-shields",
+         "cat": "def"
+        }
+       }
+      ],
+      "flex": 3.4
+     },
+     {
+      "key": "reset-all",
+      "size": "wide",
+      "flex": 0.45
+     }
+    ],
+    "flex": 2.3
+   }
+  ]
+ }
+}

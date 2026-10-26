@@ -5,6 +5,23 @@ section becomes the notes of its
 [GitHub release](https://github.com/nodieCode/tablet-deck/releases), so add one
 before tagging a release.
 
+## Unreleased
+
+- **Comms panel:** a voice key with tap (talk until you pause), hold and live modes;
+  voice routed to commands, an agent, or both; push to talk for Discord, the game or
+  both with a radio squelch; Discord mute and deafen; proximity talk, hail and
+  channel keys.
+- **Agent:** talk or type to an AI agent through any OpenAI-compatible API, set up
+  on the PC under Comms. Fast or Crew style; replies are spoken.
+- **Every game action** from your install is on the deck, grouped like the game's
+  keybind menus. Unbound actions show a BIND badge; **Bind every action** writes a
+  profile that keeps your binds and binds the rest.
+- **Panels are data:** built-in panels are JSON, and your own come from the
+  `panels` folder, import, or an agent over MCP (`panel_guide`, `save_panel`). Guide:
+  docs/PANELS.md.
+- **Export and import** panels, views and a tablet's arrangement as one file
+  (Systems › Export / Import).
+
 ## 1.6.0 (2026-10-26)
 
 - **Español, Français and Deutsch:** the deck and the app window can show

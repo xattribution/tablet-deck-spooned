@@ -1,0 +1,10 @@
+{
+ "id": "on-foot",
+ "name": "On foot",
+ "code": "FOOT",
+ "category": "crew",
+ "size": {
+  "weight": 3,
+  "min": 140
+ }
+}

@@ -39,6 +39,7 @@ type nativeVoice struct {
 	owner    *client
 	stopPTT  chan struct{}
 	lastText string
+	tapUntil time.Time // tap to talk: listening until the next pause, or this time
 }
 
 // modelDirs are where model files are looked for: the setting, then a "models"
@@ -144,7 +145,7 @@ func (n *nativeVoice) setPhrases(l *layout.Layout, short bool) {
 func (n *nativeVoice) feed(pcm []float32) {
 	cfg := n.a.Store.Config()
 	n.mu.Lock()
-	ptt := n.owner != nil
+	ptt := n.owner != nil || time.Now().Before(n.tapUntil)
 	n.mu.Unlock()
 	if !cfg.AlwaysListen && !ptt && !pttKeyDown(cfg.PttKey) {
 		n.lis.Feed(make([]float32, len(pcm))) // keep time moving, hear nothing
@@ -236,6 +237,40 @@ func (n *nativeVoice) listen(c *client, on bool) {
 	}
 }
 
+// tap is tap to talk: listen until the player stops talking (or 12 s pass), then
+// handle what was said as addressed to us, wake word or not.
+func (n *nativeVoice) tap(c *client) {
+	n.mu.Lock()
+	n.owner = c
+	n.tapUntil = time.Now().Add(12 * time.Second)
+	until := n.tapUntil
+	n.mu.Unlock()
+	time.AfterFunc(12*time.Second+200*time.Millisecond, func() {
+		n.mu.Lock()
+		expired := n.tapUntil.Equal(until)
+		if expired {
+			n.tapUntil = time.Time{}
+		}
+		n.mu.Unlock()
+		if expired {
+			c.send(map[string]any{"t": "listening", "on": false})
+		}
+	})
+}
+
+// endTap is called with each utterance: was it the end of a tap to talk?
+func (n *nativeVoice) endTap() bool {
+	n.mu.Lock()
+	on := time.Now().Before(n.tapUntil)
+	n.tapUntil = time.Time{}
+	owner := n.owner
+	n.mu.Unlock()
+	if on && owner != nil {
+		owner.send(map[string]any{"t": "listening", "on": false})
+	}
+	return on
+}
+
 func (n *nativeVoice) pollPTTKey() {
 	t := time.NewTicker(30 * time.Millisecond)
 	defer t.Stop()
@@ -296,6 +331,15 @@ func (n *nativeVoice) utterance(pcm []float32, ptt bool) {
 		return
 	}
 	cmd, woke := speech.SplitWake(text, cfg.WakeWord)
+	if n.endTap() {
+		ptt = true // tap to talk: addressed to us
+		if cmd == "" {
+			cmd = text
+		}
+	}
+	if ptt && !woke {
+		cmd = text
+	}
 	n.mu.Lock()
 	armed := time.Now().Before(n.armed)
 	n.armed = time.Time{}
@@ -314,6 +358,11 @@ func (n *nativeVoice) utterance(pcm []float32, ptt bool) {
 		return
 	}
 	a.Log.Printf("Voice: %q (%d ms)", text, took.Milliseconds())
+	if cfg.VoiceRoute == "agent" && a.agentReady() {
+		n.reply(map[string]any{"t": "heard", "text": text, "agent": true})
+		a.AskAgent(cmd, "voice")
+		return
+	}
 	if n.intent(cmd) {
 		return
 	}
@@ -322,6 +371,12 @@ func (n *nativeVoice) utterance(pcm []float32, ptt bool) {
 	n.mu.Unlock()
 	best, score := speech.Match(cmd, list)
 	need := 0.55 + 0.35*cfg.VoiceConfidence // strictness 0.6 asks for 0.76
+	if (best == "" || score < need) && cfg.VoiceRoute == "auto" && a.agentReady() {
+		// Not a control: the agent takes it.
+		n.reply(map[string]any{"t": "heard", "text": text, "agent": true})
+		a.AskAgent(cmd, "voice")
+		return
+	}
 	if best == "" || score < need {
 		a.Bus.Publish("heard", map[string]any{"text": text, "accepted": false, "best": best, "score": score})
 		n.reply(map[string]any{"t": "unheard"})

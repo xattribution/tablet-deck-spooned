@@ -102,6 +102,25 @@ start with Windows, and updates with one click.
   <img src="docs/hero.jpg" alt="The deck on an iPad and an iPhone: landing, power management, ship systems and quantum controls" width="100%">
 </p>
 
+## Comms, agents and your own panels
+
+- **Comms panel.** One voice key with three modes: tap and talk until you pause,
+  hold to talk, or always live. Route what you say to deck commands, to an AI agent,
+  or to commands first and the agent for everything else. A radio key does push to
+  talk on Discord, the game, or both, with mute and deafen toggles beside it.
+- **An agent on the deck.** Any OpenAI-compatible API (xAI, OpenAI, OpenRouter, or a
+  local Ollama or LM Studio). *Fast* answers in a sentence and presses keys; *Crew*
+  uses every deck tool over several steps, like setting up views and building panels.
+  Replies are spoken and shown on the panel; tap the transcript to type.
+- **Every game action.** About 700 actions from your own install, grouped like the
+  game's keybind menus. Unbound ones show a BIND badge; **Bind every action** on the
+  PC writes a profile that keeps your binds and gives the rest a free key.
+- **Your own panels.** A panel is a small JSON file: a name, the controls, and a
+  layout of keys, toggles, sliders, levers, dials and guarded switches. Drop it in
+  the `panels` folder, import it on the tablet, or ask an agent to build one over
+  MCP. Export your panels, views and layout as one file to share. The format is in
+  **[docs/PANELS.md](docs/PANELS.md)**.
+
 ## Get started
 
 You need **Windows 10 or 11** on the gaming PC and a **tablet or phone on the
@@ -473,6 +492,9 @@ the game's files or memory.
   parties, dorms, hotels) others on the same Wi-Fi could see your pairing code
   and taps. The firewall rule only allows private networks, so Tablet Deck is
   blocked on networks Windows marks as public.
+- Keys only reach Star Citizen. The exception is a control a panel marks
+  `global`, such as Discord's mute and push to talk, which goes to whatever window
+  is in front. The agent's API key stays in `config.json` on your PC.
 - Held keys are released if the tablet disconnects or goes quiet for 5 seconds,
   and releasing a held button always goes through, so no key stays stuck.
 - No accounts, ads or tracking. The only internet traffic is the update check

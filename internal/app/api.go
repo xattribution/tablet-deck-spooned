@@ -20,6 +20,7 @@ import (
 	"github.com/xattribution/tablet-deck-spooned/internal/deck"
 	"github.com/xattribution/tablet-deck-spooned/internal/keys"
 	"github.com/xattribution/tablet-deck-spooned/internal/layout"
+	"github.com/xattribution/tablet-deck-spooned/internal/panels"
 	"github.com/xattribution/tablet-deck-spooned/internal/sc"
 )
 
@@ -98,7 +99,76 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 		for _, c := range all {
 			list = append(list, controlView(c, states))
 		}
-		writeJSON(w, 200, map[string]any{"groups": groups, "controls": list, "views": a.Views()})
+		writeJSON(w, 200, map[string]any{"groups": a.Groups(), "controls": list, "views": a.Views(), "game": a.GameActions().Version})
+
+	// ---------- panels ----------
+	case route == "panels" && method == http.MethodGet:
+		writeJSON(w, 200, a.Panels())
+	case route == "panels" && method == http.MethodPost:
+		var pn panels.Panel
+		if !decode(&pn) {
+			return
+		}
+		saved, err := a.SavePanel(pn)
+		if err != nil {
+			jsonErr(w, 400, err.Error())
+			return
+		}
+		writeJSON(w, 200, saved)
+	case len(parts) == 2 && parts[0] == "panels" && method == http.MethodGet:
+		for _, pn := range a.Panels() {
+			if pn.ID == parts[1] {
+				writeJSON(w, 200, pn)
+				return
+			}
+		}
+		jsonErr(w, 404, "No such panel.")
+	case len(parts) == 2 && parts[0] == "panels" && method == http.MethodPut:
+		var pn panels.Panel
+		if !decode(&pn) {
+			return
+		}
+		pn.ID = parts[1]
+		saved, err := a.SavePanel(pn)
+		if err != nil {
+			jsonErr(w, 400, err.Error())
+			return
+		}
+		writeJSON(w, 200, saved)
+	case len(parts) == 2 && parts[0] == "panels" && method == http.MethodDelete:
+		writeJSON(w, 200, map[string]any{"ok": a.DeletePanel(parts[1])})
+	case route == "panels/guide":
+		b, _ := tabletdeck.Files.ReadFile("docs/PANELS.md")
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		_, _ = w.Write(b)
+	case route == "agent/ask" && method == http.MethodPost:
+		if !localOnly() {
+			return
+		}
+		var body struct{ Text string }
+		if !decode(&body) {
+			return
+		}
+		if !a.agentReady() {
+			jsonErr(w, 400, "set the agent's API and model first")
+			return
+		}
+		a.AskAgent(body.Text, "api")
+		writeJSON(w, 200, map[string]any{"ok": true})
+	case route == "export" && method == http.MethodGet:
+		writeJSON(w, 200, a.Export(r.URL.Query().Get("view")))
+	case route == "import" && method == http.MethodPost:
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 4<<20))
+		if err != nil {
+			jsonErr(w, 400, err.Error())
+			return
+		}
+		res, err := a.Import(body)
+		if err != nil {
+			jsonErr(w, 400, err.Error())
+			return
+		}
+		writeJSON(w, 200, res)
 
 	case route == "show-view" && method == http.MethodPost:
 		var body struct{ View, Device string }
@@ -247,6 +317,25 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request, p principal) {
 	case route == "keybinds" && method == http.MethodGet:
 		b := a.Binds()
 		writeJSON(w, 200, map[string]any{"files": b.Files, "actions": len(b.Binds), "installs": b.Installs})
+	case route == "keybinds/unbound" && method == http.MethodGet:
+		all, _ := a.Catalog()
+		var list []map[string]any
+		for _, c := range all {
+			if c.Unbound {
+				list = append(list, map[string]any{"id": c.ID, "label": c.Label, "group": c.Group, "action": c.ScAction})
+			}
+		}
+		writeJSON(w, 200, map[string]any{"count": len(list), "controls": list})
+	case route == "keybinds/bind-all" && method == http.MethodPost:
+		if !localOnly() {
+			return
+		}
+		res, err := a.BindAll()
+		if err != nil {
+			jsonErr(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, 200, res)
 	case route == "keybinds/install" && method == http.MethodPost:
 		if !localOnly() {
 			return

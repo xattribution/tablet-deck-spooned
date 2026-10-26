@@ -24,7 +24,7 @@
   const THEMES = ["rsi", "hud", "mobiglas", "drake", "origin", "crusader", "aegis", "anvil", "misc", "argo", "cnou", "banu", "aopoa", "esperia"];
   const BLOCKED = {
     "not-running": ["GAME NOT RUNNING", "game"], "not-focused": ["GAME NOT IN FRONT", "game"], "focus-failed": ["GAME WON'T COME FORWARD", "game"],
-    "denied": ["NOT SHARED", ""], "not-afk": ["ONLY WHILE AFK", "afk"], "rate-limited": ["SLOW DOWN", ""], "expired": ["LINK RAN OUT", ""],
+    "denied": ["NOT SHARED", ""], "unbound": ["NOT BOUND · BIND ON PC", "game"], "not-afk": ["ONLY WHILE AFK", "afk"], "rate-limited": ["SLOW DOWN", ""], "expired": ["LINK RAN OUT", ""],
   };
   const QUICK = ["BRB", "On it", "Cover me", "Take the helm", "Gear down", "Spool QT", "Need you back"];
   const UI = {
@@ -35,6 +35,8 @@
     share: '<svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.3 10.8 7.4-3.6M8.3 13.2l7.4 3.6"/></svg>',
     theme: '<svg class="i" viewBox="0 0 24 24"><path d="M4 20h16M6 16l6-12 6 12"/><path d="M8.5 11h7"/></svg>',
     release: '<svg class="i" viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.3 7.5a8 8 0 1 0 11.4 0"/></svg>',
+    dl: '<svg class="i" viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>',
+    ul: '<svg class="i" viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5M5 20h14"/></svg>',
     full: '<svg class="i" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
     afk: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="m9 21 2-6-3-3 2-4 4 2 3 1M13 15l3 6"/></svg>',
     mic: '<svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
@@ -116,16 +118,17 @@
     switch (m.t) {
       case "pong": lastPong = Date.now(); S.latency = Math.round(performance.now() - m.n); paintLamps(); break;
       case "hello":
+        window.DeckCat.set(m.groups); if (m.guest) window.DeckCat.set(m.guest.groups);
         S.hello = m; S.lit = m.states || {}; S.game = m.game; S.afk = !!m.afk; S.owner = m.name || "";
         if (m.guest) { S.guest = m.guest; S.groups = m.guest.groups || []; drawConsole("guest"); break; }
         S.views = m.views || []; S.crew = m.crew || []; S.requests = m.requests || []; S.grants = m.grants || [];
-        S.voice = m.voiceStatus || S.voice;
+        S.voice = m.voiceStatus || S.voice; S.chat = m.chat || []; S.live = !!m.live; S.agentInfo = m.agent || {};
         send({ t: "view", id: store.get(`view-${device}`) || "flight" });
         break;
       case "paired": token = m.token; store.set("token", token); store.set("pairCode", urlCode); break;
       case "view": {
         const changed = !S.view || S.view.id !== m.view.id;
-        S.view = m.view; S.groups = m.groups || [];
+        S.view = m.view; S.groups = m.groups || []; window.DeckCat.set(S.groups);
         if (!m.view.id.startsWith("agent-")) store.set(`view-${device}`, m.view.id);
         if (changed) S.page = 0;
         drawConsole("deck", { announce: changed });
@@ -165,7 +168,12 @@
       case "highlight": highlight(m.ids || []); break;
       case "theme": applyTheme(m.id); drawConsole(S.mode); break;
       case "voice-status": S.voice = m; paintLamps(); break;
-      case "listening": S.listening = m.on; paintLamps(); break;
+      case "listening": S.listening = m.on; paintLamps(); repaintComms(); break;
+      case "chat": S.chat = (S.chat || []).concat(m.line).slice(-40); if (m.line.who === "agent") ticker((S.agentInfo || {}).name || "AGENT", m.line.text); repaintComms(); break;
+      case "chat-clear": S.chat = []; repaintComms(); break;
+      case "agent-busy": S.busy = m.on; repaintComms(); break;
+      case "agent-info": S.agentInfo = m.agent || {}; repaintComms(); break;
+      case "voice-live": S.live = m.on; repaintComms(); paintLamps(); break;
       case "heard": ticker("HEARD", m.text || m.label); break;
       case "unheard": ticker("VOICE", "didn't catch that"); break;
       case "voice-off": toast(m.reason); break;
@@ -240,7 +248,17 @@
 
   const labelMode = () => (store.get("labels") === "off" ? "off" : "full");
   const showBinds = () => store.get("binds") === "on";
-  const panelOpts = () => ({ guest: S.mode === "guest", lit: S.lit, landingMode: store.get("landing-mode") || "landing" });
+  const panelOpts = () => ({ guest: S.mode === "guest", lit: S.lit, local: (k) => store.get(k),
+    comms: { chat: S.chat || [], busy: S.busy, live: S.live, listening: S.listening, agent: S.agentInfo || {}, talkMode: store.get("talk-mode") || "tap", radioCh: store.get("radio-ch") } });
+  // Redraw the panes that show comms state (talk key, route, transcript).
+  function repaintComms() {
+    for (const pane of $$(".pane")) {
+      if (!pane.querySelector(".talk, .route, .transcript, .radio")) continue;
+      const g = S.groups.find((x) => x.id === pane.dataset.panel);
+      if (g) { pane.querySelector(".pbody").innerHTML = window.DeckPanels.render(g, panelOpts()); window.DeckPanels.fitGrids(pane); }
+    }
+    if (sheetName() === "agent") paintAgentLog();
+  }
   function paneHTML(g) {
     const wt = (saved && saved.wt && saved.wt[g.id]) || window.DeckPanels.size(g).weight;
     return `<section class="pane" data-panel="${esc(g.id)}" data-cat="${CAT(g.id)}" style="flex:${wt} 1 0" aria-label="${esc(g.name)}">
@@ -467,7 +485,7 @@
     buzz();
     if (el.dataset.locked) { send({ t: "request", id }); ticker("ASKED", el.getAttribute("aria-label")); return null; }
     send({ t: mode === "hold" ? "down" : "tap", id });
-    fx(fxOf(el), el, e);
+    if (!el.classList.contains("unbound")) fx(fxOf(el), el, e);
     if (el.classList.contains("pos")) { const d = el.closest(".dial"); if (d) d.style.setProperty("--pa", el.style.getPropertyValue("--a")); }
     return mode === "hold" ? id : null;
   }
@@ -633,6 +651,101 @@
     b.addEventListener("pointercancel", end);
   }, true);
 
+  // ---------- comms widgets ----------
+
+  // Talk key: tap and talk until you pause; hold to talk; or switch live on and off.
+  con.addEventListener("pointerdown", (e) => {
+    const b = e.target.closest(".talkk");
+    if (!b || S.editing) return;
+    e.preventDefault();
+    buzz();
+    const mode = b.dataset.talk;
+    if (mode === "live") { send({ t: "voice-live", on: !S.live }); return; }
+    if (mode === "tap") { send({ t: "voice", on: true, mode: "tap" }); S.listening = true; b.classList.add("on"); return; }
+    try { b.setPointerCapture(e.pointerId); } catch {}
+    S.listening = true; b.classList.add("on");
+    send({ t: "voice", on: true });
+    const end = () => { S.listening = false; b.classList.remove("on"); send({ t: "voice", on: false }); b.removeEventListener("pointerup", end); b.removeEventListener("pointercancel", end); };
+    b.addEventListener("pointerup", end);
+    b.addEventListener("pointercancel", end);
+  });
+
+  // Radio: hold to transmit on Discord, the game, or both, with a squelch at each end.
+  let audio;
+  function squelch(open) {
+    if (store.get("squelch") === "off") return;
+    try {
+      audio = audio || new AudioContext();
+      const t = audio.currentTime, n = audio.sampleRate * (open ? 0.06 : 0.12);
+      const buf = audio.createBuffer(1, n, audio.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const src = audio.createBufferSource(), bp = audio.createBiquadFilter(), g = audio.createGain();
+      src.buffer = buf; bp.type = "bandpass"; bp.frequency.value = open ? 2400 : 1600; bp.Q.value = 0.8;
+      g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + (open ? 0.06 : 0.12));
+      src.connect(bp).connect(g).connect(audio.destination); src.start(t);
+      if (!open) { const o = audio.createOscillator(), og = audio.createGain(); o.frequency.value = 1100; og.gain.setValueAtTime(0.05, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.09); o.connect(og).connect(audio.destination); o.start(t); o.stop(t + 0.1); }
+    } catch {}
+  }
+  con.addEventListener("pointerdown", (e) => {
+    const b = e.target.closest(".radiok");
+    if (!b || S.editing) return;
+    e.preventDefault();
+    const ids = (b.dataset.radio || "").split(",").filter(Boolean);
+    if (!ids.length) return;
+    try { b.setPointerCapture(e.pointerId); } catch {}
+    buzz(12); squelch(true);
+    ids.forEach((id) => send({ t: "down", id }));
+    b.classList.add("tx");
+    const end = () => {
+      ids.forEach((id) => send({ t: "up", id }));
+      b.classList.remove("tx"); squelch(false);
+      b.removeEventListener("pointerup", end); b.removeEventListener("pointercancel", end);
+    };
+    b.addEventListener("pointerup", end);
+    b.addEventListener("pointercancel", end);
+  });
+
+  // The switches on the comms widgets.
+  con.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-talkmode], [data-route], [data-radioch]");
+    if (!b || S.editing) return;
+    buzz(6);
+    if (b.dataset.talkmode) {
+      if (b.dataset.talkmode !== "live" && S.live) send({ t: "voice-live", on: false });
+      store.set("talk-mode", b.dataset.talkmode);
+    } else if (b.dataset.route) {
+      send({ t: "voice-route", mode: b.dataset.route });
+      S.agentInfo = { ...(S.agentInfo || {}), route: b.dataset.route };
+    } else store.set("radio-ch", b.dataset.radioch);
+    repaintComms();
+  });
+
+  // The agent: the conversation so far, and a box to type to it.
+  function openAgent() {
+    const ag = S.agentInfo || {};
+    openSheet("agent", "top", ag.name || "Agent", `
+      <div class="spread agent">
+        <section class="glass col"><span class="lbl">${esc((ag.style || "fast").toUpperCase())} · ${ag.ready ? "READY" : "NOT SET UP"}</span><div class="fill chatlog" id="chatlog"></div></section>
+        <form class="col say" id="sayf">
+          <textarea id="sayt" rows="3" placeholder="${ag.ready ? "Ask or tell it something" : "Set up an agent on the PC first"}" ${ag.ready ? "" : "disabled"}></textarea>
+          <span class="row"><button type="submit" class="btn primary big" ${ag.ready ? "" : "disabled"}>${UI.send}<span>Send</span></button>
+          <button type="button" class="btn" data-cact="chat-clear">${UI.close}<span>New chat</span></button></span>
+        </form>
+      </div>`, paintAgentLog);
+    const f = $("#sayf");
+    f.addEventListener("submit", (e) => { e.preventDefault(); const t = $("#sayt"); if (t.value.trim()) { send({ t: "chat", text: t.value.trim() }); t.value = ""; buzz(); } });
+  }
+  function paintAgentLog() {
+    const el = $("#chatlog");
+    if (!el) return;
+    el.innerHTML = (S.chat || []).slice(-12).map((l) => `<p class="ln ${esc(l.who)}"><b>${l.who === "you" ? "›" : l.who === "agent" ? "‹" : "·"}</b>${esc(l.text)}</p>`).join("") + (S.busy ? '<p class="ln system"><i class="dots"><i></i><i></i><i></i></i></p>' : "");
+    el.scrollTop = el.scrollHeight;
+  }
+  layer.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-cact=chat-clear]");
+    if (t && sheetName() === "agent") { send({ t: "chat-clear" }); buzz(); }
+  });
+
   // ---------- the layout lock ----------
 
   // Panels stay where they are until the lock is slid up and then right: a move that
@@ -796,6 +909,7 @@
     else if (t.dataset.page) goPage(Number(t.dataset.page));
     else if (t.dataset.sheet === "systems") openSystems();
     else if (t.dataset.sheet === "comms") openComms();
+    else if (t.dataset.sheet === "agent") openAgent();
     else if (t.dataset.lamp === "afk" && S.mode === "deck") { S.afk = !S.afk; send({ t: "afk", on: S.afk }); paintLamps(); buzz(); }
     else if (t.dataset.lamp && t.dataset.lamp !== "talk") openComms();
   });
@@ -875,7 +989,7 @@
     const views = viewList();
     const acts = guest ? [] : [
       ["find", "Find", UI.find], ["share", "Share", UI.share], ["theme", "Panel", UI.theme],
-      ["release", "Release", UI.release], ["full", "Full", UI.full],
+      ["release", "Release", UI.release], ["full", "Full", UI.full], ["export", "Export", UI.dl], ["import", "Import", UI.ul],
     ];
     openSheet("systems", "bottom", guest ? "Map" : "Systems", `
       ${guest ? "" : `<div class="views" id="views"></div>`}
@@ -889,6 +1003,40 @@
       }, { cellW: 150, cellH: 74, rows: 1 });
       paintMap();
     });
+  }
+  // Export: the player's panels and views from the PC, plus how this deck arranged them.
+  async function exportDeck() {
+    try {
+      const b = await (await fetch(`/api/v1/export?${auth()}`)).json();
+      const layout = {};
+      try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (/^(layout-|talk-mode|radio-ch|landing-mode)/.test(k)) layout[k] = localStorage.getItem(k); } } catch {}
+      b.layout = layout;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(b, null, 2)], { type: "application/json" }));
+      a.download = `tablet-deck-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      ticker("DECK", `exported ${(b.panels || []).length} panels`);
+    } catch { toast("Export failed"); }
+  }
+  // Import: a file someone exported, or a single panel.
+  function importDeck() {
+    const f = document.createElement("input");
+    f.type = "file"; f.accept = ".json,application/json";
+    f.onchange = async () => {
+      const file = f.files && f.files[0];
+      if (!file) return;
+      const text = await file.text();
+      try {
+        const r = await fetch(`/api/v1/import?${auth()}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: text });
+        const d = await r.json();
+        if (!r.ok) { toast(d.error || "Import failed", 3200); return; }
+        try { const b = JSON.parse(text); if (b.layout && typeof b.layout === "object") for (const [k, v] of Object.entries(b.layout)) if (/^(layout-|talk-mode|radio-ch|landing-mode)/.test(k)) store.set(k, v); } catch {}
+        ticker("DECK", `imported ${(d.panels || []).length} panels, ${(d.views || []).length} views`);
+        closeSheet();
+      } catch { toast("Import failed"); }
+    };
+    f.click();
   }
   function viewList() {
     const list = S.views.filter((v) => v.preset).concat(S.views.filter((v) => !v.preset));
@@ -921,6 +1069,8 @@
     else if (t.dataset.act === "share") openShare();
     else if (t.dataset.act === "theme") openPanel();
     else if (t.dataset.act === "release") { send({ t: "release-all" }); ticker("DECK", "all keys released"); closeSheet(); }
+    else if (t.dataset.act === "export") exportDeck();
+    else if (t.dataset.act === "import") importDeck();
     else if (t.dataset.act === "full") { const d = root; if (document.fullscreenElement) document.exitFullscreen(); else (d.requestFullscreen || d.webkitRequestFullscreen)?.call(d); }
   });
 
@@ -1006,7 +1156,7 @@
     const input = $("#fq");
     input.oninput = () => { findQ = input.value; paintFind(); };
     if (!draft) setTimeout(() => input.focus({ preventScroll: true }), 300);
-    if (!catalog) fetch(`/api/v1/catalog?${auth()}`).then((r) => r.json()).then((d) => { catalog = d; paintFind(); }).catch(() => {});
+    if (!catalog) fetch(`/api/v1/catalog?${auth()}`).then((r) => r.json()).then((d) => { catalog = d; window.DeckCat.set(d.groups); paintFind(); }).catch(() => {});
   }
   function paintFind() {
     if (!catalog || sheetName() !== "find") return;

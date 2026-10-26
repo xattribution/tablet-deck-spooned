@@ -1,0 +1,65 @@
+{
+ "id": "flight",
+ "name": "Flight",
+ "code": "FLT",
+ "category": "flight",
+ "size": {
+  "weight": 7,
+  "min": 300
+ },
+ "layout": {
+  "col": [
+   {
+    "pair": [
+     "master-scm",
+     "master-nav"
+    ],
+    "names": [
+     "SCM",
+     "NAV"
+    ]
+   },
+   {
+    "row": [
+     {
+      "toggle": "speed-limiter"
+     },
+     {
+      "fader": {
+       "up": "speed-range-up",
+       "down": "speed-range-down",
+       "label": "Speed range",
+       "icon": "speed",
+       "horizontal": true
+      },
+      "flex": 2.2
+     },
+     {
+      "key": "reset-limit",
+      "flex": 0.8
+     }
+    ],
+    "flex": 1.1
+   },
+   {
+    "row": [
+     {
+      "key": "match-speed"
+     },
+     {
+      "toggle": "toggle-esp",
+      "label": "ESP"
+     },
+     {
+      "toggle": "g-safety"
+     }
+    ]
+   },
+   {
+    "key": "look-behind",
+    "size": "wide",
+    "flex": 0.7
+   }
+  ]
+ }
+}

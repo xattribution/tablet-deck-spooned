@@ -116,6 +116,9 @@ func (cr *crew) run(ctx context.Context, p *peerConn) {
 		name := url.QueryEscape(cr.a.Store.Config().Name)
 		dctx, dcancel := context.WithTimeout(ctx, 10*time.Second)
 		conn, resp, err := websocket.Dial(dctx, wsURL+"&peer="+name, nil)
+		if conn != nil {
+			conn.SetReadLimit(8 << 20) // a deck's hello carries its panels
+		}
 		dcancel()
 		if err != nil {
 			if resp != nil && (resp.StatusCode == 403 || resp.StatusCode == 410) {

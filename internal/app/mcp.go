@@ -10,6 +10,8 @@ import (
 	tabletdeck "github.com/xattribution/tablet-deck-spooned"
 	"github.com/xattribution/tablet-deck-spooned/internal/config"
 	"github.com/xattribution/tablet-deck-spooned/internal/deck"
+	"github.com/xattribution/tablet-deck-spooned/internal/keys"
+	"github.com/xattribution/tablet-deck-spooned/internal/panels"
 )
 
 // The MCP server lets an AI agent drive the deck: find and press controls, put views
@@ -99,10 +101,130 @@ func controlView(c *Control, states map[string]bool) map[string]any {
 	if c.Icon != "" {
 		m["icon"] = c.Icon
 	}
+	if c.ScAction != "" {
+		m["gameAction"] = c.ScAction
+	}
+	if c.Unbound {
+		m["unbound"] = true
+	}
+	if c.Global {
+		m["global"] = true
+	}
 	return m
 }
 
 var mcpTools = []tool{
+	{Name: "panel_guide", Title: "How to build a panel",
+		Description: "The panel format: every widget, how controls are referenced, and examples. Read this before save_panel.",
+		InputSchema: obj(map[string]any{}),
+		run: func(a *App, _ map[string]any) (any, error) {
+			b, err := tabletdeck.Files.ReadFile("docs/PANELS.md")
+			return string(b), err
+		}},
+	{Name: "list_panels", Title: "List panels",
+		Description: "Every panel: built-in (the ship systems and Comms), from the panels folder, and saved ones. Each is a group a view can show.",
+		InputSchema: obj(map[string]any{}),
+		run: func(a *App, _ map[string]any) (any, error) {
+			var out []map[string]any
+			for _, p := range a.Panels() {
+				out = append(out, map[string]any{"id": p.ID, "name": p.Name, "code": p.Code, "category": p.Category, "source": p.Source,
+					"actions": len(p.Actions), "controls": len(p.Controls), "designed": len(p.Layout) > 0})
+			}
+			return out, nil
+		}},
+	{Name: "get_panel", Title: "Get a panel",
+		Description: "One panel's full definition (actions, controls and layout), to copy or change and save again.",
+		InputSchema: obj(map[string]any{"id": str("Panel id")}, "id"),
+		run: func(a *App, args map[string]any) (any, error) {
+			for _, p := range a.Panels() {
+				if p.ID == argStr(args, "id") {
+					return p, nil
+				}
+			}
+			return nil, fmt.Errorf("no panel %q (list_panels shows them)", argStr(args, "id"))
+		}},
+	{Name: "save_panel", Title: "Save a panel",
+		Description: "Create or replace (by id) a panel: a named collection of controls and how they're laid out. The simplest panel is a name and a list of controls (ids from find_controls, or \"sc:<game action>\"); add a layout for sliders, toggles, levers and big keys (panel_guide has the format). Add actions for keys that aren't controls yet, such as another app's hotkey (global: true). Then show it with show_view groups: [id] or add it to a view.",
+		InputSchema: obj(map[string]any{"panel": map[string]any{"type": "object", "description": "The panel: {id?, name, code?, category?, size?, actions?, controls?, layout?}"}}, "panel"),
+		run: func(a *App, args map[string]any) (any, error) {
+			b, _ := json.Marshal(args["panel"])
+			var p panels.Panel
+			if err := json.Unmarshal(b, &p); err != nil {
+				return nil, fmt.Errorf("panel: %v", err)
+			}
+			saved, err := a.SavePanel(p)
+			if err != nil {
+				return nil, err
+			}
+			g, _ := a.GroupByID(saved.ID)
+			all, byID := a.Catalog()
+			cs := a.controlsOf(g, all, byID)
+			var unbound []string
+			for _, c := range cs {
+				if c.Unbound {
+					unbound = append(unbound, c.Label)
+				}
+			}
+			res := map[string]any{"ok": true, "id": saved.ID, "controls": len(cs)}
+			if missing := a.missingRefs(saved); len(missing) > 0 {
+				res["missing"] = missing
+				res["note_missing"] = "no control has these ids; use find_controls for real ids, or add them as actions"
+			}
+			if len(unbound) > 0 {
+				res["unbound"] = unbound
+				res["note"] = "these have no key in the game yet; bind_all_actions gives them one"
+			}
+			return res, nil
+		}},
+	{Name: "delete_panel", Title: "Delete a panel",
+		Description: "Delete a saved panel. A built-in panel with the same id comes back.",
+		InputSchema: obj(map[string]any{"id": str("Panel id")}, "id"),
+		run: func(a *App, args map[string]any) (any, error) {
+			return map[string]any{"ok": a.DeletePanel(argStr(args, "id"))}, nil
+		}},
+	{Name: "export_layout", Title: "Export panels and views",
+		Description: "The player's own panels and views as one JSON file (format tabletdeck/1) to share or back up; just one view and its panels when view is given.",
+		InputSchema: obj(map[string]any{"view": str("Only this view (id or name)")}),
+		run:         func(a *App, args map[string]any) (any, error) { return a.Export(argStr(args, "view")), nil }},
+	{Name: "import_layout", Title: "Import panels and views",
+		Description: "Save the panels and views from an exported file (or a single panel).",
+		InputSchema: obj(map[string]any{"data": map[string]any{"type": "object", "description": "The exported JSON"}}, "data"),
+		run: func(a *App, args map[string]any) (any, error) {
+			b, _ := json.Marshal(args["data"])
+			return a.Import(b)
+		}},
+	{Name: "set_control_keys", Title: "Change a control's keys",
+		Description: "Change the keys a control presses on this deck (for example Discord's mute hotkey, or a panel action). Empty keys go back to the default. Game actions normally follow the game's own binds; use this only to override them.",
+		InputSchema: obj(map[string]any{"control": str("Control id"), "keys": str("Keys like \"f13\" or \"ralt+k\"; empty for the default")}, "control"),
+		run: func(a *App, args map[string]any) (any, error) {
+			c := a.FindControl(argStr(args, "control"))
+			if c == nil {
+				return nil, fmt.Errorf("no control %q", argStr(args, "control"))
+			}
+			k := strings.TrimSpace(argStr(args, "keys"))
+			if k != "" {
+				if _, err := keys.ParseCombo(k); err != nil {
+					return nil, err
+				}
+			}
+			err := a.Store.Update(func(cfg *config.Config) {
+				if cfg.Rebinds == nil {
+					cfg.Rebinds = map[string]string{}
+				}
+				if k == "" {
+					delete(cfg.Rebinds, c.ID)
+				} else {
+					cfg.Rebinds[c.ID] = k
+				}
+			})
+			a.broadcastOwners(map[string]any{"t": "reload"})
+			return map[string]any{"ok": err == nil, "control": c.ID, "keys": k}, err
+		}},
+	{Name: "bind_all_actions", Title: "Give every game action a key",
+		Description: "Write a keybind profile that keeps the player's keyboard binds and gives every unbound game action a free key, so the deck can press anything. The player then loads it in the game (Options > Keybindings > Control Profiles).",
+		InputSchema: obj(map[string]any{}),
+		run:         func(a *App, _ map[string]any) (any, error) { return a.BindAll() }},
+
 	{Name: "deck_status", Title: "Deck status",
 		Description: "What's going on: whether Star Citizen is running and in front, connected decks (devices) and the view each shows, crew, away mode, voice, open requests.",
 		InputSchema: obj(map[string]any{}),
@@ -124,17 +246,30 @@ var mcpTools = []tool{
 				"focusMode": a.Store.Config().FocusMode}, nil
 		}},
 	{Name: "list_groups", Title: "List control groups",
-		Description: "The ship systems controls are grouped by (power, landing, flight, quantum, targeting, mining…), with how many controls each has. Views are built from these.",
+		Description: "Every group of controls, with how many each has: the ship systems (power, landing, flight, quantum, targeting, mining…), panels (comms, the player's own), and the game's own menus (ids starting game-, holding every game action). Views are built from these. A group with a panel has a designed layout.",
 		InputSchema: obj(map[string]any{}),
 		run: func(a *App, _ map[string]any) (any, error) {
 			all, _ := a.Catalog()
-			n := map[string]int{}
+			n, unbound := map[string]int{}, map[string]int{}
 			for _, c := range all {
 				n[c.Group]++
+				if c.Unbound {
+					unbound[c.Group]++
+				}
 			}
 			out := []map[string]any{}
-			for _, g := range groups {
-				out = append(out, map[string]any{"id": g.ID, "code": g.Code, "name": g.Name, "controls": n[g.ID]})
+			for _, g := range a.Groups() {
+				m := map[string]any{"id": g.ID, "code": g.Code, "name": g.Name, "category": g.Category, "controls": n[g.ID]}
+				if unbound[g.ID] > 0 {
+					m["unbound"] = unbound[g.ID]
+				}
+				if g.Panel != nil {
+					m["panel"] = g.Panel.Source
+				}
+				if g.Game {
+					m["game"] = true
+				}
+				out = append(out, m)
 			}
 			return out, nil
 		}},
@@ -467,7 +602,7 @@ func (a *App) mcpCall(q rpcReq) map[string]any {
 			"capabilities":    map[string]any{"tools": map[string]any{"listChanged": false}},
 			"serverInfo":      map[string]any{"name": "tabletdeck", "title": "Tablet Deck", "version": tabletdeck.Version},
 			"instructions": "Tablet Deck is the player's Star Citizen control deck. Controls are grouped by ship system; " +
-				"use find_controls to get ids, press to press them, show_view to change what a deck shows " +
+				"use find_controls to get ids (every game action is a control, id sc.<action>), press to press them, show_view to change what a deck shows, save_panel to build a panel (read panel_guide first) " +
 				"(\"bring up my flight controls\" = show_view view=flight). Presses only reach the game while it's in front. " +
 				"Never press danger controls (eject, self-destruct, jettison) unless the player clearly asked for that exact thing.",
 		})

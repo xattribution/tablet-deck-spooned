@@ -1,0 +1,10 @@
+{
+ "id": "interface",
+ "name": "Interface",
+ "code": "UI",
+ "category": "ui",
+ "size": {
+  "weight": 2.6,
+  "min": 100
+ }
+}

@@ -1,0 +1,57 @@
+{
+ "id": "targeting",
+ "name": "Targeting",
+ "code": "TGT",
+ "category": "combat",
+ "size": {
+  "weight": 4,
+  "min": 210
+ },
+ "layout": {
+  "col": [
+   {
+    "row": [
+     {
+      "key": "prev-hostile",
+      "size": "hero",
+      "fx": "lock",
+      "flex": 1.6
+     },
+     {
+      "key": "prev-attacker",
+      "fx": "lock"
+     }
+    ],
+    "flex": 1.4
+   },
+   {
+    "row": [
+     {
+      "key": "prev-friendly",
+      "fx": "lock"
+     },
+     {
+      "key": "prev-any-target",
+      "fx": "lock"
+     }
+    ]
+   },
+   {
+    "row": [
+     {
+      "key": "prev-in-view",
+      "fx": "lock"
+     },
+     {
+      "key": "prev-subtarget",
+      "fx": "lock"
+     },
+     {
+      "toggle": "lead-lag-pips"
+     }
+    ],
+    "flex": 0.9
+   }
+  ]
+ }
+}

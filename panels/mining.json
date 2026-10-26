@@ -1,0 +1,64 @@
+{
+ "id": "mining",
+ "name": "Mining",
+ "code": "MIN",
+ "category": "ind",
+ "size": {
+  "weight": 7,
+  "min": 300
+ },
+ "layout": {
+  "col": [
+   {
+    "toggle": "mining-mode",
+    "size": "wide",
+    "flex": 0.55
+   },
+   {
+    "flip": [
+     {
+      "key": "fire-laser",
+      "size": "hero",
+      "fx": "laser",
+      "flex": 1.3
+     },
+     {
+      "col": [
+       {
+        "key": "fracture-extract"
+       },
+       {
+        "fader": {
+         "up": "laser-power-up",
+         "down": "laser-power-down",
+         "label": "Laser power",
+         "icon": "laser",
+         "horizontal": true
+        }
+       }
+      ],
+      "flex": 1.3
+     }
+    ],
+    "flex": 2
+   },
+   {
+    "row": [
+     {
+      "key": "module-1",
+      "label": "Module 1"
+     },
+     {
+      "key": "module-2",
+      "label": "Module 2"
+     },
+     {
+      "key": "module-3",
+      "label": "Module 3"
+     }
+    ],
+    "flex": 0.8
+   }
+  ]
+ }
+}

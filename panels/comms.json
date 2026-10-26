@@ -1,0 +1,120 @@
+{
+ "id": "comms",
+ "name": "Comms",
+ "code": "COM",
+ "category": "crew",
+ "size": {
+  "weight": 7,
+  "min": 320
+ },
+ "actions": [
+  {
+   "id": "discord-mute",
+   "label": "Mute",
+   "keys": "f13",
+   "icon": "mic-off",
+   "state": true,
+   "global": true
+  },
+  {
+   "id": "discord-deafen",
+   "label": "Deafen",
+   "keys": "f14",
+   "icon": "headset-off",
+   "state": true,
+   "global": true
+  },
+  {
+   "id": "discord-ptt",
+   "label": "Discord PTT",
+   "keys": "f15",
+   "icon": "radio",
+   "mode": "hold",
+   "global": true
+  },
+  {
+   "id": "voip-ptt",
+   "label": "Game PTT",
+   "sc": "foip_pushtotalk",
+   "icon": "radio",
+   "mode": "hold"
+  },
+  {
+   "id": "voip-proximity",
+   "label": "Proximity",
+   "sc": "foip_pushtotalk_proximity",
+   "icon": "radio",
+   "mode": "hold"
+  },
+  {
+   "id": "hail-target",
+   "label": "Hail",
+   "sc": "v_target_hail",
+   "icon": "chat"
+  },
+  {
+   "id": "voip-channel",
+   "label": "Channel",
+   "sc": "foip_cyclechannel",
+   "icon": "swap"
+  }
+ ],
+ "layout": {
+  "flip": [
+   {
+    "col": [
+     {
+      "talk": {},
+      "flex": 1.6
+     },
+     {
+      "route": {},
+      "flex": 0.45
+     },
+     {
+      "transcript": {},
+      "flex": 0.9
+     }
+    ],
+    "flex": 1.3
+   },
+   {
+    "col": [
+     {
+      "radio": {
+       "discord": "discord-ptt",
+       "game": "voip-ptt"
+      },
+      "flex": 1.5
+     },
+     {
+      "row": [
+       {
+        "toggle": "discord-mute"
+       },
+       {
+        "toggle": "discord-deafen"
+       }
+      ],
+      "flex": 0.9
+     },
+     {
+      "row": [
+       {
+        "key": "voip-proximity"
+       },
+       {
+        "key": "hail-target"
+       },
+       {
+        "key": "voip-channel"
+       }
+      ],
+      "flex": 0.8
+     }
+    ],
+    "flex": 1
+   }
+  ]
+ }
+}

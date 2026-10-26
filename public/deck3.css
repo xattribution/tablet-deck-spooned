@@ -805,3 +805,46 @@ a.btn { text-decoration: none; }
   .lampb span { display: none; }
   .lamps { gap: 8px; }
 }
+
+/* ---------- comms ---------- */
+.k.unbound { opacity: .55; filter: saturate(.4); }
+.k.unbound .ic { color: var(--frame-text); }
+.k .bd.ub { color: var(--caution); opacity: 1; letter-spacing: .1em; }
+.talk, .radio { gap: 6px; }
+.talkk .ic, .radiok .ic { transition: transform .2s, filter .2s; }
+.talkk .vu { position: absolute; inset: auto 12% 10% 12%; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--cat) 18%, transparent); overflow: hidden; }
+.talkk .vu::after { content: ""; position: absolute; inset: 0; background: var(--cat); transform: scaleX(0); transform-origin: left; }
+.talkk.on .vu { background: color-mix(in srgb, var(--on-cat) 25%, transparent); }
+.talkk.on .vu::after { background: var(--on-cat); animation: vu 0.9s steps(6) infinite; }
+@keyframes vu { 0% { transform: scaleX(.15); } 25% { transform: scaleX(.7); } 50% { transform: scaleX(.35); } 75% { transform: scaleX(.95); } 100% { transform: scaleX(.2); } }
+.talkk.on .ic { animation: breathe 1.6s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(1.08); } }
+.route { align-items: stretch; gap: 6px; }
+.route .seg2 { flex: 1; }
+.route .nolink { flex: none; align-self: center; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--caution); color: var(--caution); font: italic 700 11px/15px Georgia, serif; text-align: center; }
+.transcript { position: relative; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; min-height: 0; overflow: hidden; padding: 8px 10px; border: 0; border-radius: var(--cap-r); text-align: left; cursor: pointer;
+  background: var(--glass); color: var(--frame-text); box-shadow: inset 0 1px 4px rgba(0,0,0,.55); font: 500 clamp(11px, 1.4vw, 14px)/1.3 "IBM Plex Mono", monospace;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%); mask-image: linear-gradient(to bottom, transparent, #000 30%); }
+.transcript .ln, .chatlog .ln { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.transcript .ln b, .chatlog .ln b { display: inline-block; width: 1.2em; color: var(--accent); }
+.transcript .ln.agent, .chatlog .ln.agent { color: var(--text, #fff); }
+.transcript .ln.system, .chatlog .ln.system { opacity: .6; }
+.dots { display: inline-flex; gap: 4px; padding: 2px 0 0 1.2em; }
+.dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: dot 1s infinite; }
+.dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes dot { 50% { opacity: .2; transform: translateY(-2px); } }
+.radiok .tx { position: absolute; top: 8px; left: 10px; font: 700 11px "IBM Plex Mono", monospace; letter-spacing: .14em; padding: 1px 5px; border-radius: 3px; color: var(--frame-text); opacity: .4; border: 1px solid currentColor; }
+.radiok.tx { background: var(--cat); color: var(--on-cat); box-shadow: inset 0 2px 8px rgba(0,0,0,.35), 0 0 calc(12px + var(--glow, .4) * 34px) color-mix(in srgb, var(--cat) 65%, transparent); transform: translateY(2px); }
+.radiok.tx .ic { color: var(--on-cat); animation: breathe 1.2s ease-in-out infinite; }
+.radiok.tx .tx { opacity: 1; color: var(--bad); border-color: var(--bad); background: rgba(0,0,0,.35); animation: transit-tx 1s steps(2) infinite; }
+@keyframes transit-tx { 50% { opacity: .55; } }
+.sheet .agent { align-items: stretch; }
+.chatlog { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; overflow: hidden; font: 500 14px/1.35 "IBM Plex Mono", monospace; }
+.chatlog .ln { white-space: normal; }
+.say { gap: 8px; min-width: min(360px, 100%); }
+.say textarea { flex: 1; min-height: 70px; resize: none; padding: 10px 12px; border: 0; border-radius: var(--cap-r); background: var(--glass); color: var(--frame-text); font: 500 16px/1.35 var(--ui-font, system-ui); box-shadow: inset 0 1px 4px rgba(0,0,0,.55); }
+.say textarea:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .talkk.on .vu::after, .talkk.on .ic, .radiok.tx .ic, .radiok.tx .tx, .dots i { animation: none; } }
+.talk > .seg2, .radio > .seg2 { flex: 0 0 clamp(34px, 20%, 52px) !important; }
+.route { flex-grow: 0 !important; flex-basis: clamp(34px, 12%, 52px) !important; }
+.route .seg2 .k .l, .talk > .seg2 .k .l, .radio > .seg2 .k .l { font-size: clamp(11px, 1.3vw, 15px); }

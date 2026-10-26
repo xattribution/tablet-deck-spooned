@@ -1,0 +1,49 @@
+{
+ "id": "salvage",
+ "name": "Salvage",
+ "code": "SAL",
+ "category": "ind",
+ "size": {
+  "weight": 5,
+  "min": 240
+ },
+ "layout": {
+  "col": [
+   {
+    "fader": {
+     "up": "modifier-right",
+     "down": "modifier-left",
+     "label": "Modifier",
+     "icon": "swap",
+     "horizontal": true
+    }
+   },
+   {
+    "flip": [
+     {
+      "fader": {
+       "up": "beam-spacing-up",
+       "down": "beam-spacing-down",
+       "label": "Beam spacing",
+       "icon": "beam",
+       "horizontal": true
+      }
+     },
+     {
+      "col": [
+       {
+        "key": "salvage-open-doors",
+        "fx": "doors"
+       },
+       {
+        "key": "salvage-close-doors",
+        "fx": "doors"
+       }
+      ]
+     }
+    ],
+    "flex": 2
+   }
+  ]
+ }
+}

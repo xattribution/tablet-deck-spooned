@@ -26,7 +26,8 @@ type Button struct {
 	Voice    []string    `json:"voice,omitempty"`
 	NoVoice  bool        `json:"-"`
 	State    *State      `json:"state,omitempty"`
-	Panel    string      `json:"panel,omitempty"` // panel id (canvas) or page name (grid)
+	Panel    string      `json:"panel,omitempty"`  // panel id (canvas) or page name (grid)
+	Global   bool        `json:"global,omitempty"` // for another app (Discord): sent whatever window is in front
 	Scans    []keys.Scan `json:"-"`
 }
 

@@ -1,0 +1,67 @@
+{
+ "id": "crew",
+ "name": "Crew and doors",
+ "code": "CRW",
+ "category": "crew",
+ "size": {
+  "weight": 6,
+  "min": 260
+ },
+ "layout": {
+  "col": [
+   {
+    "row": [
+     {
+      "key": "remote-turret-1",
+      "label": "Turret 1"
+     },
+     {
+      "key": "remote-turret-2",
+      "label": "Turret 2"
+     },
+     {
+      "key": "remote-turret-3",
+      "label": "Turret 3"
+     }
+    ]
+   },
+   {
+    "flip": [
+     {
+      "key": "toggle-doors",
+      "size": "hero",
+      "fx": "doors"
+     },
+     {
+      "col": [
+       {
+        "row": [
+         {
+          "key": "open-doors",
+          "fx": "doors"
+         },
+         {
+          "key": "close-doors",
+          "fx": "doors"
+         }
+        ]
+       },
+       {
+        "row": [
+         {
+          "key": "lock-doors"
+         },
+         {
+          "key": "unlock-doors"
+         }
+        ]
+       }
+      ],
+      "flex": 1.2
+     }
+    ],
+    "flex": 1.8
+   }
+  ]
+ }
+}

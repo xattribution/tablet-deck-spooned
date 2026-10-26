@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/xattribution/tablet-deck-spooned/internal/panels"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -81,6 +82,19 @@ type Config struct {
 
 	Links      []Link `json:"links"`
 	AutoUpdate bool   `json:"autoUpdate"`
+
+	// Comms: where voice goes, and the agent it can talk to
+	VoiceRoute  string `json:"voiceRoute"`  // command, auto (commands, else the agent), agent
+	AgentURL    string `json:"agentUrl"`    // an OpenAI-compatible API base, e.g. https://api.x.ai/v1
+	AgentKey    string `json:"agentKey"`    // its API key (kept only in this file)
+	AgentModel  string `json:"agentModel"`  // e.g. grok-4-fast
+	AgentStyle  string `json:"agentStyle"`  // fast (quick answers, presses) or crew (uses every deck tool)
+	AgentName   string `json:"agentName"`   // what the agent is called on the deck and by voice
+	AgentPrompt string `json:"agentPrompt"` // extra instructions for the agent
+
+	// Rebinds: control id -> keys, for controls whose keys the player changed here
+	// (Discord's hotkeys, or a panel action).
+	Rebinds map[string]string `json:"rebinds,omitempty"`
 }
 
 func defaults() Config {
@@ -93,7 +107,7 @@ func defaults() Config {
 		Voice:      true, VoiceLanguage: "en-US", VoiceConfidence: 0.6, PttMode: "hold",
 		VoiceEngine: "auto", SttModel: "auto", WakeWord: "computer", AlwaysListen: true, MicDevice: -1, SpeakerDevice: -1,
 		TtsVoice: "alba", Replies: "short", ReadRequests: true,
-		Discovery: true, AutoUpdate: true,
+		Discovery: true, AutoUpdate: true, VoiceRoute: "command", AgentStyle: "fast", AgentName: "Crew",
 		Links: []Link{{"UEX", "https://uexcorp.space/"}, {"Erkul", "https://www.erkul.games/"},
 			{"SPViewer", "https://www.spviewer.eu/"}, {"SCMDB", "https://scmdb.net/"}},
 	}
@@ -260,6 +274,14 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("replies must be off, short or full")
 	case len(c.WakeWord) > 24:
 		return fmt.Errorf("wake word is too long")
+	case c.VoiceRoute != "" && c.VoiceRoute != "command" && c.VoiceRoute != "auto" && c.VoiceRoute != "agent":
+		return fmt.Errorf("voice route must be command, auto or agent")
+	case c.AgentStyle != "" && c.AgentStyle != "fast" && c.AgentStyle != "crew":
+		return fmt.Errorf("agent style must be fast or crew")
+	case c.AgentURL != "" && !strings.HasPrefix(c.AgentURL, "http://") && !strings.HasPrefix(c.AgentURL, "https://"):
+		return fmt.Errorf("agent address must start with http:// or https://")
+	case len(c.AgentName) > 24 || len(c.AgentPrompt) > 4000:
+		return fmt.Errorf("agent name or instructions are too long")
 	case c.VoiceThreads < 0 || c.VoiceThreads > 64:
 		return fmt.Errorf("voice threads must be 0-64")
 	}
@@ -334,11 +356,12 @@ type Section struct {
 
 // State is state.json.
 type State struct {
-	InstanceID string     `json:"instanceId"`
-	Devices    []Device   `json:"devices"`
-	Grants     []Grant    `json:"grants"`
-	Crew       []CrewLink `json:"crew"`
-	Views      []View     `json:"views"`
+	InstanceID string         `json:"instanceId"`
+	Devices    []Device       `json:"devices"`
+	Grants     []Grant        `json:"grants"`
+	Crew       []CrewLink     `json:"crew"`
+	Views      []View         `json:"views"`
+	Panels     []panels.Panel `json:"panels,omitempty"` // the player's own panels
 }
 
 // State returns a copy of the saved state.
@@ -350,6 +373,7 @@ func (s *Store) State() State {
 	st.Grants = append([]Grant(nil), s.state.Grants...)
 	st.Crew = append([]CrewLink(nil), s.state.Crew...)
 	st.Views = append([]View(nil), s.state.Views...)
+	st.Panels = append([]panels.Panel(nil), s.state.Panels...)
 	return st
 }
 

@@ -4,7 +4,7 @@ package tabletdeck
 
 import "embed"
 
-//go:embed public layouts keybinds
+//go:embed public layouts keybinds panels docs/PANELS.md
 var Files embed.FS
 
 // Version is set at build time with -ldflags "-X github.com/xattribution/tablet-deck-spooned.Version=2.0.0".

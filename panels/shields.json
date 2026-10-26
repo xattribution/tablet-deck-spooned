@@ -1,0 +1,21 @@
+{
+ "id": "shields",
+ "name": "Shields",
+ "code": "SHD",
+ "category": "def",
+ "size": {
+  "weight": 6,
+  "min": 270
+ },
+ "layout": {
+  "shieldpad": {
+   "front": "shields-front",
+   "back": "shields-back",
+   "left": "shields-left",
+   "right": "shields-right",
+   "top": "shields-top",
+   "bottom": "shields-bottom",
+   "reset": "shields-reset"
+  }
+ }
+}

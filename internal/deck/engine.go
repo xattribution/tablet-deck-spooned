@@ -27,6 +27,7 @@ const (
 	ReasonNotFocused  = "not-focused"
 	ReasonFocusFailed = "focus-failed"
 	ReasonFocusLost   = "focus-lost"
+	ReasonUnbound     = "unbound" // the game action has no key yet
 	ReasonMaxHold     = "max-hold"
 	ReasonReleaseAll  = "release-all"
 	ReasonDenied      = "denied"
@@ -166,7 +167,7 @@ func (e *Engine) watch() {
 		e.jobs <- func() {
 			for _, h := range e.holds {
 				switch {
-				case lost:
+				case lost && !h.Button.Global: // Discord push to talk keeps talking
 					e.endHold(h, ReasonFocusLost)
 				case s.MaxHoldMs > 0 && time.Since(h.Started) > time.Duration(s.MaxHoldMs)*time.Millisecond:
 					e.endHold(h, ReasonMaxHold)
@@ -178,9 +179,13 @@ func (e *Engine) watch() {
 
 // admit decides whether a press may reach the keyboard, bringing the game to front
 // first when the focus mode says so. Runs on the worker, right before the keys.
-func (e *Engine) admit(src Source) Result {
+func (e *Engine) admit(src Source, b *layout.Button) Result {
+	if len(b.Scans) == 0 {
+		return Result{Reason: ReasonUnbound}
+	}
 	s := e.Settings()
-	if s.FocusMode == FocusOff {
+	// Hotkeys for other apps (Discord's mute, push to talk) go to whatever is in front.
+	if s.FocusMode == FocusOff || b.Global {
 		return Result{OK: true}
 	}
 	g := e.drv.Game()
@@ -300,7 +305,7 @@ func (e *Engine) Tap(b *layout.Button, src Source, ms int, kind string) Result {
 	}
 	var r Result
 	e.do(func() {
-		if r = e.admit(src); !r.OK {
+		if r = e.admit(src, b); !r.OK {
 			return
 		}
 		lifted := e.liftForeign(b.Scans)
@@ -358,7 +363,7 @@ func (e *Engine) Down(b *layout.Button, src Source, onRelease func(reason string
 	var h *Hold
 	var r Result
 	e.do(func() {
-		if r = e.admit(src); !r.OK {
+		if r = e.admit(src, b); !r.OK {
 			return
 		}
 		h = e.newHold(b, src)

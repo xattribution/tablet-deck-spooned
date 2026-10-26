@@ -1,0 +1,60 @@
+{
+ "id": "combat",
+ "name": "Weapons and countermeasures",
+ "code": "CMB",
+ "category": "combat",
+ "size": {
+  "weight": 6,
+  "min": 260
+ },
+ "layout": {
+  "flip": [
+   {
+    "col": [
+     {
+      "row": [
+       {
+        "key": "decoy",
+        "size": "hero",
+        "fx": "flares"
+       },
+       {
+        "key": "noise",
+        "size": "hero",
+        "fx": "noise"
+       }
+      ],
+      "flex": 1.4
+     },
+     {
+      "key": "panic-decoys",
+      "size": "wide",
+      "fx": "flares",
+      "flex": 0.8
+     }
+    ]
+   },
+   {
+    "col": [
+     {
+      "key": "launch-missile",
+      "size": "hero",
+      "fx": "missile",
+      "flex": 1.4
+     },
+     {
+      "row": [
+       {
+        "key": "fewer-missiles"
+       },
+       {
+        "toggle": "lead-lag-pips"
+       }
+      ],
+      "flex": 0.8
+     }
+    ]
+   }
+  ]
+ }
+}

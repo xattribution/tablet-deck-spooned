@@ -1,0 +1,14 @@
+{
+ "id": "emotes",
+ "name": "Emotes",
+ "code": "EMO",
+ "category": "crew",
+ "size": {
+  "weight": 8,
+  "min": 300
+ },
+ "layout": {
+  "grid": "rest",
+  "small": true
+ }
+}
