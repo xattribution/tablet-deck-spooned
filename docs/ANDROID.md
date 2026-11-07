@@ -2,17 +2,16 @@
 
 The Android app (`android/`) is a full-screen window onto the deck your PC serves: the same
 deck a browser gets, with the PC found by itself, the screen kept on, and real haptics on
-every press. It presses nothing itself. Every tap still goes to SpoolUp on the PC, through
-the same pairing code and the same "only while Star Citizen is in front" check.
+every press. Every tap goes to SpoolUp on the PC, with the same pairing code and the same
+focus check as the browser deck.
 
 - Package `dev.xattribution.spoolup` (the debug build is `dev.xattribution.spoolup.debug`,
   so both can be installed). App name SpoolUp, the SpoolUp icon.
 - Android 8.0 (API 26) and newer. Built against and targeting API 36 (Android 16).
 - Version: SpoolUp's, from `package.json` (2.2.0 has version code 20200).
 - Permissions: Internet and network state (to reach the PC), Wi-Fi multicast (so the Wi-Fi
-  driver passes the PC's discovery answers), vibrate (haptics), camera (only for scanning
-  the QR code; Android asks the first time). No accounts, no analytics, no ads, nothing
-  sent anywhere but your PC.
+  driver passes the PC's discovery answers), vibrate (haptics), camera (for scanning
+  the QR code; Android asks the first time).
 
 ## Using it
 
@@ -35,13 +34,13 @@ back gesture on the deck sends the app to the background instead of closing the 
 | part | what it does |
 |---|---|
 | Discovery | SpoolUp's server answers DNS-SD questions over multicast DNS for the service type `_spoolup._tcp` (`discovery.js`): `PTR`, `SRV` (the deck's port), `TXT` (`v=<version>`, `name=<PC name>`) and `A` (the address on the network the question came from). It announces itself at start and says goodbye when it stops. The app browses with Android's `NsdManager` while the list is on screen and resolves each PC one at a time. The iOS app browses for the same service with Bonjour. |
-| Local only | mDNS goes to 224.0.0.251 on the PC's own network adapters; routers don't forward it. VPN and virtual adapters are left out (the same list the QR code's address skips), questions from outside the PC's networks are ignored, and answers are rate limited. The records never carry the pairing code. The app only opens home network addresses: private IPv4 ranges, `.local` and single-label names (`PcAddress.isLocal`, the same rules as the iOS app). |
+| Networks | mDNS goes to 224.0.0.251 on the PC's network adapters, skipping VPN and virtual ones (the same list the QR code's address skips). Questions from outside the PC's networks get no answer, and answers are rate limited. The app opens home network addresses: private IPv4 ranges, `.local` and single-label names (`PcAddress.isLocal`, the same rules as the iOS app). |
 | Turning it off | SpoolUp window: **Settings > Network > Let the SpoolUp app find this PC** (on by default), or `"discovery": false` in `config.json`. The apps then need the address or the QR code. |
-| Connecting | The app checks that the PC answers on its port before loading the deck, so a PC that's off shows a clear message; it keeps trying for 12 seconds. Then it loads `http://<address>:<port>/`, with `?t=<code>` only when the code came from a QR code, and only that once: the deck keeps the code in its own storage, so a newer code typed on the deck is never overridden. |
+| Connecting | The app checks that the PC answers on its port before loading the deck, so a PC that's off shows a clear message; it keeps trying for 12 seconds. Then it loads `http://<address>:<port>/`, adding `?t=<code>` once when the code came from a QR code; after that the deck keeps the code in its own storage, so a newer code typed on the deck stays. |
 | Full screen | Immersive: the system bars hide (a swipe from the edge shows them for a moment), the deck stays clear of a camera cutout, any orientation, no zoom, no long-press menus. Rotation doesn't reload the deck. If the WebView's renderer is killed, the app makes a new one and reloads. Links to other sites open in the browser. |
 | Screen on | `FLAG_KEEP_SCREEN_ON` on the app's window, the whole time the app is in front. |
 | Haptics | The deck calls `window.SpoolUpApp.haptic(kind)` where a browser would call `navigator.vibrate` (Android's WebView ignores that). Kinds: `tick`, `tap`, `press`, `heavy`, `error`. They play the device's tuned effects when system touch feedback is on, and the vibrator otherwise. |
-| Saved PCs | Up to 12, on the device only and kept out of backups. No pairing codes. |
+| Saved PCs | Up to 12 names and addresses, kept on the device and out of backups. |
 
 ### The bridge the deck sees
 
@@ -63,7 +62,7 @@ before a deck loads.
   so it covers the mDNS answers (UDP 5353) as well as the deck. On a network Windows treats
   as Public, neither works; the SpoolUp window says how to fix that.
 - Windows has its own mDNS responder on UDP 5353. SpoolUp shares the port with it and
-  answers only for its own names (`spoolup-<pc name>.local`, never `<pc name>.local`). If
+  answers for its own names (`spoolup-<pc name>.local`; `<pc name>.local` stays Windows'). If
   something holds the port exclusively, the server logs "Discovery is off" and everything
   else works as before.
 
@@ -178,20 +177,17 @@ passes them: `SPOOLUP_KEYSTORE` (a path), `SPOOLUP_KEYSTORE_PASSWORD`, `SPOOLUP_
    PC); app icon 512 x 512 PNG (`public/icon-512.png`); feature graphic 1024 x 500;
    at least two phone screenshots and, for tablets, 7-inch and 10-inch ones. Don't put
    "Star Citizen" in the app's title (trademark); the description can say what it works with.
-5. **Privacy policy.** Required even when nothing is collected. Publish a short page (for
-   example on the website, `site/`) saying: the app collects no personal data, has no
-   accounts, analytics or ads, talks only to the PC the player picks on their own network,
-   uses the camera only to read a QR code on the device, and keeps its list of PCs on the
-   device. Put its URL in App content > Privacy policy.
+5. **Privacy policy.** Google Play asks for its URL in App content > Privacy policy. Publish
+   a short page (for example on the website, `site/`) describing what the app does with
+   data: it connects to the PC the player picks on their network, uses the camera to read a
+   QR code on the device, and keeps its list of PCs on the device. Data collected: none.
 6. **Data safety form** (App content > Data safety):
-   - Does your app collect or share any of the required user data types? **No.** (Data
-     processed only on the device, like the camera frames for the QR code, and data sent
-     to the player's own PC on their own network, doesn't count as collected: it never
-     reaches you or a third party.)
-   - Is all of the user data collected by your app encrypted in transit? Not applicable
-     when nothing is collected.
-   - Account creation: none. Data deletion: nothing to delete; uninstalling removes the
-     saved PCs.
+   - Does your app collect or share any of the required user data types? **No.** (Google
+     counts data processed on the device, like the camera frames for the QR code, and data
+     sent to the player's own PC as not collected.)
+   - Is all of the user data collected by your app encrypted in transit? Not applicable.
+   - Account creation: none. Data deletion: not applicable; uninstalling removes the saved
+     PCs.
 7. **The rest of App content.** Ads: no. App access: explain that the app needs SpoolUp
    running on a Windows PC on the same network, and give the reviewers the website link
    and a short video of the app finding a PC and pressing buttons, since they can't run the

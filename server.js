@@ -95,7 +95,7 @@ function channelDirFromExe(exe) {
 
 // The usual StarCitizen folders on drives C to Z that exist. Looked up once: a mapped
 // network drive that's offline can stall each look, and a new install while SpoolUp runs
-// is found anyway through the running game or gameFolders.
+// is found anyway through the running game or a picked folder.
 let driveRoots = null;
 function scDriveRoots() {
   if (driveRoots) return driveRoots;
@@ -112,11 +112,12 @@ function scDriveRoots() {
   return driveRoots;
 }
 
-// Every channel folder found: the running game's first (it can be anywhere), then the
-// folders in config.gameFolders (a StarCitizen folder, the folder holding it, or one
-// channel's folder), then the usual folders on every drive. Running first, then LIVE,
-// then the order of SC_CHANNELS.
-function findInstalls(extra = config.gameFolders) {
+// Every channel folder found. Automatically (config.gameFolders empty): the running game's
+// first (it can be anywhere), then the usual folders on every drive. With a folder the
+// player picked in the app window's Settings (a StarCitizen folder, the folder holding it,
+// or one channel's folder), only the channels in it, the running one marked. Running
+// first, then LIVE, then the order of SC_CHANNELS.
+function findInstalls(picked = config.gameFolders) {
   const seen = new Map();
   const add = (dir, running) => {
     const key = path.resolve(dir).toLowerCase();
@@ -126,16 +127,30 @@ function findInstalls(extra = config.gameFolders) {
     seen.set(key, { channel: path.basename(path.resolve(dir)).toUpperCase(), dir: path.resolve(dir), actionmaps: isFile(actionmaps) ? actionmaps : "", running });
   };
   const addRoot = (root) => { for (const ch of SC_CHANNELS) add(path.join(root, ch), false); };
+  const folders = [].concat(picked || []).filter((e) => typeof e === "string" && e.trim()).map((e) => e.trim());
   const running = channelDirFromExe(gameExe);
-  if (running) { add(running, true); addRoot(path.dirname(running)); }
-  for (const e of [].concat(extra || [])) {
-    if (typeof e !== "string" || !e.trim()) continue;
-    if (SC_CHANNELS.includes(path.basename(e.trim()).toUpperCase())) add(e.trim(), false);
-    else { addRoot(e.trim()); addRoot(path.join(e.trim(), "StarCitizen")); }
+  if (folders.length) {
+    for (const e of folders) {
+      if (SC_CHANNELS.includes(path.basename(e).toUpperCase())) add(e, false);
+      else { addRoot(e); addRoot(path.join(e, "StarCitizen")); }
+    }
+    const inPicked = running && seen.get(path.resolve(running).toLowerCase());
+    if (inPicked) inPicked.running = true;
+  } else {
+    if (running) { add(running, true); addRoot(path.dirname(running)); }
+    for (const root of scDriveRoots()) addRoot(root);
   }
-  for (const root of scDriveRoots()) addRoot(root);
   const rank = (i) => (i.running ? -1 : SC_CHANNELS.includes(i.channel) ? SC_CHANNELS.indexOf(i.channel) : SC_CHANNELS.length);
   return [...seen.values()].sort((a, b) => rank(a) - rank(b));
+}
+
+// The copy of the game the app window and Deck settings show: the running one, else the
+// one whose keybinds are read, else the first found. null when none is found.
+function gameInUse() {
+  const all = findInstalls();
+  const pick = all.find((i) => i.running) || all.find((i) => i.actionmaps) || all[0];
+  const folder = [].concat(config.gameFolders || []).find((e) => typeof e === "string" && e.trim()) || "";
+  return pick ? { channel: pick.channel, dir: pick.dir, running: pick.running, picked: folder !== "" } : null;
 }
 
 // The player's actionmaps.xml: the running game's channel when it has one, else LIVE's,
@@ -165,7 +180,7 @@ function loadConfig() {
   const oldAuto = Array.isArray(config.actionmaps) && config.actionmaps[0] === PROFILE && (config.actionmaps.length === 1
     || (config.actionmaps.length === 2 && /StarCitizen[\\/]LIVE[\\/]user[\\/]client[\\/]0[\\/]Profiles[\\/]default[\\/]actionmaps\.xml$/i.test(String(config.actionmaps[1]))));
   if (config.actionmaps === undefined || oldAuto) { config.actionmaps = [PROFILE, AUTO_ACTIONMAPS]; changed = true; }
-  // Star Citizen folders to look in besides the running game's and the usual ones.
+  // The Star Citizen folder the player picked; empty finds it automatically (findInstalls).
   if (config.gameFolders === undefined) { config.gameFolders = []; changed = true; }
   if (!config.tapMs) { config.tapMs = 60; changed = true; }
   // Star Citizen counts a press held past 0.25 s as a hold, so a tap stays well short of it.
@@ -222,6 +237,9 @@ const SETTINGS = {
   // empty for automatic.
   host: (v) => (v === "" || /^(\d{1,3}\.){3}\d{1,3}$/.test(v) || /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i.test(v) ? v : undefined),
   // JSON list of { name, url }: at most 12, https only.
+  // The Star Citizen folder: a full path, or "auto" to find it automatically.
+  gameFolders: (v) => (v === "auto" ? [] : v.length <= 400 && !/["<>|?*\x00-\x1f]/.test(v)
+    && (path.win32.isAbsolute(v) || path.isAbsolute(v)) ? [v] : undefined),
   links: (v) => {
     let list;
     try { list = JSON.parse(v); } catch { return undefined; }
@@ -246,12 +264,20 @@ if (setArg > -1) {
   process.exit(ok ? 0 : 1);
 }
 
+// --find-game: print the Star Citizen folder as JSON and exit: { folder (the picked one, or
+// "" for automatic), game (gameInUse), installs (findInstalls) }. The app window's Settings
+// uses it while the server is stopped, and "Install keybind profile..." for its list.
+if (process.argv.includes("--find-game")) {
+  console.log(JSON.stringify({ folder: [].concat(config.gameFolders || [])[0] || "", game: gameInUse(), installs: findInstalls() }));
+  process.exit(0);
+}
+
 // ---------- merged keybind profile (--merge-profile) ----------
 
 // --merge-profile <out.xml> [actionmaps.xml]: write "SpoolUp Keyboard (your binds)" and exit
 // without starting. The app window's "Install keybind profile..." runs this for each copy of
 // the game that has an actionmaps.xml; a copy without one gets the plain profile. Without a
-// path, the actionmaps.xml findActionmaps() finds is used. actionmaps.xml is only read.
+// path, the actionmaps.xml findActionmaps() finds is used.
 //
 // Loading a profile in-game replaces every bind with the profile's, so the merged profile
 // carries the player's whole profile over (keyboard, mouse, joystick and gamepad binds, device
@@ -702,12 +728,25 @@ async function refreshGameExe() {
   exeMisses = 0;
   if (exe === gameExe) return;
   gameExe = exe;
+  gameChanged();
+}
+
+// After the running game or the picked folder changes: tablets reload when that changes
+// the keybind file, decks hear which copy is in use, and Game.log is looked for again.
+let lastGame = "";
+function gameChanged() {
   const file = findActionmaps();
   if (file !== lastActionmaps && [].concat(config.actionmaps || []).includes(AUTO_ACTIONMAPS)) {
-    console.log(file ? `Keybinds: reading ${file}` : "Keybinds: no actionmaps.xml found for the running game.");
+    console.log(file ? `Keybinds: reading ${file}` : "Keybinds: no actionmaps.xml found for Star Citizen.");
     reloadTablets();
   }
   lastActionmaps = file;
+  const game = gameInUse();
+  if (JSON.stringify(game) !== lastGame) {
+    lastGame = JSON.stringify(game);
+    for (const c of tablets) if (c.device !== "streamdeck") c.send({ t: "game", game });
+  }
+  battle.again();
 }
 let exeWatch = null;
 let exeMisses = 0;
@@ -1488,7 +1527,7 @@ server.on("upgrade", (req, socket) => {
     close: () => socket.destroy(),
   };
   tablets.add(client);
-  client.send({ t: "hello", voice: Boolean(config.voice), voiceStatus: tabletVoice, states: Object.fromEntries(buttonStates), soundStatus: soundState, tapMs: config.tapMs });
+  client.send({ t: "hello", voice: Boolean(config.voice), voiceStatus: tabletVoice, states: Object.fromEntries(buttonStates), soundStatus: soundState, tapMs: config.tapMs, game: gameInUse() });
   sendBattle(client);
 
   const held = new Map(); // button id -> { sc } currently pressed by this tablet
@@ -1671,7 +1710,7 @@ server.on("upgrade", (req, socket) => {
 
 // ---------- battle state from Game.log ----------
 
-// gamelog.js follows the game's own log (read only) for hits on your ship, its damage, your
+// gamelog.js follows the game's own log for hits on your ship, its damage, your
 // death and your kills, and the paired decks show it. Stream Decks don't get it (it isn't
 // in docs/STREAMDECK-API.md). "gameLog": false in config.json turns the reading off.
 // --game-log <file> follows that file instead of the found install's, to try it with a
@@ -1697,6 +1736,7 @@ try { loadLayout(); loadLayout("phone"); } catch (err) { fatal(`Layout error: ${
 startSender();
 // The running game's folder: at once, then every 10 s.
 lastActionmaps = findActionmaps();
+lastGame = JSON.stringify(gameInUse());
 if (sender || focusProbe) { exeWatch = setInterval(refreshGameExe, 10000); exeWatch.unref(); void refreshGameExe(); }
 startVoice();
 buildSoundPlayer();
@@ -1744,7 +1784,7 @@ function sendReady() {
     qr: link ? qr.matrix(link).map((row) => row.map((dark) => (dark ? "1" : "0")).join("")) : [],
     dryRun: DRY_RUN, focusCheck: Boolean(config.onlyWhenGameFocused), voiceConfidence: config.voiceConfidence,
     autoUpdate: config.autoUpdate !== false, tapMs: config.tapMs, voice: Boolean(config.voice),
-    voiceLanguage: config.voiceLanguage, portFromCommandLine: Boolean(PORT_OVERRIDE),
+    voiceLanguage: config.voiceLanguage, portFromCommandLine: Boolean(PORT_OVERRIDE), game: gameInUse(),
   });
   checkNetwork();
 }
@@ -1781,7 +1821,7 @@ function checkNetwork() {
 
 // The SpoolUp apps list PCs that answer for _spoolup._tcp on the local network (mDNS).
 // Only real adapters answer: not VPNs or virtual ones, the same ones addresses() ranks
-// last. The records name the PC, its port and version, never the pairing code. The
+// last. The records name the PC, its port and version. The
 // "discovery" setting (on unless false) turns it off; the window's Settings has it.
 let advertiser = null;
 function setDiscovery(on) {
@@ -1854,6 +1894,12 @@ function applySetting(name, text) {
   if (name === "voiceConfidence") {
     console.log(`Voice strictness set to ${Math.round(value * 100)}%.`);
     ui({ t: "voiceConfidence", value });
+    return;
+  }
+  if (name === "gameFolders") {
+    console.log(`Star Citizen folder: ${value[0] || "found automatically"}.`);
+    gameChanged();
+    sendReady();
     return;
   }
   console.log(`Saved ${name}: ${value === true ? "on" : value === false ? "off" : Array.isArray(value) ? value.map((l) => l.name).join(", ") || "none" : value}.`);

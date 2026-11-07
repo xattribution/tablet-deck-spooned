@@ -42,7 +42,7 @@ SpoolUp is meant to be safe on your own home network. These are in scope:
 ## Known limits (not vulnerabilities)
 
 These are by design and documented in the README's
-[Safety and privacy](README.md#safety-and-privacy) section:
+[Pairing and network](README.md#pairing-and-network) section:
 
 - The tablet talks to the PC over plain `http` on your home network, so others
   on the **same Wi-Fi** could see the pairing code and taps. Don't use SpoolUp

@@ -31,7 +31,7 @@ remembers PCs and includes an offline demo. The sources are in [`ios/`](../ios).
 | `SpoolUpTests/` | unit tests for address parsing, saved PCs and the bridge messages |
 
 - Bundle ID `dev.xattribution.spoolup`, iOS and iPadOS 16 or newer, iPhone and iPad.
-- Permissions: Local Network (Bonjour and talking to the PC) and Camera (QR code only).
+- Permissions: Local Network (Bonjour and talking to the PC) and Camera (to scan the QR code).
   No entitlements: Bonjour through `NWBrowser` doesn't need the multicast entitlement.
 - Colors are the house style from [DESIGN.md](DESIGN.md) (the RSI look), in dark mode
   only; text uses the system font.
@@ -41,11 +41,11 @@ remembers PCs and includes an offline demo. The sources are in [`ios/`](../ios).
 | step | what happens |
 |---|---|
 | First launch | The list of PCs. iOS asks for Local Network access as soon as the app starts browsing for `_spoolup._tcp`. PCs running SpoolUp show up by name as they resolve. |
-| Pairing | Tap a found PC, scan the QR code in the PC's window, or type `192.168.1.20:8765`. The app opens `http://192.168.1.20:8765/` and the deck asks for the pairing code, as in Safari. A QR code already holds it (`?t=1a2b3c4d`), so it's passed to the deck that one time. The app never saves the code: the deck keeps it in its own storage, per address. |
+| Pairing | Tap a found PC, scan the QR code in the PC's window, or type `192.168.1.20:8765`. The app opens `http://192.168.1.20:8765/` and the deck asks for the pairing code, as in Safari. A QR code already holds it (`?t=1a2b3c4d`), so it's passed to the deck that one time. The deck keeps the code in its own storage, per address. |
 | Next launches | The app opens the PC used last straight away. If it doesn't answer within 15 seconds, the list comes back with the reason. If Bonjour finds a saved PC at a new address, the saved address follows it (the deck then asks for the code once, because its storage is per address). |
 | Deck | Full screen, status bar and home indicator hidden, screen kept on (`isIdleTimerDisabled`) while the deck is up, no bounce, no link previews. Links to other sites open in Safari. If iOS ends the page's process, the deck reloads. Once the deck has loaded, it handles a lost connection itself, as in Safari. |
 | Switch PC | Deck settings gets a **Switch PC** row inside the app (public/app.js), which goes back to the list. |
-| Demo | **Try the demo** opens the bundled deck in demo mode (`index.html?demo`, the website's "Try it" page). No PC, no network; presses only play their animations. |
+| Demo | **Try the demo** opens the bundled deck in demo mode (`index.html?demo`, the website's "Try it" page), offline; presses play their animations. |
 
 The user agent ends with ` SpoolUpiOS/<version>`. Debug builds can be inspected from
 Safari on a Mac (`isInspectable`); release builds can't.
@@ -55,14 +55,14 @@ Safari on a Mac (`isInspectable`); release builds can't.
 The same two calls as the Android app. The iOS app defines them in a user script that
 runs before the deck's own scripts, in the top frame only, and posts to the
 `spoolUp` script message handler; the Android app adds a JavaScript interface of the
-same name. The browser deck never has it, so the deck checks before use.
+same name. The deck checks for it before use, since a browser doesn't have it.
 
 | call | what it does |
 |---|---|
 | `SpoolUpApp.haptic(kind)` | `tick`, `tap`, `press`, `heavy` or `error`; unknown kinds are ignored. The deck's `buzz()` maps its vibration lengths onto these: a short tap is `tap`, 30 ms or more is `press`, the denied pattern is `error`. |
 | `SpoolUpApp.switchPC()` | Leaves the deck for the app's list of PCs. |
 
-The app only acts on messages from the top frame of the PC it opened (or the demo).
+The app acts on messages from the top frame of the PC it opened (or the demo).
 iPhones have a Taptic Engine; iPads don't, so on an iPad `haptic` does nothing.
 
 ### What the PC advertises
@@ -74,7 +74,7 @@ multicast DNS on the home network with:
 - an SRV record whose port is the deck's HTTP port (`config.port`, 8765 by default) and
   whose target, `spoolup-<pc name>.local`, it also answers **A** queries for with the
   PC's address on that network;
-- a **TXT** record with `v=<version>` and `name=<PC name>` (never the pairing code):
+- a **TXT** record with `v=<version>` and `name=<PC name>`:
   Apple's resolver waits for both SRV and TXT before it reports a service as resolved.
 
 The "Let the SpoolUp app find this PC" switch in the app window's Settings turns it off.
@@ -89,9 +89,8 @@ The deck is plain http on the home network. App Transport Security doesn't block
 connections to IP addresses, `.local` names or single-label names, and
 `NSAllowsLocalNetworking` states that intent in `Info.plist`. It isn't one of the
 exceptions App Review asks a justification for, unlike `NSAllowsArbitraryLoads`, which
-the app doesn't use. `PCAddress` also refuses anything that isn't a private IPv4
-address (10/8, 172.16/12, 192.168/16, 169.254/16), a `.local` name or a single-label
-name, so the app can't be pointed at the internet. (Apple:
+the app doesn't use. `PCAddress` takes private IPv4 addresses (10/8, 172.16/12,
+192.168/16, 169.254/16), `.local` names and single-label names. (Apple:
 [Preventing insecure network connections](https://developer.apple.com/documentation/security/preventing-insecure-network-connections).)
 
 ## Once the account is approved
@@ -195,7 +194,7 @@ the first lines):
 > - Try the demo without a PC
 >
 > Requires the free SpoolUp app on a Windows PC on the same network. One tap sends one
-> key press; SpoolUp never reads or changes the game.
+> key press.
 >
 > SpoolUp is an unofficial fan project, not affiliated with or endorsed by any game
 > developer or publisher.
@@ -206,12 +205,11 @@ for smaller devices. Take them from the demo or a dry-run server, with a theme w
 isn't a game manufacturer's, and no game footage. Add one of the list of PCs (Bonjour) and
 one of the QR scan, so the native parts are visible.
 
-**App Privacy:** choose **Data Not Collected**. The app sends nothing anywhere but to the
-player's own PC, has no accounts, analytics or ads, and `PrivacyInfo.xcprivacy` declares
-no tracking and no collected data. The deck page loads its fonts from Google Fonts; Apple
-counts data as collected only when it's kept longer than needed to serve the request, and
-the fonts request carries nothing about the player, so this stays *Not Collected*. To
-remove the question entirely, bundle the two fonts with the deck later.
+**App Privacy:** answer **Data Not Collected**, matching `PrivacyInfo.xcprivacy`
+(`NSPrivacyTracking` false, no collected data types). The deck page loads its fonts from
+Google Fonts; Apple counts data as collected when it's kept longer than needed to serve
+the request, which the fonts request isn't, so the answer stays *Data Not Collected*.
+Bundling the two fonts with the deck would take the question away.
 
 **EU:** App Store Connect asks every developer for a **trader status** under the Digital
 Services Act. A free fan app with no income can declare *not a trader*; a trader's
@@ -219,12 +217,11 @@ address and phone number are shown on the listing.
 
 **Privacy policy text:**
 
-> SpoolUp for iPhone and iPad doesn't collect, store or share any personal data. It has
-> no accounts, analytics, advertising or tracking. The PCs you save (their names and
-> home-network addresses) stay on your device. The app connects only to the SpoolUp app
-> on your own PC, over your home network, and the camera is used only to read the QR
-> code on your PC; no picture is kept or sent. The deck loads its fonts from Google
-> Fonts. Questions: open an issue at https://github.com/xattribution/SpoolUp/issues.
+> SpoolUp for iPhone and iPad keeps the PCs you save (their names and home-network
+> addresses) on your device. It connects to the SpoolUp app on your PC over your home
+> network and uses the camera to read the QR code on your PC. The deck loads its fonts
+> from Google Fonts. Data collected: none. Questions: open an issue at
+> https://github.com/xattribution/SpoolUp/issues.
 
 ### 5. Review notes
 
@@ -241,9 +238,8 @@ there's no demo account; say so and point to the demo:
 > `_spoolup._tcp`), QR code pairing with the camera, haptic feedback (iPhone), the
 > screen kept on while the deck is open, saved PCs, and the bundled offline demo.
 >
-> Local Network access is used to find and talk to the player's PC; the camera only reads
-> the PC's QR code. The app connects only to private home-network addresses and collects
-> no data.
+> Local Network access is used to find and talk to the player's PC; the camera reads
+> the PC's QR code. The app connects to private home-network addresses.
 >
 > A video of the app controlling a PC: <link>
 
@@ -258,12 +254,12 @@ the PC) and link it; it answers most questions before they're asked.
 | **4.2.3(i)** "work on its own without requiring installation of another app" | The deck needs the Windows app. | The demo mode works with nothing else installed, and the review notes lead with it. Companion apps for PC software (remote controls, Stream Deck–style decks) are common on the store; describe it as a companion and link the free PC app. |
 | **2.1 App Completeness** | The reviewer can't test without a PC. | The demo mode shows the full deck. Apple's text allows a built-in demo mode "in lieu of a demo account" with Apple's prior approval; there's no account here at all, so say that plainly and ask in the notes for the demo to be used. Add the video. |
 | **4.1 Copycats** (4.1(c)) and **5.2.1 Intellectual Property** | Star Citizen and its ship makers' names are trademarks of Cloud Imperium Games. Using them in the name, icon or screenshots without approval is a classic rejection, and can bring a takedown. | Keep the game's name, logos, ship art and fonts out of the app name, subtitle, keywords, icon and screenshots. The icon is SpoolUp's own (a tablet with HUD keys). Put the fan disclaimer in the app (About) and the description. The bundled deck still says "Star Citizen" in some text and its themes carry ship makers' names (RSI, Drake, Anvil …): pick a neutral theme for screenshots, and check CIG's published rules for fan creations; written permission from CIG is the strongest answer if App Review asks for "authorization upon request". If Review objects to the names inside the app, a build setting could hide the maker names in the bundled demo. |
-| **5.2.2 Third-party services** | The app controls a third party's game. | It doesn't access a CIG service: it sends key presses to the player's own PC, one per tap, like a keyboard. No game data is read or changed (the ground rules in [AGENTS.md](../AGENTS.md)); say so in the review notes if asked. |
+| **5.2.2 Third-party services** | The app controls a third party's game. | It sends key presses to the player's own PC, one per tap, like a keyboard; say so in the review notes if asked. |
 | **2.3.7 Metadata** | Game names in keywords or subtitle. | None in name, subtitle or keywords. |
-| **5.1.1 Privacy / permission strings** | Vague purpose strings get rejected. | `NSLocalNetworkUsageDescription` and `NSCameraUsageDescription` say exactly what each is for, translated in `InfoPlist.strings`. The camera is asked for only when the player taps Scan; Local Network is asked for when the list starts looking, with a clear message and Open Settings if it's off. |
-| **Privacy manifest** | Apps using required-reason APIs without a manifest get an email and can be rejected. | `PrivacyInfo.xcprivacy` declares `UserDefaults` (reason `CA92.1`), no tracking, no collected data. |
-| **ATS** | `NSAllowsArbitraryLoads` needs a justification. | Not used; only `NSAllowsLocalNetworking`. |
-| **4.2.7 Remote desktop clients** | Doesn't apply (the app doesn't mirror the PC's screen), but it points the same way: it connects only to a PC the player owns, on the local network, which the app enforces. | Mention local-only in the notes. |
+| **5.1.1 Privacy / permission strings** | Vague purpose strings get rejected. | `NSLocalNetworkUsageDescription` and `NSCameraUsageDescription` say exactly what each is for, translated in `InfoPlist.strings`. The camera is asked for when the player taps Scan; Local Network is asked for when the list starts looking, with a clear message and Open Settings if it's off. |
+| **Privacy manifest** | Apps using required-reason APIs without a manifest get an email and can be rejected. | `PrivacyInfo.xcprivacy` declares `UserDefaults` (reason `CA92.1`), `NSPrivacyTracking` false and no collected data types. |
+| **ATS** | `NSAllowsArbitraryLoads` needs a justification. | Not used; the app sets `NSAllowsLocalNetworking`. |
+| **4.2.7 Remote desktop clients** | Doesn't apply (the app doesn't mirror the PC's screen), but it points the same way: it connects to a PC the player owns, on the home network (`PCAddress`). | Mention it in the notes. |
 
 ## Not done yet
 

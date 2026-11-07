@@ -163,8 +163,8 @@ words on a button with no icon.
   narrow) with their buttons around it.
 - **Switch banks:** rocker switches lit by their state.
 
-Like the buttons, the art shows the steps SpoolUp sent, never a reading from
-the game, and timers only ever change the picture. The emote board's tiles are
+Like the buttons, the art shows the steps SpoolUp sent, and its timers
+animate the picture. The emote board's tiles are
 the deck's own `s-tile` buttons, so each maker draws them; its tabs, sheet and
 Arrange look use theme tokens only.
 

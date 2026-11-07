@@ -15,8 +15,8 @@ Imperium Games.
 | path | what it is |
 |---|---|
 | `server.js` | the server: serves the deck, pairs tablets, sends keys, runs voice, the layout editor's API |
-| `gamelog.js` | follows the game's `Game.log` (read only) for the deck's battle alerts |
-| `discovery.js` | answers mDNS for `_spoolup._tcp` so the apps find the PC (name, port, version; never the pairing code) |
+| `gamelog.js` | follows the game's `Game.log` for the deck's battle alerts |
+| `discovery.js` | answers mDNS for `_spoolup._tcp` so the apps find the PC (name, port, version) |
 | `public/` | the deck, the layout editor (`editor.*`) and the showcase |
 | `layouts/` | built-in layouts; `hud.json` is the source, most others are generated |
 | `keybinds/` | the SpoolUp Keyboard profile (generated) |
@@ -30,37 +30,28 @@ Imperium Games.
 
 ## Ground rules
 
-These keep SpoolUp safe to run next to an online game. Don't change them
-without the owner's explicit agreement:
+How the key path and the routes work. Don't change these without the owner's
+agreement:
 
-- **One press per tap.** A button presses its key or key combo once. No macros,
-  sequences, repeats, timers that press keys, or any other automation. A control
-  that is dragged or swiped sends one tap per step through the server's tap path,
-  and a swipe that pages the deck presses nothing.
-- **The game is never touched.** No reading or writing game memory, no
-  injection, no hooks into the game. The only game files used are the player's
-  keybinds (`actionmaps.xml`, read only) and the optional profile copied into
-  the game's `Controls\Mappings` folder when the player asks for it.
-- **Keys only reach Star Citizen.** The focus check (`onlyWhenGameFocused`)
-  stays on by default, and every new way of pressing keys goes through
-  `gameFocused()` / `tapButton()` in `server.js`.
-- **Releases always go through.** A key that went down must come up, even
-  after focus is lost or a tablet disconnects, so no key stays stuck.
-- **Pairing is required.** The WebSocket and every data route check the
-  pairing code, and the layout editor's routes also only answer the PC itself
-  (`fromThisPC`). New routes follow the same rules; don't add unauthenticated
-  ones.
-- **No tracking.** No accounts, analytics or new network calls. The only
-  outgoing traffic is the update check against GitHub (which can be turned off)
-  and the tablet's Google Fonts.
+- **One press per tap.** A button presses its key or key combo once, through
+  `tapButton()` in `server.js`. A control that is dragged or swiped sends one
+  tap per step through the same path, and a swipe that pages the deck sends no
+  key.
+- **The focus check.** `onlyWhenGameFocused` is on by default, and every way of
+  pressing keys goes through `gameFocused()` / `tapButton()` in `server.js`.
+- **Releases always go through.** A key that went down comes up, also after
+  focus is lost or a tablet disconnects.
+- **Pairing on routes.** The WebSocket and every data route check the pairing
+  code (`checkPairing()`), and the layout editor's routes also check
+  `fromThisPC`. New routes do the same.
 
 ## Code conventions
 
 - **Match the surrounding code:** its naming, comment density and idiom.
   Comments explain why, not what.
-- **The server uses only Node's built-in modules.** Don't add runtime
-  dependencies. `devDependencies` are for the installer build only. Running
-  needs Node 18 or newer; the build needs 20 or newer.
+- **No runtime dependencies.** The server uses Node's built-in modules.
+  `devDependencies` are for the installer build only. Running needs Node 18 or
+  newer; the build needs 20 or newer.
 - **C# must compile with the compiler that ships with Windows**
   (`csc.exe` from .NET Framework 4, i.e. C# 5): no newer language features, no
   NuGet packages.
@@ -141,9 +132,9 @@ Mac to build at all.
   without the owner's explicit OK.
 - Keep unrelated changes in separate commits.
 
-## Privacy
+## Example values
 
-Nothing from a real machine goes into commits, docs, screenshots or the build:
-no real IP addresses, pairing codes, user names or local paths. Use the
-README's examples instead: `http://192.168.1.20:8765` and pairing code
-`1a2b3c4d`. `config.json` (pairing code, ports, game paths) is never committed.
+Commits, docs, screenshots and the build use the README's examples, not values
+from a real machine: `http://192.168.1.20:8765`, pairing code `1a2b3c4d`, and
+made-up user names and paths. `config.json` (pairing code, ports, game paths)
+is in `.gitignore`.

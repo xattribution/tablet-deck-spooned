@@ -6,7 +6,7 @@ PackageLocale: en-US
 Publisher: xattribution
 PublisherUrl: https://github.com/xattribution
 PublisherSupportUrl: https://github.com/xattribution/SpoolUp/issues
-PrivacyUrl: https://github.com/xattribution/SpoolUp#safety-and-privacy
+PrivacyUrl: https://github.com/xattribution/SpoolUp#pairing-and-network
 Author: nodieCode and xattribution
 PackageName: SpoolUp
 PackageUrl: https://github.com/xattribution/SpoolUp
@@ -16,7 +16,7 @@ Copyright: Copyright (c) 2026 nodieCode
 ShortDescription: Turns a tablet or phone on your home network into a touch control panel for Star Citizen.
 Description: |-
   SpoolUp (formerly Tablet Deck) is a HUD-style button deck that runs in the web browser of a tablet or phone on the same network as the gaming PC. Each button press is sent to the PC, which presses that button's key once, and only while Star Citizen is the window in front.
-  The PC app serves the deck, pairs devices with a QR code and pairing code, follows the player's own keybinds and offers hold-to-talk voice commands, a layout editor and 12 manufacturer themes. No account is needed and nothing is installed on the tablet. SpoolUp for Stream Deck is sold separately on the Elgato Marketplace.
+  The PC app serves the deck, pairs devices with a QR code and pairing code, follows the player's own keybinds and offers hold-to-talk voice commands, a layout editor and 12 manufacturer themes. Tablets use their browser or the SpoolUp app. SpoolUp for Stream Deck is sold separately on the Elgato Marketplace.
   Setup adds a Windows Firewall rule so tablets can connect on private networks.
   Fan project. Not affiliated with or endorsed by Cloud Imperium Games.
 Moniker: spoolup

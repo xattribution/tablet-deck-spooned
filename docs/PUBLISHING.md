@@ -65,7 +65,7 @@ Do the Store later, and only once Partner Center support has answered both of th
    - `CloseRunningApp()`, which releases held keys, only runs with `/RELAUNCH=1`.
    - Test on Windows that held keys still come up after a winget upgrade, or call `CloseRunningApp()` for every silent install.
 5. **Privacy policy URL.**
-   - winget: optional. The drafts point at the README's "Safety and privacy" section.
+   - winget: optional. The drafts point at the README's "Pairing and network" section.
    - Store: **mandatory** for Win32 apps (policy 10.5.1). Adapt the Privacy section of `CODE_SIGNING.md`.
 6. **Store only:** host a byte-identical copy of each installer at a versioned URL that doesn't redirect. GitHub Pages under the new repo currently returns 404, and whether Partner Center accepts a github.io URL is untested.
 
@@ -160,7 +160,7 @@ PackageLocale: en-US
 Publisher: nodieCode
 PublisherUrl: https://github.com/nodieCode
 PublisherSupportUrl: https://github.com/nodieCode/tablet-deck/issues
-PrivacyUrl: https://github.com/nodieCode/tablet-deck#safety-and-privacy
+PrivacyUrl: https://github.com/nodieCode/tablet-deck#pairing-and-network
 Author: nodieCode
 PackageName: Tablet Deck
 PackageUrl: https://github.com/nodieCode/tablet-deck
@@ -170,7 +170,7 @@ Copyright: Copyright (c) 2026 nodieCode
 ShortDescription: Turns a tablet or phone on your home network into a touch control panel for Star Citizen.
 Description: |-
   Tablet Deck is a HUD-style button deck that runs in the web browser of a tablet or phone on the same network as the gaming PC. Each button press is sent to the PC, which presses that button's key once, and only while Star Citizen is the window in front.
-  The PC app serves the deck, pairs devices with a QR code and pairing code, follows the player's own keybinds and offers hold-to-talk voice commands, a layout editor and 12 manufacturer themes. No account is needed and nothing is installed on the tablet.
+  The PC app serves the deck, pairs devices with a QR code and pairing code, follows the player's own keybinds and offers hold-to-talk voice commands, a layout editor and 12 manufacturer themes. Tablets use their browser or the SpoolUp app.
   Setup adds a Windows Firewall rule so tablets can connect on private networks.
   Fan project. Not affiliated with or endorsed by Cloud Imperium Games.
 Moniker: tabletdeck

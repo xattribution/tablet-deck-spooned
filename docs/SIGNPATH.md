@@ -50,12 +50,10 @@ Apply on [signpath.org](https://signpath.org). Answers for the form:
 **Worth stating up front**, since SignPath checks for unwanted software and
 the app presses keys:
 
-> One tap presses one key or key combination once: there are no macros,
-> sequences, repeats or timed presses. By default keys only reach the game
-> while it's the window in front, and only devices with the pairing code can
-> press anything. SpoolUp never reads or changes the game's memory or
-> files, apart from reading the player's keybinds and copying a keybind
-> profile into the game's folder when the player asks.
+> One tap presses one key or key combination once. By default keys go to the
+> game while it's the window in front, and devices pair with a pairing code.
+> SpoolUp reads the player's keybinds and the game's Game.log, and copies a
+> keybind profile into the game's folder when the player asks.
 
 **Third-party code**, so SignPath can judge it:
 

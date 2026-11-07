@@ -46,6 +46,7 @@ Options (they work with `start.bat`, `node server.js` and the installed
 | `--port <n>` | use another port than the one in `config.json` |
 | `--ui` | status lines for the app window (used by `TabletDeck.exe`) |
 | `--set name=value ...` | save settings to `config.json` and exit |
+| `--find-game` | print the Star Citizen folder as JSON and exit (see [The Star Citizen folder](#the-star-citizen-folder)) |
 | `--merge-profile <out.xml> [actionmaps.xml]` | write the merged keybind profile and exit (see [Your binds kept](#your-binds-kept)) |
 | `--game-log <file>` | follow that file for battle alerts instead of the game's `Game.log` (see [Battle alerts](#battle-alerts)) |
 
@@ -77,16 +78,17 @@ Against a normal server the page warns that taps send real keys.
 
 ### Battle alerts
 
-`gamelog.js` follows the game's `Game.log` (read only: it opens the file, reads
-the new whole lines and closes it again every 250 ms) next to the running
-game's install, else LIVE's, and the server sends paired tablets
+`gamelog.js` follows the game's `Game.log` (it opens the file, reads the new
+whole lines and closes it again every 250 ms) in the running channel's folder,
+else LIVE's, from the same `findInstalls()` as the keybinds, and the server
+sends paired tablets
 `{ t: "battle", event, state }`. `event` is `sync` (on connect and after the log
 is first read), `ship`, `hit`, `clear`, `ship-1` (disabled), `ship-2`
 (destroyed), `dead`, `kill` or `reset` (a new game session); `state` is
 `{ ship, fire, from, hits, level, dead, by, kills, killed, recent: [{ from, n, at }], now, reading }`.
-Stream Decks (`device=streamdeck`) never get it, and the player's own name is
-never sent. A log that's already there when the server starts is read silently,
-so old hits never show as current. The deck shows it in `public/battle.js`
+Stream Decks (`device=streamdeck`) don't get it, and `state` leaves out the
+player's own name. A log that's already there when the server starts is read
+silently, so old hits don't show as current. The deck shows it in `public/battle.js`
 (the strip at the top and the `lasthits` widget). `"gameLog": false` in
 `config.json` turns it off.
 
@@ -102,12 +104,12 @@ node server.js --dry-run --port 8790 --game-log sample-Game.log
 `discovery.js` answers DNS-SD over multicast DNS (224.0.0.251, UDP 5353) for
 `_spoolup._tcp`, so the Android and iOS apps can list the PC: PTR (the PC's
 name), SRV (the deck's port, target `spoolup-<pc name>.local`), TXT (`v=<version>`,
-`name=<pc name>`, never the pairing code) and A (the PC's address on the adapter
-the question came in on). VPN and virtual adapters (`VIRTUAL_ADAPTER` in
-`server.js`) don't answer, questions from outside the PC's own networks are
-ignored, and answers are rate limited. It announces at start and says goodbye
-(TTL 0) on quit. If UDP 5353 is taken it logs "Discovery is off" and nothing
-else changes. `"discovery": false` (Settings → Network in the window) turns it
+`name=<pc name>`) and A (the PC's address on the adapter the question came in
+on). VPN and virtual adapters (`VIRTUAL_ADAPTER` in `server.js`) are skipped,
+questions from outside the PC's own networks get no answer, and answers are rate
+limited. It announces at start and says goodbye
+(TTL 0) on quit. If UDP 5353 is taken it logs "Discovery is off" and the rest
+of the server runs as usual. `"discovery": false` (Settings → Network in the window) turns it
 off. To see it from another machine: `avahi-browse -r _spoolup._tcp` or
 python-zeroconf.
 
@@ -123,7 +125,7 @@ layout from `layouts/`, and presses only play their animations. The website's
 |---|---|
 | `server.js` | the server: serves the deck, pairs tablets, sends keys, runs voice, the layout editor's API |
 | `qr.js` | QR code generator for the console and the app window |
-| `gamelog.js` | follows Star Citizen's `Game.log` (read only) for battle alerts |
+| `gamelog.js` | follows Star Citizen's `Game.log` for battle alerts |
 | `discovery.js` | the mDNS answers the SpoolUp apps find the PC by |
 | `public/` | the deck (`index.html`, `app.js`, `canvas.js`, `grid.js`, the widgets in `dial.js`, `clusters.js`, `emotes.js` and `battle.js`, `i18n.js`, themes, icons, animations, `sound.js`), the layout editor (`editor.*`) and the showcase |
 | `layouts/` | built-in layouts; `hud.json` is the source, `hud-phone.json` and the starter layouts are generated, `hud-classic*.json` keep the 2.0 HUD as it was |
@@ -413,6 +415,30 @@ printed as a warning. Which maps are active together is in
 checks and reports whether the committed file is up to date (the installer
 build runs it).
 
+### The Star Citizen folder
+
+`findInstalls()` in `server.js` lists the channel folders (`SC_CHANNELS`: LIVE,
+PTU, EPTU, TECH-PREVIEW, HOTFIX), the same way as the Go rebuild's
+`sc.Discover`. Automatically (`gameFolders` empty), the running
+`StarCitizen.exe`'s channel comes first (from the key sender's `exe` answer, so
+it's found in any folder), then every channel under these folders on each drive
+from C to Z: `Program Files\Roberts Space Industries\StarCitizen`,
+`Roberts Space Industries\StarCitizen`, `RSI\StarCitizen`,
+`Games\Roberts Space Industries\StarCitizen`, `Games\StarCitizen` and
+`StarCitizen`. The running channel ranks first, then the order of
+`SC_CHANNELS`.
+
+The app window's Settings → Star Citizen shows the copy in use (`gameInUse()`,
+from the `ready` status line, or `--find-game` while the server is stopped) and
+saves a picked folder as `gameFolders` (`--set gameFolders=<folder>` or
+`set gameFolders <folder>` on stdin; `auto` empties it). With a folder picked,
+`findInstalls()` lists the channels in it alone: the folder itself if it's a
+channel folder, else the channels under it and under its `StarCitizen`
+subfolder. The keybinds (`"auto"` in `actionmaps`), `--merge-profile`'s default
+source, **Install keybind profile...** (which lists `--find-game`'s `installs`)
+and `Game.log` all follow it. Decks get the copy in use as `game` in `hello`
+and in `{ t: "game", game }` when it changes, and Deck settings shows it.
+
 ### Your binds kept
 
 For a copy of the game with an `actionmaps.xml`, **Install keybind profile...**
@@ -425,8 +451,9 @@ options, binds they cleared) and adds a keyboard bind for each action in the
 plain profile that the player has no keyboard bind for in that map. It keeps
 the plain profile's key when nothing in the same context uses it (the player's
 binds and the game's defaults), else it takes the first free right-hand combo
-(RCtrl, RAlt, then with RShift). It never changes or removes a bind, and it
-only reads `actionmaps.xml`. The first line of its output is
+(RCtrl, RAlt, then with RShift). It keeps every bind the player has, and
+writes the new file beside the profile, leaving `actionmaps.xml` as it is. The
+first line of its output is
 `added <n> moved <m>`, where moved counts binds that aren't the plain
 profile's key.
 
@@ -456,9 +483,9 @@ Stream Deck keys and scenes that use it.
 ## The phone and tablet apps
 
 `android/` and `ios/` are thin native apps around the same deck: they find the
-PC (`discovery.js`), take its QR code or address (home network addresses only),
+PC (`discovery.js`), take its QR code or address (home network addresses),
 keep the screen on and add haptics. The deck talks to them through
-`window.SpoolUpApp`, which only exists inside an app:
+`window.SpoolUpApp`, which exists inside an app:
 
 | call | does |
 |---|---|
@@ -466,8 +493,8 @@ keep the screen on and add haptics. The deck talks to them through
 | `SpoolUpApp.switchPC()` | leaves the deck for the app's list of PCs (Deck settings → Switch PC) |
 
 Inside an app, `awake.js` does nothing and Deck settings hides Keep screen on.
-The pairing code goes into the deck's address (`?t=`) once and is never kept by
-the app. Building, signing and the store steps: [ANDROID.md](ANDROID.md) and
+The pairing code goes into the deck's address (`?t=`) once; the deck keeps it
+from there. Building, signing and the store steps: [ANDROID.md](ANDROID.md) and
 [IOS.md](IOS.md). The Release workflow builds the signed APK when the
 `ANDROID_*` secrets are set.
 

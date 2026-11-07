@@ -250,7 +250,7 @@ static class Lang
         { "Pairing code, port, focus check, tap length, voice language and the Star Citizen keybind profile", new[] { "Código de emparejamiento, puerto, control de foco, duración del toque, idioma de voz y el perfil de teclas de Star Citizen", "Code d'appairage, port, contrôle du focus, durée d'appui, langue vocale et profil de touches Star Citizen", "Kopplungscode, Port, Fokusprüfung, Tippdauer, Sprachbefehl-Sprache und das Star-Citizen-Tastenprofil" } },
         { "Opens the layout editor in your browser: move buttons, change their keys, labels and icons", new[] { "Abre el editor de diseños en tu navegador: mueve botones y cambia sus teclas, nombres e iconos", "Ouvre l'éditeur de disposition dans votre navigateur : déplacez les boutons, changez leurs touches, libellés et icônes", "Öffnet den Layout-Editor im Browser: Tasten verschieben, ihre Tasten, Beschriftungen und Symbole ändern" } },
         { "Everything you can say, and the button each one presses", new[] { "Todo lo que puedes decir y el botón que pulsa cada frase", "Tout ce que vous pouvez dire, et le bouton que chaque phrase active", "Alles, was du sagen kannst, und welche Taste jeder Befehl drückt" } },
-        { "Looks for a new version on GitHub when SpoolUp starts and once a day. Updates only install when you click Update now.", new[] { "Busca una versión nueva en GitHub al iniciar SpoolUp y una vez al día. Solo se instala cuando pulsas Actualizar ahora.", "Cherche une nouvelle version sur GitHub au démarrage de SpoolUp et une fois par jour. Rien ne s'installe sans un clic sur Mettre à jour.", "Sucht beim Start von SpoolUp und einmal am Tag auf GitHub nach einer neuen Version. Installiert wird nur, wenn du auf Jetzt aktualisieren klickst." } },
+        { "Looks for a new version on GitHub when SpoolUp starts and once a day. Click Update now to install it.", new[] { "Busca una versión nueva en GitHub al iniciar SpoolUp y una vez al día. Pulsa Actualizar ahora para instalarla.", "Cherche une nouvelle version sur GitHub au démarrage de SpoolUp et une fois par jour. Cliquez sur Mettre à jour pour l'installer.", "Sucht beim Start von SpoolUp und einmal am Tag auf GitHub nach einer neuen Version. Klicke auf Jetzt aktualisieren, um sie zu installieren." } },
         { "Opens the folder with config.json and your own layouts", new[] { "Abre la carpeta con config.json y tus propios diseños", "Ouvre le dossier contenant config.json et vos propres dispositions", "Öffnet den Ordner mit config.json und deinen eigenen Layouts" } },
         { "Report a problem or suggest an idea on GitHub", new[] { "Informa de un problema o propón una idea en GitHub", "Signalez un problème ou proposez une idée sur GitHub", "Melde ein Problem oder schlag eine Idee auf GitHub vor" } },
         { "Pick your network there and set its network profile to Private", new[] { "Elige ahí tu red y pon su perfil de red como privado", "Choisissez votre réseau et réglez son profil réseau sur Privé", "Wähle dort dein Netzwerk und stelle sein Netzwerkprofil auf Privat" } },
@@ -296,7 +296,7 @@ static class Lang
         { "STATUS", new[] { "ESTADO", "ÉTAT", "STATUS" } },
         { "Install", new[] { "Instalar", "Installer", "Installieren" } },
         { "The profile file is missing ({0}). Reinstall SpoolUp.", new[] { "Falta el archivo del perfil ({0}). Reinstala SpoolUp.", "Le fichier du profil est introuvable ({0}). Réinstallez SpoolUp.", "Die Profildatei fehlt ({0}). Installiere SpoolUp neu." } },
-        { "Star Citizen wasn't found in the usual places. Click \"Choose game folder...\" and pick the StarCitizen folder (the one with LIVE in it).", new[] { "No se encontró Star Citizen en los sitios habituales. Pulsa \"Elegir carpeta del juego...\" y elige la carpeta StarCitizen (la que contiene LIVE).", "Star Citizen est introuvable aux emplacements habituels. Cliquez sur \"Choisir le dossier du jeu...\" et choisissez le dossier StarCitizen (celui qui contient LIVE).", "Star Citizen wurde an den üblichen Orten nicht gefunden. Klicke auf \"Spielordner wählen...\" und wähle den Ordner StarCitizen (der mit LIVE darin)." } },
+        { "Star Citizen wasn't found. Click \"Choose game folder...\" and pick the StarCitizen folder (the one with LIVE in it).", new[] { "No se encontró Star Citizen. Pulsa \"Elegir carpeta del juego...\" y elige la carpeta StarCitizen (la que contiene LIVE).", "Star Citizen est introuvable. Cliquez sur \"Choisir le dossier du jeu...\" et choisissez le dossier StarCitizen (celui qui contient LIVE).", "Star Citizen wurde nicht gefunden. Klicke auf \"Spielordner wählen...\" und wähle den Ordner StarCitizen (der mit LIVE darin)." } },
         { "Found {0} copy of the game. Missing one? Click \"Choose game folder...\".", new[] { "Se encontró {0} copia del juego. ¿Falta alguna? Pulsa \"Elegir carpeta del juego...\".", "{0} copie du jeu trouvée. Il en manque une ? Cliquez sur \"Choisir le dossier du jeu...\".", "{0} Spielkopie gefunden. Fehlt eine? Klicke auf \"Spielordner wählen...\"." } },
         { "Found {0} copies of the game. Missing one? Click \"Choose game folder...\".", new[] { "Se encontraron {0} copias del juego. ¿Falta alguna? Pulsa \"Elegir carpeta del juego...\".", "{0} copies du jeu trouvées. Il en manque une ? Cliquez sur \"Choisir le dossier du jeu...\".", "{0} Spielkopien gefunden. Fehlt eine? Klicke auf \"Spielordner wählen...\"." } },
         { "not installed", new[] { "no instalado", "non installé", "nicht installiert" } },
@@ -329,7 +329,7 @@ static class Lang
         { "Changing it restarts the server. Tablets then need the new address or QR code.", new[] { "Reinicia el servidor. Las tablets necesitarán la nueva dirección o el QR.", "Redémarre le serveur. Les tablettes devront reprendre l'adresse ou le QR.", "Startet den Server neu. Tablets brauchen dann neue Adresse oder QR-Code." } },
         { "KEYS", new[] { "TECLAS", "TOUCHES", "TASTEN" } },
         { "Only press keys while Star Citizen is in front", new[] { "Pulsar teclas solo con Star Citizen en primer plano", "Seulement si Star Citizen est devant", "Tasten nur drücken, wenn Star Citizen vorne ist" } },
-        { "Keys never reach another window, like a browser or chat, by accident.", new[] { "Las teclas nunca llegan por error a otra ventana, como un navegador o un chat.", "Les touches n'atteignent jamais par erreur une autre fenêtre, comme un navigateur ou un chat.", "Tasten landen nie versehentlich in einem anderen Fenster, etwa einem Browser oder Chat." } },
+        { "Off: keys go to whichever window is in front.", new[] { "Desactivado: las teclas van a la ventana que esté en primer plano.", "Désactivé : les touches vont à la fenêtre au premier plan.", "Aus: Tasten gehen an das Fenster, das gerade vorne ist." } },
         { "Tap length", new[] { "Duración del toque", "Durée d'appui", "Tippdauer" } },
         { "milliseconds a tap holds the key. Raise it if the game misses taps.", new[] { "milisegundos que un toque mantiene la tecla. Súbelo si el juego pierde toques.", "millisecondes de maintien par appui. À augmenter si le jeu rate des appuis.", "Millisekunden, die ein Tippen die Taste hält. Erhöhen, wenn das Spiel Tipps verpasst." } },
         { "Voice language", new[] { "Idioma de voz", "Langue vocale", "Sprache für Befehle" } },
@@ -350,9 +350,20 @@ static class Lang
         { "NETWORK", new[] { "RED", "RÉSEAU", "NETZWERK" } },
         { "Tablets connect over your home network. Windows has to treat it as a Private network: on a Public one it blocks them.", new[] { "Las tablets se conectan por tu red doméstica. Windows tiene que tratarla como red privada: en una pública las bloquea.", "Les tablettes se connectent par votre réseau domestique. Windows doit le traiter comme un réseau privé : sur un réseau public, il les bloque.", "Tablets verbinden sich über dein Heimnetzwerk. Windows muss es als privates Netzwerk behandeln: In einem öffentlichen blockiert es sie." } },
         { "Let the SpoolUp app find this PC", new[] { "Permitir que la app SpoolUp encuentre este PC", "Laisser l'app SpoolUp trouver ce PC", "Die SpoolUp-App diesen PC finden lassen" } },
-        { "Answers the SpoolUp app on your local network only, with this PC's name and address. Never the pairing code.", new[] { "Responde a la app SpoolUp solo en tu red local, con el nombre y la dirección de este PC. Nunca el código de emparejamiento.", "Répond à l'app SpoolUp sur votre réseau local uniquement, avec le nom et l'adresse de ce PC. Jamais le code d'appairage.", "Antwortet der SpoolUp-App nur in deinem lokalen Netzwerk, mit Name und Adresse dieses PCs. Nie mit dem Kopplungscode." } },
+        { "Answers the SpoolUp app with this PC's name and address, so it shows up in the app's list.", new[] { "Responde a la app SpoolUp con el nombre y la dirección de este PC, para que aparezca en su lista.", "Répond à l'app SpoolUp avec le nom et l'adresse de ce PC, pour qu'il apparaisse dans sa liste.", "Antwortet der SpoolUp-App mit Name und Adresse dieses PCs, damit er in ihrer Liste erscheint." } },
         { "Websites the tablet can open on this PC", new[] { "Webs que la tablet puede abrir en este PC", "Sites que la tablette peut ouvrir", "Websites für das Tablet" } },
-        { "One per line: Name | https://address. The tablet only sees the names, so it can't open anything else.", new[] { "Una por línea: Nombre | https://dirección. La tablet solo ve los nombres, así que no puede abrir nada más.", "Un par ligne : Nom | https://adresse. La tablette ne voit que les noms, elle ne peut donc rien ouvrir d'autre.", "Eine pro Zeile: Name | https://adresse. Das Tablet sieht nur die Namen und kann daher nichts anderes öffnen." } },
+        { "One per line: Name | https://address. The tablet shows the names, and this PC opens the addresses.", new[] { "Una por línea: Nombre | https://dirección. La tablet muestra los nombres y este PC abre las direcciones.", "Un par ligne : Nom | https://adresse. La tablette affiche les noms et ce PC ouvre les adresses.", "Eine pro Zeile: Name | https://adresse. Das Tablet zeigt die Namen, dieser PC öffnet die Adressen." } },
+        { "STAR CITIZEN", new[] { "STAR CITIZEN", "STAR CITIZEN", "STAR CITIZEN" } },
+        { "Change...", new[] { "Cambiar...", "Changer...", "Ändern..." } },
+        { "Reset to automatic", new[] { "Volver a automático", "Revenir en automatique", "Auf automatisch stellen" } },
+        { "Looking for Star Citizen...", new[] { "Buscando Star Citizen...", "Recherche de Star Citizen...", "Suche Star Citizen..." } },
+        { "{0}, found automatically.", new[] { "{0}, encontrado automáticamente.", "{0}, trouvé automatiquement.", "{0}, automatisch gefunden." } },
+        { "{0}, in the folder you picked.", new[] { "{0}, en la carpeta que elegiste.", "{0}, dans le dossier choisi.", "{0}, im gewählten Ordner." } },
+        { "Star Citizen wasn't found. Click Change... and pick the StarCitizen folder (the one with LIVE in it).", new[] { "No se encontró Star Citizen. Pulsa Cambiar... y elige la carpeta StarCitizen (la que contiene LIVE).", "Star Citizen est introuvable. Cliquez sur Changer... et choisissez le dossier StarCitizen (celui qui contient LIVE).", "Star Citizen wurde nicht gefunden. Klicke auf Ändern... und wähle den Ordner StarCitizen (der mit LIVE darin)." } },
+        { "Nothing found in {0}. Click Change... to pick another folder.", new[] { "No se encontró nada en {0}. Pulsa Cambiar... para elegir otra carpeta.", "Rien trouvé dans {0}. Cliquez sur Changer... pour choisir un autre dossier.", "In {0} nichts gefunden. Klicke auf Ändern..., um einen anderen Ordner zu wählen." } },
+        { "Picked {0}. Click Save to use it.", new[] { "Elegiste {0}. Pulsa Guardar para usarla.", "Dossier choisi : {0}. Cliquez sur Enregistrer pour l'utiliser.", "{0} gewählt. Klicke auf Speichern, um ihn zu nutzen." } },
+        { "Back to automatic. Click Save to use it.", new[] { "De vuelta a automático. Pulsa Guardar para usarlo.", "Retour en automatique. Cliquez sur Enregistrer pour l'appliquer.", "Wieder automatisch. Klicke auf Speichern, um es zu nutzen." } },
+        { "Keybinds, the keybind profile and battle alerts use this copy of the game.", new[] { "Las teclas, el perfil de teclas y las alertas de combate usan esta copia del juego.", "Les touches, le profil de touches et les alertes de combat utilisent cette copie du jeu.", "Tastenbelegung, Tastenprofil und Kampfmeldungen nutzen diese Kopie des Spiels." } },
         { "Install keybind profile...", new[] { "Instalar perfil de teclas...", "Installer le profil de touches...", "Tastenprofil installieren..." } },
         { "Language", new[] { "Idioma", "Langue", "Sprache" } },
         { "Automatic", new[] { "Automático", "Automatique", "Automatisch" } },
@@ -1327,6 +1338,7 @@ class DeckWindow : Form
     readonly HudView.Item bannerWhatsNew, bannerUpdate, bannerLater;
     string editorUrl = ""; // the layout editor on this PC, set when the server is ready
     bool serverReady; // the server has said "ready" and takes settings on stdin
+    Dictionary<string, object> readyGame; // the copy of the game in use, from "ready" (gameInUse in server.js)
     readonly RichTextBox log = new RichTextBox();
     readonly NotifyIcon tray = new NotifyIcon();
     readonly System.Windows.Forms.Timer copiedTimer = new System.Windows.Forms.Timer();
@@ -1422,7 +1434,7 @@ class DeckWindow : Form
             SendToServer("set autoUpdate " + (autoUpdate.On ? "on" : "off"));
             if (autoUpdate.On) CheckForUpdates(false);
         };
-        autoUpdate.Tip = "Looks for a new version on GitHub when SpoolUp starts and once a day. Updates only install when you click Update now.";
+        autoUpdate.Tip = "Looks for a new version on GitHub when SpoolUp starts and once a day. Click Update now to install it.";
         folderLink = hud.Add(HudView.Kind.Link, "Settings folder", delegate { OpenSettingsFolder(); });
         folderLink.Tip = "Opens the folder with config.json and your own layouts";
         checkLink = hud.Add(HudView.Kind.Link, "Check for updates now", delegate { CheckForUpdates(true); });
@@ -1909,6 +1921,7 @@ class DeckWindow : Form
                 editorUrl = "http://localhost:" + Str(ev, "port") + "/editor.html?t=" + Uri.EscapeDataString(Str(ev, "token"));
                 editButton.Visible = true;
                 settingsPath = Str(ev, "settings");
+                readyGame = ev.ContainsKey("game") ? ev["game"] as Dictionary<string, object> : null;
                 addressLink.Text = link;
                 addressLink.Visible = copyButton.Enabled = link != "";
                 pairingCode = Str(ev, "token");
@@ -2397,8 +2410,9 @@ class DeckWindow : Form
         Dictionary<string, object> current = null;
         try { current = new JavaScriptSerializer().DeserializeObject(File.ReadAllText(ConfigFile())) as Dictionary<string, object>; }
         catch (Exception) { }
+        bool running = serverReady && server != null && !server.HasExited;
         using (var dialog = new SettingsWindow(current ?? new Dictionary<string, object>(), serverArgs.Contains("--port"), Icon,
-            Path.Combine(appDir, "keybinds", "TabletDeck-StarCitizen.xml"), publicNetwork))
+            Path.Combine(appDir, "keybinds", "TabletDeck-StarCitizen.xml"), publicNetwork, running ? readyGame : null))
         {
             var result = dialog.ShowDialog(this);
             if (result == DialogResult.OK && dialog.LanguageChanged) ApplyLanguage();
@@ -2416,7 +2430,7 @@ class DeckWindow : Form
             }
             var pairs = new List<string>();
             // Quoted, since some values have spaces (e.g. "pttKeyName=Numpad 5"); none have quotes.
-            foreach (var change in dialog.Changes) pairs.Add("\"" + change.Key + "=" + change.Value.Replace("\"", "\\\"") + "\"");
+            foreach (var change in dialog.Changes) pairs.Add(GameFolder.Quote(change.Key + "=" + change.Value));
             try
             {
                 var psi = new ProcessStartInfo(Path.Combine(appDir, "TabletDeckServer.exe"), "--set " + string.Join(" ", pairs.ToArray()))
@@ -2608,15 +2622,103 @@ class VoiceCommandsWindow : HudDialog
     }
 }
 
+// The Star Citizen folder, as TabletDeckServer.exe --find-game finds it (findInstalls and
+// gameInUse in server.js), so Settings, the keybind profile and the server use the same copy.
+static class GameFolder
+{
+    // The game's release channels, as SC_CHANNELS in server.js.
+    public static readonly string[] Channels = { "LIVE", "PTU", "EPTU", "TECH-PREVIEW", "HOTFIX" };
+
+    // The channel folders in a folder the player picked: the StarCitizen folder, a channel
+    // folder inside it, or the folder above it.
+    public static List<string> ChannelsIn(string picked)
+    {
+        var found = new List<string>();
+        if (Array.IndexOf(Channels, Path.GetFileName(picked.TrimEnd('\\')).ToUpperInvariant()) >= 0) found.Add(picked);
+        foreach (var root in new[] { picked, Path.Combine(picked, "StarCitizen") })
+            foreach (var channel in Channels)
+                if (Directory.Exists(Path.Combine(root, channel))) found.Add(Path.Combine(root, channel));
+        return found;
+    }
+
+    // { folder, game, installs } from --find-game, or null when the server can't answer.
+    public static Dictionary<string, object> Find(string serverExe)
+    {
+        try
+        {
+            if (!File.Exists(serverExe)) return null;
+            var psi = new ProcessStartInfo(serverExe, "--find-game")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                StandardOutputEncoding = Encoding.UTF8,
+            };
+            using (var proc = Process.Start(psi))
+            {
+                string output = proc.StandardOutput.ReadToEnd();
+                proc.WaitForExit(15000);
+                foreach (var line in output.Split('\n'))
+                    if (line.Trim().StartsWith("{"))
+                        return new JavaScriptSerializer().DeserializeObject(line.Trim()) as Dictionary<string, object>;
+            }
+        }
+        catch (Exception) { }
+        return null;
+    }
+
+    public static string Text(Dictionary<string, object> d, string key)
+    {
+        object v;
+        return d != null && d.TryGetValue(key, out v) && v != null ? Convert.ToString(v, CultureInfo.InvariantCulture) : "";
+    }
+
+    // "LIVE: C:\...\StarCitizen\LIVE" for a game from --find-game or the server's "ready".
+    public static string Describe(Dictionary<string, object> game)
+    {
+        return Text(game, "channel") + ": " + Text(game, "dir");
+    }
+
+    // The channel folders --find-game listed.
+    public static List<string> Installs(Dictionary<string, object> found)
+    {
+        var dirs = new List<string>();
+        object v;
+        if (found != null && found.TryGetValue("installs", out v) && v is object[])
+            foreach (var item in (object[])v)
+            {
+                string dir = Text(item as Dictionary<string, object>, "dir");
+                if (dir != "") dirs.Add(dir);
+            }
+        return dirs;
+    }
+
+    // One command-line argument in quotes, with backslashes before a quote doubled as
+    // Windows expects (a folder like D:\ ends in one).
+    public static string Quote(string arg)
+    {
+        var sb = new StringBuilder("\"");
+        int slashes = 0;
+        foreach (char c in arg)
+        {
+            if (c == '\\') { slashes++; continue; }
+            sb.Append('\\', c == '"' ? slashes * 2 + 1 : slashes);
+            sb.Append(c);
+            slashes = 0;
+        }
+        sb.Append('\\', slashes * 2);
+        return sb.Append('"').ToString();
+    }
+}
+
 // Installs the SpoolUp Keyboard profile into Star Citizen's Controls\Mappings folder, for each
-// copy of the game (LIVE, PTU and so on) the player ticks. Found by searching the drives, or
-// picked by hand. A copy with the player's own actionmaps.xml gets "SpoolUp Keyboard (your
+// copy of the game (LIVE, PTU and so on) the player ticks. Listed as the server finds them
+// (GameFolder, the folder set in Settings or the usual places), or picked by hand. A copy with the player's own actionmaps.xml gets "SpoolUp Keyboard (your
 // binds)" instead, which TabletDeckServer.exe --merge-profile builds from it: every bind the
 // player has, plus keys only for the deck's actions they haven't bound. A copy without one
 // gets the plain profile (keybinds\TabletDeck-StarCitizen.xml in the install folder).
 class KeybindProfileWindow : HudDialog
 {
-    static readonly string[] Channels = { "LIVE", "PTU", "EPTU", "HOTFIX", "TECH-PREVIEW" };
     const string ProfileName = "TabletDeck-StarCitizen.xml";
     const string MergedName = "SpoolUp-YourBinds.xml";
 
@@ -2662,7 +2764,7 @@ class KeybindProfileWindow : HudDialog
         }
         foreach (var game in FindGames()) AddGame(game);
         ShowStatus(games.Count == 0
-            ? Lang.T("Star Citizen wasn't found in the usual places. Click \"Choose game folder...\" and pick the StarCitizen folder (the one with LIVE in it).")
+            ? Lang.T("Star Citizen wasn't found. Click \"Choose game folder...\" and pick the StarCitizen folder (the one with LIVE in it).")
             : Lang.F(games.Count == 1 ? "Found {0} copy of the game. Missing one? Click \"Choose game folder...\"."
                 : "Found {0} copies of the game. Missing one? Click \"Choose game folder...\".", games.Count), Hud.Dim);
     }
@@ -2676,35 +2778,10 @@ class KeybindProfileWindow : HudDialog
         Redraw();
     }
 
-    // ...\StarCitizen\<channel> folders in the usual install places, and one or two folder
-    // levels down on each fixed drive (e.g. D:\Games\RSI\StarCitizen).
-    static List<string> FindGames()
+    // ...\StarCitizen\<channel> folders, as the server finds them.
+    List<string> FindGames()
     {
-        var found = new List<string>();
-        foreach (var drive in DriveInfo.GetDrives())
-        {
-            if (drive.DriveType != DriveType.Fixed || !drive.IsReady) continue;
-            var places = new List<string> { drive.RootDirectory.FullName };
-            foreach (var top in SubFolders(drive.RootDirectory.FullName))
-            {
-                if (Path.GetFileName(top).Equals("Windows", StringComparison.OrdinalIgnoreCase)) continue;
-                places.Add(top);
-                places.AddRange(SubFolders(top));
-            }
-            foreach (var place in places)
-                foreach (var channel in Channels)
-                {
-                    string dir = Path.Combine(place, "StarCitizen", channel);
-                    if (Directory.Exists(dir) && !found.Contains(dir)) found.Add(dir);
-                }
-        }
-        return found;
-    }
-
-    static string[] SubFolders(string dir)
-    {
-        try { return Directory.GetDirectories(dir); }
-        catch (Exception) { return new string[0]; } // no access, e.g. system folders
+        return GameFolder.Installs(GameFolder.Find(server));
     }
 
     static string Target(string game, string name)
@@ -2750,12 +2827,7 @@ class KeybindProfileWindow : HudDialog
         using (var dialog = new FolderBrowserDialog { Description = Lang.T("Pick the StarCitizen folder (the one with LIVE in it)."), ShowNewFolderButton = false })
         {
             if (dialog.ShowDialog(this) != DialogResult.OK) return;
-            string picked = dialog.SelectedPath;
-            var candidates = new List<string>();
-            if (Array.IndexOf(Channels, Path.GetFileName(picked).ToUpperInvariant()) >= 0) candidates.Add(picked);
-            foreach (var root in new[] { picked, Path.Combine(picked, "StarCitizen") })
-                foreach (var channel in Channels)
-                    if (Directory.Exists(Path.Combine(root, channel))) candidates.Add(Path.Combine(root, channel));
+            var candidates = GameFolder.ChannelsIn(dialog.SelectedPath);
             if (candidates.Count == 0)
             {
                 ShowStatus(Lang.T("That folder doesn't look like Star Citizen. Pick the StarCitizen folder, the one with LIVE in it."), Hud.Warn);
@@ -2888,6 +2960,12 @@ class SettingsWindow : HudDialog
     readonly ComboBox pttMode = new ComboBox();
     readonly TextBox links = new TextBox();
     readonly ComboBox windowLanguage = new ComboBox();
+    // The Star Citizen folder: the saved one ("" finds it automatically) and the one Save keeps.
+    readonly string savedFolder;
+    string gameFolder;
+    readonly string serverExe;
+    readonly Note gameNote;
+    readonly HudView.Item resetFolder;
     public bool LanguageChanged; // saved already; the window shows it once Settings closes
 
     // config.json's links as editable lines.
@@ -2980,8 +3058,9 @@ class SettingsWindow : HudDialog
     // Two columns of panels: pairing, keys and voice on the left, push-to-talk, links and
     // network on the right, and the buttons along the bottom. 16 pixels inside each panel,
     // 12 between them.
-    public SettingsWindow(Dictionary<string, object> current, bool portFromCommandLine, Icon icon, string keybindProfile, string publicNetwork)
-        : base("SpoolUp settings", icon, 840, 720)
+    public SettingsWindow(Dictionary<string, object> current, bool portFromCommandLine, Icon icon, string keybindProfile, string publicNetwork,
+        Dictionary<string, object> runningGame)
+        : base("SpoolUp settings", icon, 840, 824)
     {
         this.current = current;
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -3007,7 +3086,7 @@ class SettingsWindow : HudDialog
 
         Panel("KEYS", 16, 252, 396, 154);
         focus = Switch("Only press keys while Star Citizen is in front", GetBool("onlyWhenGameFocused", true), 32, 292, 364);
-        focus.Tip = "Keys never reach another window, like a browser or chat, by accident.";
+        focus.Tip = "Off: keys go to whichever window is in front.";
         Caption("Tap length", 32, 328);
         Field(tap, 32, 346, 88, 32);
         tap.Minimum = 20;
@@ -3060,7 +3139,7 @@ class SettingsWindow : HudDialog
         links.ScrollBars = ScrollBars.Vertical;
         links.Font = new Font("Consolas", 10f);
         links.Text = LinksText();
-        Hint("One per line: Name | https://address. The tablet only sees the names, so it can't open anything else.", 444, 418, 364, 40);
+        Hint("One per line: Name | https://address. The tablet shows the names, and this PC opens the addresses.", 444, 418, 364, 40);
 
         // Why tablets need a Private network, or, while Windows calls it Public, that it's
         // blocking them now. The button is the main window's banner button.
@@ -3074,15 +3153,34 @@ class SettingsWindow : HudDialog
         networkButton.Tip = "Pick your network there and set its network profile to Private";
         // The SpoolUp apps list this PC by itself (mDNS, see discovery.js); off, they need its address.
         discoveryOn = Switch("Let the SpoolUp app find this PC", GetBool("discovery", true), 444, 624, 364);
-        discoveryOn.Tip = "Answers the SpoolUp app on your local network only, with this PC's name and address. Never the pairing code.";
+        discoveryOn.Tip = "Answers the SpoolUp app with this PC's name and address, so it shows up in the app's list.";
 
-        Button("Install keybind profile...", 16, 672, 236, delegate
+        // The Star Citizen folder: found automatically like the server does, or picked here.
+        // Keybinds, the keybind profile and Game.log all come from it.
+        Panel("STAR CITIZEN", 16, 672, 808, 96);
+        gameNote = Hint("", 32, 712, 420, 44);
+        Button("Change...", 464, 712, 128, delegate { ChangeFolder(); }).Tip = "Keybinds, the keybind profile and battle alerts use this copy of the game.";
+        resetFolder = Button("Reset to automatic", 604, 712, 204, delegate { ResetFolder(); });
+        serverExe = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(keybindProfile)), "TabletDeckServer.exe");
+        object folders;
+        savedFolder = current.TryGetValue("gameFolders", out folders) && folders is object[] && ((object[])folders).Length > 0
+            ? Convert.ToString(((object[])folders)[0], CultureInfo.InvariantCulture).Trim() : "";
+        gameFolder = savedFolder;
+        resetFolder.Enabled = gameFolder != "";
+        if (runningGame != null) ShowGame(runningGame);
+        else
+        {
+            gameNote.Text = Lang.T("Looking for Star Citizen...");
+            Load += delegate { LookForGame(); }; // once the window has a handle to report back to
+        }
+
+        Button("Install keybind profile...", 16, 776, 236, delegate
         {
             using (var dialog = new KeybindProfileWindow(keybindProfile, Icon)) dialog.ShowDialog(this);
         });
         // The window's own language; the tablet picks its language in Deck settings.
-        Caption("Language", 268, 681);
-        Field(windowLanguage, 352, 672, 176, 32);
+        Caption("Language", 268, 785);
+        Field(windowLanguage, 352, 776, 176, 32);
         windowLanguage.DropDownStyle = ComboBoxStyle.DropDownList;
         windowLanguage.FlatStyle = FlatStyle.Flat;
         foreach (var choice in Lang.Choices) windowLanguage.Items.Add(choice[0] == "" ? Lang.T(choice[1]) : choice[1]);
@@ -3090,11 +3188,77 @@ class SettingsWindow : HudDialog
         for (int i = 0; i < Lang.Choices.Length; i++) if (Lang.Choices[i][0] == saved) windowLanguage.SelectedIndex = i;
         if (windowLanguage.SelectedIndex < 0) windowLanguage.SelectedIndex = 0;
 
-        Primary("Save", 624, 672, 96, delegate { Save(); });
-        Button("Cancel", 728, 672, 96, delegate { DialogResult = DialogResult.Cancel; });
+        Primary("Save", 624, 776, 96, delegate { Save(); });
+        Button("Cancel", 728, 776, 96, delegate { DialogResult = DialogResult.Cancel; });
         Accept = Save;
         Cancel = delegate { DialogResult = DialogResult.Cancel; };
         ResumeLayout(false);
+    }
+
+    // ---------- Star Citizen folder ----------
+
+    // Asks the server which copy it finds, off the window's thread (it starts a process).
+    void LookForGame()
+    {
+        gameNote.Text = Lang.T("Looking for Star Citizen...");
+        var thread = new Thread(() =>
+        {
+            var found = GameFolder.Find(serverExe);
+            try
+            {
+                BeginInvoke((MethodInvoker)delegate
+                {
+                    if (gameFolder != savedFolder) return; // the player picked another meanwhile
+                    object game;
+                    ShowGame(found != null && found.TryGetValue("game", out game) ? game as Dictionary<string, object> : null);
+                });
+            }
+            catch (InvalidOperationException) { } // the window closed first
+        });
+        thread.IsBackground = true;
+        thread.Start();
+    }
+
+    // The copy in use, or how to pick one when there's none.
+    void ShowGame(Dictionary<string, object> game)
+    {
+        gameNote.Mark = game == null ? Hud.Warn : Color.Empty;
+        gameNote.Color = game == null ? Hud.Ink : Hud.Dim;
+        gameNote.Text = game != null ? Lang.F(gameFolder != "" ? "{0}, in the folder you picked." : "{0}, found automatically.", GameFolder.Describe(game))
+            : gameFolder != "" ? Lang.F("Nothing found in {0}. Click Change... to pick another folder.", gameFolder)
+            : Lang.T("Star Citizen wasn't found. Click Change... and pick the StarCitizen folder (the one with LIVE in it).");
+        Redraw();
+    }
+
+    void ChangeFolder()
+    {
+        using (var dialog = new FolderBrowserDialog { Description = Lang.T("Pick the StarCitizen folder (the one with LIVE in it)."), ShowNewFolderButton = false })
+        {
+            if (gameFolder != "" && Directory.Exists(gameFolder)) dialog.SelectedPath = gameFolder;
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            if (GameFolder.ChannelsIn(dialog.SelectedPath).Count == 0)
+            {
+                MessageBox.Show(this, Lang.T("That folder doesn't look like Star Citizen. Pick the StarCitizen folder, the one with LIVE in it."), "SpoolUp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            gameFolder = dialog.SelectedPath;
+            resetFolder.Enabled = true;
+            gameNote.Mark = Color.Empty;
+            gameNote.Color = Hud.Dim;
+            gameNote.Text = Lang.F("Picked {0}. Click Save to use it.", gameFolder);
+            Redraw();
+        }
+    }
+
+    void ResetFolder()
+    {
+        gameFolder = "";
+        resetFolder.Enabled = false;
+        gameNote.Mark = Color.Empty;
+        gameNote.Color = Hud.Dim;
+        gameNote.Text = Lang.T(savedFolder != "" ? "Back to automatic. Click Save to use it." : "Looking for Star Citizen...");
+        if (savedFolder == "") LookForGame();
+        Redraw();
     }
 
     string Get(string key, string fallback)
@@ -3154,6 +3318,7 @@ class SettingsWindow : HudDialog
         Change("pttSound", OnOff(GetBool("pttSound", true)), OnOff(pttSound.On), false);
         Change("shortEmotes", OnOff(GetBool("shortEmotes", false)), OnOff(shortEmotes.On), false);
         Change("discovery", OnOff(GetBool("discovery", true)), OnOff(discoveryOn.On), false);
+        if (gameFolder != savedFolder) Change("gameFolders", savedFolder, gameFolder == "" ? "auto" : gameFolder, false);
         if (links.Text.Trim() != LinksText().Trim())
         {
             string json = LinksJson();

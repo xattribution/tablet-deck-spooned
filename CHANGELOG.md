@@ -19,8 +19,7 @@ before tagging a release.
 - **Your keybinds are found anywhere.** SpoolUp looks on every drive (C to Z)
   and in every channel (LIVE, PTU, EPTU, TECH-PREVIEW, HOTFIX). While the game
   runs it reads that copy's binds, wherever it's installed, and connected
-  decks pick them up; otherwise LIVE's. Folders elsewhere can go in
-  `gameFolders` in `config.json`. Binds the game wrote with the modifier last
+  decks pick them up; otherwise LIVE's. Binds the game wrote with the modifier last
   (`f6+lalt`) are now pressed modifier first, so the game sees LAlt+F6.
 - **Install keybind profile keeps your binds.** For a copy of the game where
   you've set binds of your own, the app window now builds **SpoolUp Keyboard
@@ -30,12 +29,17 @@ before tagging a release.
   usual keys, it picks a free one that doesn't clash, and the window tells you
   to reload the deck. A copy without binds of its own still gets the plain
   SpoolUp Keyboard profile.
+- **Star Citizen folder in Settings.** The app window's Settings shows the copy
+  of the game in use (for example LIVE and its folder). **Change...** picks
+  another folder and **Reset to automatic** goes back to finding it by itself.
+  Keybinds, Install keybind profile and battle alerts all use that folder, and
+  Deck settings on the tablet shows it under Battle alerts.
 - **Battle alerts.** SpoolUp reads Star Citizen's own Game.log (the text log
-  next to the game, read only) and tells your decks when your ship is under
+  next to the game) and tells your decks when your ship is under
   fire and by whom, when it's disabled or destroyed, when you die and when
   you get a kill. A thin strip at the top of the deck shows it quietly, and
   the new **Last hits** readout on the Combat panel lists who hit you last,
-  your ship and its state, and your kills this session. It presses nothing.
+  your ship and its state, and your kills this session.
   Turn it off on each device with **Battle alerts** in Deck settings, or on
   the PC with `"gameLog": false` in `config.json`.
 - **25 more buttons, all on Star Citizen 4.10's default keys**, so they work
@@ -63,16 +67,16 @@ before tagging a release.
   QR code. It's the same deck, with the same pairing code and focus check.
   Releases attach `SpoolUp-<version>.apk` once the signing key is set up
   (see [docs/ANDROID.md](docs/ANDROID.md)).
-- **The apps find your PC.** SpoolUp answers the apps on your local network
-  with the PC's name, the deck's port and SpoolUp's version, never the
-  pairing code, and not on VPN or virtual adapters. Settings → Network → **Let
+- **The apps find your PC.** SpoolUp answers the apps on your network with
+  the PC's name, the deck's port and SpoolUp's version, skipping VPN and
+  virtual adapters. Settings → Network → **Let
   the SpoolUp app find this PC** in the app window turns it off.
 - **An iPhone and iPad app is on the way** (see [docs/IOS.md](docs/IOS.md)):
   it finds your PC by itself, pairs with the QR code, keeps the screen on and
   includes an offline demo. The deck is ready for it already: inside either
   app it plays the device's own haptics, Deck settings gets **Switch PC**
   (back to the app's list of PCs), and the Keep screen on switch hides
-  because the app keeps the screen on. In a browser nothing changes.
+  because the app keeps the screen on.
 - For developers: the keybind profile check now compares every action with
   Star Citizen 4.10's own list of actions and default keys
   (`data/sc-actions-4.10.json`), so a misspelled action or one in the wrong
@@ -94,15 +98,15 @@ before tagging a release.
   new **Dashboards** layout has those plus Hauling. On a phone each dashboard
   keeps its three or four main clusters, so it fits without scrolling, and a
   panel of clusters alone fills a phone held upright.
-- **Swipes never press buttons.** Swipe sideways with two fingers to flip
+- **Swipes and taps are told apart.** Swipe sideways with two fingers to flip
   panels, as before. A press now waits a moment, and a second finger landing
-  cancels it, so a swipe that starts on a button presses nothing. Holding a
+  cancels it, so a swipe that starts on a button flips the panel. Holding a
   button (hold to talk) and dragging a slider still work. A tap now goes when
   your finger lifts, so a finger that slides off a button, or a second finger
-  that lands late, presses nothing either. A card on the first start shows
+  that lands late, cancels the press. A card on the first start shows
   what two fingers do. If you'd rather use
   one finger, turn on **One-finger swipe** in Deck settings (off by default;
-  never on sliders, the gear lever or dials). The page arrows still work.
+  sliders, the gear lever and dials keep their own drag). The page arrows still work.
 - **Swipe up and down.** Two fingers swiping up or down do what you pick in
   Deck settings, on each device: open mobiGlas (one tap of its button), show
   **Quick actions** (the top bar's buttons, the ones that matter in a hurry
@@ -135,8 +139,7 @@ before tagging a release.
     and gives the rest of the panel to the quantum spool. The Pilot, Industry
     and Hauling dashboards start with the same group, and every panel and
     dashboard keeps together what's used together.
-  - The arcs, gauges and lamps show the taps SpoolUp sent, never a reading
-    from the game.
+  - The arcs, gauges and lamps show the taps SpoolUp sent.
 - **A new mode dial.** The operator-mode dial has round mode chips on a clean,
   symmetric face that keeps its shape in any space, and each maker draws it
   its own way: RSI's instrument ring, Drake's hex nut, Aegis's V, Anvil's
@@ -144,7 +147,7 @@ before tagging a release.
   Banu's flower, Aopoa's crescent, Argo's load-frame triangle, Consolidated
   Outland's sunrise and Esperia's star. The classic 2.0 layouts use it too.
 - **Emote favorites.** The Emotes panel is one board with tabs: ★ Favorites,
-  All and groups you make. Hold an emote to star it (it presses nothing); the
+  All and groups you make. Hold an emote to star it; the
   board opens on Favorites once you have some. **Arrange** lets you reorder
   Favorites or a group, drag an emote onto a tab to add it there and take one
   out with ×; + makes a group. Each tablet and phone keeps its own.
@@ -191,8 +194,6 @@ before tagging a release.
   touch.
 - "Centre sliders" is now "Center sliders", and SpoolUp uses American
   spelling throughout.
-- What each button presses hasn't changed, and every press still goes
-  through the PC's usual checks.
 
 ## 2.0.0 (2026-11-06)
 

@@ -97,7 +97,7 @@
         <button id="keysBtn" class="sheet-switch" type="button" role="switch" aria-checked="false">
           <span class="sw-text"><b>Key labels</b><span>Show the key each button presses, from your game keybinds.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
         <button id="swipeBtn" class="sheet-switch" type="button" role="switch" aria-checked="false">
-          <span class="sw-text"><b>Two-finger swipe</b><span>Swipe sideways with two fingers to flip panels. Presses wait a moment, so a swipe never presses a button.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
+          <span class="sw-text"><b>Two-finger swipe</b><span>Swipe sideways with two fingers to flip panels. Presses wait a moment to tell a swipe from a tap.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
         <button id="swipe1Btn" class="sheet-switch" type="button" role="switch" aria-checked="false" hidden>
           <span class="sw-text"><b>One-finger swipe</b><span>Also flip panels by swiping sideways anywhere with one finger, except on sliders and dials.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
         <div id="gestures" class="sheet-gestures" hidden>
@@ -125,13 +125,14 @@
         <button id="followBtn" class="sheet-switch" type="button" role="switch" aria-checked="true">
           <span class="sw-text"><b>Follow Stream Deck scenes</b><span>Picking a scene on a Stream Deck with the SpoolUp plugin flips this deck to its panels.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
         <button id="battleBtn" class="sheet-switch" type="button" role="switch" aria-checked="true">
-          <span class="sw-text"><b>Battle alerts</b><span>Shows hits on your ship, its damage, your death and your kills, read from Star Citizen's Game.log on the PC. Presses nothing.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
+          <span class="sw-text"><b>Battle alerts</b><span>Shows hits on your ship, its damage, your death and your kills, read from Star Citizen's Game.log on the PC.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
+        <p id="gameNote" class="sheet-note" hidden></p>
         <button id="lightsBtn" class="sheet-switch" type="button" role="switch" aria-checked="true">
           <span class="sw-text"><b>Button lights</b><span>Light buttons and show ON/OFF while something is on. They follow your taps, not the game.</span></span><span class="sw-knob" aria-hidden="true"></span></button>
         <button id="resetStatesBtn" class="sheet-action" type="button">
           <span class="sw-text"><b>Reset button lights</b><span>Turns all lit buttons off, e.g. after a respawn or when they don't match the game.</span></span></button>
         <button id="editPlatesBtn" class="sheet-action" type="button">
-          <span class="sw-text"><b>Edit layout</b><span>Drag the seam between the two halves to make one wider. Saved on this device; presses nothing.</span></span></button>
+          <span class="sw-text"><b>Edit layout</b><span>Drag the seam between the two halves to make one wider. Saved on this device.</span></span></button>
       </section>
       <section class="sheet-section">
         <h3><b>//</b> Sounds</h3>

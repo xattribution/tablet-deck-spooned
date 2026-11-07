@@ -160,7 +160,15 @@
       cards.appendChild(card);
     }
   }
-  const openPicker = () => { $("picker").classList.add("open"); applyTheme(document.documentElement.dataset.theme); fillLayoutPick(); fillLinks(); fillSounds(); fillSwipes(); fillAwake(); };
+  // Deck settings: the copy of Star Citizen the PC uses for keybinds and battle alerts
+  // (hello and "game" from server.js). The folder is changed in the PC app's Settings.
+  let gameInUse = null;
+  const fillGame = () => {
+    const note = $("gameNote");
+    note.hidden = !gameInUse;
+    if (gameInUse) note.textContent = tr(gameInUse.picked ? "Star Citizen {0}, from the folder picked in the PC app's Settings." : "Star Citizen {0}, found automatically.", `${gameInUse.channel}: ${gameInUse.dir}`);
+  };
+  const openPicker = () => { $("picker").classList.add("open"); applyTheme(document.documentElement.dataset.theme); fillLayoutPick(); fillLinks(); fillSounds(); fillSwipes(); fillAwake(); fillGame(); };
 
   // ---------- sounds ----------
 
@@ -740,7 +748,8 @@
       else if (msg.t === "unbound") { toast("Not bound in Star Citizen", 2600); buzz([30, 60, 30]); window.DeckSound.play("deny"); denied(msg.id); }
       // The PC let go of a hold: Star Citizen lost focus, or it was held for 2 minutes.
       else if (msg.t === "released") toast(msg.reason === "focus" ? "Keys released: Star Citizen lost focus" : "Keys released after 2 minutes", 2600);
-      else if (msg.t === "hello") { applyVoiceStatus(msg.voiceStatus || { state: msg.voice ? "ready" : "off" }); states = msg.states || {}; showStates(); S.status(msg.soundStatus); }
+      else if (msg.t === "hello") { applyVoiceStatus(msg.voiceStatus || { state: msg.voice ? "ready" : "off" }); states = msg.states || {}; showStates(); S.status(msg.soundStatus); gameInUse = msg.game || null; fillGame(); }
+      else if (msg.t === "game") { gameInUse = msg.game || null; fillGame(); }
       else if (msg.t === "sound-status") S.status(msg);
       // A scene picked on a Stream Deck (its SpoolUp plugin): flip to its panels. It's
       // newer than a page still waiting to go to the Stream Deck, which would undo it.

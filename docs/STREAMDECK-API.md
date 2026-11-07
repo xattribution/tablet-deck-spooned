@@ -60,8 +60,7 @@ voice, `{t:"reload"}` when the layouts changed, and `{t:"panel", side, panel}`
 (below).
 
 One press per tap holds for the plugin as for the deck: a key press is one `tap`,
-a dial notch is one `tap` (at most 5 per turn), and nothing repeats or runs a
-sequence.
+and a dial notch is one `tap` (at most 5 per turn).
 
 ## Scenes both ways
 
@@ -77,20 +76,20 @@ so a tablet and a Stream Deck can't page each other back and forth.
   back for it.
 - **Tablets to Stream Decks:** a tablet sends `{t:"panel", side, panel}` when its
   player pages one HUD half (its arrows, a two-finger swipe), once paging has
-  stopped for 400 ms and only if the half moved: never for a scene, a layout
-  loading or a reconnect, and never from a grid layout. The server passes it only
-  to `device=streamdeck` clients, never to other tablets. The plugin then takes
+  stopped for 400 ms and the half moved (not for a scene, a layout loading or a
+  reconnect, nor from a grid layout). The server passes it to `device=streamdeck`
+  clients. The plugin then takes
   the device to the scene with that panel, if exactly one scene has it.
 
 The server checks both: `scene` and panel ids must match `^[a-z0-9-]{1,40}$`,
-`side` must be `left` or `right`, and nothing else in the message is passed on.
+`side` must be `left` or `right`, and the server passes on just those fields.
 The scene ids and the panel ids the plugin's scenes follow come from
 `layouts/hud.json` and the phone layout, so a renamed panel there needs a change
 in the plugin too.
 
 ## What the plugin's build reads
 
-The private repository's build links in a SpoolUp checkout and reads, read only:
+The private repository's build links in a SpoolUp checkout and reads:
 
 - `public/themes.css` (the 12 themes' tokens, in the order of `THEMES` in
   `public/app.js`) and `public/icons.js` (`DECK_ICONS`) for the key art;

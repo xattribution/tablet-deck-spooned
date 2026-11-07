@@ -3,11 +3,10 @@
 // speakers are found. It answers questions for the service type _spoolup._tcp with this
 // PC's name, the deck's port and its address, and announces itself when it starts.
 //
-// Local network only: mDNS packets go to 224.0.0.251 on the PC's own network adapters
-// (VPN and virtual adapters are left out by the server) and routers don't forward them.
-// Questions from addresses outside those networks are ignored. The records carry the
-// PC's name and SpoolUp's version, never the pairing code, so an app that finds the PC
-// still needs the code (typed, or from the QR code) before it can press anything.
+// mDNS packets go to 224.0.0.251 on the PC's network adapters (the server leaves out VPN
+// and virtual ones). Questions from addresses outside those networks get no answer. The
+// records carry the PC's name and SpoolUp's version; an app that finds the PC then pairs
+// with the code (typed, or from the QR code) like any browser.
 //
 //   const advertiser = discovery.create({ port, version, name, adapters, log });
 //   advertiser.start(); ... advertiser.stop(); // stop() says goodbye, so apps drop it at once

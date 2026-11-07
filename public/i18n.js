@@ -43,7 +43,7 @@
     "The PC can't play sounds{0}, so they play on this device.": ["El PC no puede reproducir sonidos{0}, así que suenan en este dispositivo.", "Le PC ne peut pas jouer de sons{0}, ils sont donc joués sur cet appareil.", "Der PC kann keine Töne abspielen{0}, daher laufen sie auf diesem Gerät."],
     "With the app, sounds can also play on your PC, e.g. in your headset.": ["Con la app, los sonidos también pueden sonar en tu PC, p. ej. en tus auriculares.", "Avec l'appli, les sons peuvent aussi être joués sur votre PC, par ex. dans votre casque.", "Mit der App können die Töne auch am PC laufen, z. B. in deinem Headset."],
     "Two-finger swipe": ["Deslizar con dos dedos", "Balayage à deux doigts", "Mit zwei Fingern wischen"],
-    "Swipe sideways with two fingers to flip panels. Presses wait a moment, so a swipe never presses a button.": ["Desliza de lado con dos dedos para pasar paneles. Las pulsaciones esperan un momento, así que deslizar nunca pulsa un botón.", "Balayez latéralement à deux doigts pour changer de panneau. Les appuis attendent un instant, donc un balayage n'appuie jamais sur un bouton.", "Mit zwei Fingern seitlich wischen, um Panels zu blättern. Antippen wartet kurz, damit Wischen nie einen Button drückt."],
+    "Swipe sideways with two fingers to flip panels. Presses wait a moment to tell a swipe from a tap.": ["Desliza de lado con dos dedos para pasar paneles. Las pulsaciones esperan un momento para distinguir un deslizamiento de un toque.", "Balayez latéralement à deux doigts pour changer de panneau. Les appuis attendent un instant pour distinguer un balayage d'un appui.", "Mit zwei Fingern seitlich wischen, um Panels zu blättern. Antippen wartet kurz, um Wischen von Tippen zu unterscheiden."],
     "Button lights": ["Luces de botones", "Voyants des boutons", "Tastenbeleuchtung"],
     "Light buttons and show ON/OFF while something is on. They follow your taps, not the game.": ["Ilumina los botones y muestra ON/OFF mientras algo está activo. Siguen tus pulsaciones, no el juego.", "Allume les boutons et affiche ON/OFF quand quelque chose est actif. Ils suivent vos appuis, pas le jeu.", "Lässt Tasten leuchten und zeigt AN/AUS, solange etwas an ist. Sie folgen deinem Antippen, nicht dem Spiel."],
     "Reset button lights": ["Reiniciar luces", "Réinitialiser les voyants", "Beleuchtung zurücksetzen"],
@@ -86,7 +86,10 @@
     "Not connected to the PC": ["Sin conexión con el PC", "Pas connecté au PC", "Nicht mit dem PC verbunden"],
     // Battle alerts (battle.js), from Star Citizen's Game.log.
     "Battle alerts": ["Alertas de combate", "Alertes de combat", "Kampfmeldungen"],
-    "Shows hits on your ship, its damage, your death and your kills, read from Star Citizen's Game.log on the PC. Presses nothing.": ["Muestra los impactos en tu nave, sus daños, tu muerte y tus bajas, leídos del Game.log de Star Citizen en el PC. No pulsa nada.", "Affiche les tirs reçus par votre vaisseau, ses dégâts, votre mort et vos victimes, lus dans le Game.log de Star Citizen sur le PC. N'appuie sur rien.", "Zeigt Treffer auf dein Schiff, seinen Schaden, deinen Tod und deine Abschüsse, gelesen aus dem Game.log von Star Citizen am PC. Drückt nichts."],
+    "Shows hits on your ship, its damage, your death and your kills, read from Star Citizen's Game.log on the PC.": ["Muestra los impactos en tu nave, sus daños, tu muerte y tus bajas, leídos del Game.log de Star Citizen en el PC.", "Affiche les tirs reçus par votre vaisseau, ses dégâts, votre mort et vos victimes, lus dans le Game.log de Star Citizen sur le PC.", "Zeigt Treffer auf dein Schiff, seinen Schaden, deinen Tod und deine Abschüsse, gelesen aus dem Game.log von Star Citizen am PC."],
+    // Deck settings: the copy of the game in use; {0} is "LIVE: <folder>".
+    "Star Citizen {0}, found automatically.": ["Star Citizen {0}, encontrado automáticamente.", "Star Citizen {0}, trouvé automatiquement.", "Star Citizen {0}, automatisch gefunden."],
+    "Star Citizen {0}, from the folder picked in the PC app's Settings.": ["Star Citizen {0}, de la carpeta elegida en los Ajustes de la app del PC.", "Star Citizen {0}, depuis le dossier choisi dans les réglages de l'app du PC.", "Star Citizen {0}, aus dem in den Einstellungen der PC-App gewählten Ordner."],
     "Under fire": ["Bajo fuego", "Sous le feu", "Unter Beschuss"],
     "Ship disabled": ["Nave inutilizada", "Vaisseau neutralisé", "Schiff kampfunfähig"],
     "Ship destroyed": ["Nave destruida", "Vaisseau détruit", "Schiff zerstört"],
@@ -457,7 +460,7 @@
     "Smell": ["Oler", "Renifler", "Riechen"],
     "Speed Limiter": ["Limitador de velocidad", "Limiteur de vitesse", "Tempolimit"],
     "Edit layout": ["Editar diseño", "Modifier la disposition", "Layout bearbeiten"],
-    "Drag the seam between the two halves to make one wider. Saved on this device; presses nothing.": ["Arrastra la unión entre las dos mitades para ensanchar una. Se guarda en este dispositivo; no pulsa nada.", "Faites glisser la jonction entre les deux moitiés pour en élargir une. Enregistré sur cet appareil ; n'appuie sur rien.", "Ziehe die Naht zwischen den beiden Hälften, um eine breiter zu machen. Auf diesem Gerät gespeichert; drückt nichts."],
+    "Drag the seam between the two halves to make one wider. Saved on this device.": ["Arrastra la unión entre las dos mitades para ensanchar una. Se guarda en este dispositivo.", "Faites glisser la jonction entre les deux moitiés pour en élargir une. Enregistré sur cet appareil.", "Ziehe die Naht zwischen den beiden Hälften, um eine breiter zu machen. Auf diesem Gerät gespeichert."],
     "Edit layout: drag the seam": ["Editar diseño: arrastra la unión", "Disposition : faites glisser la jonction", "Layout: Naht ziehen"],
     "Drag to resize the halves": ["Arrastra para cambiar el tamaño de las mitades", "Faites glisser pour redimensionner les moitiés", "Ziehen, um die Hälften anzupassen"],
     "Drag the seam, then Lock": ["Arrastra la unión y luego Bloquear", "Faites glisser la jonction, puis Verrouiller", "Naht ziehen, dann Sperren"],
@@ -570,7 +573,7 @@
   const originals = new WeakMap();
   const ATTRS = ["aria-label", "placeholder", "title"];
   function apply(root = document.body) {
-    const skip = (el) => el.closest && el.closest("#stage, #grid, #tabs, #cards, #layoutPick, #langPick, #pcLinkBtns, #voiceList, #toast, #title, #statusText, .js-status, .js-intro-maker, script, style");
+    const skip = (el) => el.closest && el.closest("#stage, #grid, #tabs, #cards, #layoutPick, #langPick, #pcLinkBtns, #voiceList, #gameNote, #toast, #title, #statusText, .js-status, .js-intro-maker, script, style");
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       if (skip(node.parentElement)) continue;
